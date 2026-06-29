@@ -1,0 +1,87 @@
+{
+  "task": "Task20b watch audit",
+  "scope": "minimal watch-item audit; read-only summary; not a controller",
+  "missing_input": true,
+  "source_inputs": {
+    "results": [],
+    "supporting_docs": [
+      "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
+      "docs/task20b_watch_audit_design.md"
+    ]
+  },
+  "watch_items": {
+    "coactivation_dampen_zone": {
+      "observed": true,
+      "observed_in": [
+        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
+        "docs/task20b_watch_audit_design.md"
+      ],
+      "cases": [],
+      "cycles": [],
+      "notes": [
+        "| Task12 | `DEPT2_FullSpecIntegratedClosedLoopRunner_Task12_CoactivationGate_RC1.zip` | coactivation_gate_module 統合。 |",
+        "coactivation_gate_module",
+        "| 11 | `coactivation_gate_module` | 圧・探索・作用候補・shadow・risk signalの同時発火を判定。 |",
+        "### Task12: coactivation_gate_module 統合",
+        "coactivation_gate_module"
+      ]
+    },
+    "residual_noise_high": {
+      "observed": true,
+      "observed_in": [
+        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
+        "docs/task20b_watch_audit_design.md"
+      ],
+      "cases": [],
+      "cycles": [],
+      "notes": [
+        "S01 high noise / residual growth",
+        "residual_noise_high  # shockケースで追加",
+        "residual_noise_high",
+        "### `residual_noise_high`",
+        "- Which stress cases raised high residual or high noise visibility?"
+      ]
+    },
+    "shock_recovery_window": {
+      "observed": true,
+      "observed_in": [
+        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
+        "docs/task20b_watch_audit_design.md"
+      ],
+      "cases": [],
+      "cycles": [],
+      "notes": [
+        "S05 shock recovery window",
+        "shock recovery window",
+        "- Did high residual/noise combine with shock recovery in a way that requires a distinct warning category?",
+        "### Shock Recovery Window",
+        "- Task17 shock recovery scenario outputs."
+      ]
+    },
+    "noise_ledger_exploration_gate_relationship": {
+      "observed": true,
+      "observed_in": [
+        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
+        "docs/task20b_watch_audit_design.md"
+      ],
+      "cases": [],
+      "cycles": [],
+      "notes": [
+        "O_t局所観測 + residual/noise ledger",
+        "| Task4 | `DEPT2_FullSpecIntegratedClosedLoopRunner_Task4_OtResidualNoiseLedger_RC1.zip` | O_t局所観測 + residual/noise ledger 強化。 |",
+        "| 9 | `action_surface_planning_module` | O_t_action_view / graph_objects / pressure intents / shadow / exploration projectionから作用候補を作る。 |",
+        "residual/noise ledger最小実装",
+        "### Task4: O_t observation module + residual noise ledger 強化"
+      ]
+    }
+  },
+  "boundary_check": {
+    "canonical_write_enabled": false,
+    "gk_writeback_enabled": false,
+    "world_write_by_shadow_enabled": false,
+    "parameter_update_implemented": false,
+    "commit_gate_implemented": false,
+    "action_module_reads_dept_internals": false,
+    "watch_audit_is_controller": false
+  }
+}
