@@ -9,6 +9,7 @@ signals and writes a compact summary. It never expands the RC1 freeze archive.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 from typing import Any, Iterable
@@ -98,6 +99,8 @@ def _flatten_json(value: Any) -> Iterable[dict[str, Any]]:
 
 def _read_records(path: Path) -> list[dict[str, Any]]:
     text = path.read_text(encoding="utf-8", errors="replace")
+    if path.suffix.lower() == ".csv":
+        return [dict(row) for row in csv.DictReader(text.splitlines())]
     if path.suffix.lower() == ".json":
         try:
             data = json.loads(text)
@@ -132,10 +135,70 @@ def _matches_watch(watch_name: str, record_text: str) -> bool:
     return False
 
 
+def _add_evidence(
+    summary: dict[str, Any],
+    watch_name: str,
+    source: str,
+    case: str | None = None,
+    note: str | None = None,
+) -> None:
+    item = summary["watch_items"][watch_name]
+    item["observed"] = True
+    if source not in item["observed_in"]:
+        item["observed_in"].append(source)
+    if case and case not in item["cases"]:
+        item["cases"].append(case)
+    if note and note not in item["notes"] and len(item["notes"]) < 5:
+        item["notes"].append(note[:240])
+
+
+def _apply_summary_evidence(summary: dict[str, Any], result_files: list[Path], root: Path) -> None:
+    """Derive watch evidence from compact Task17/Task18 RC1 summary CSVs."""
+    for path in result_files:
+        source = _short_path(path, root)
+        name = path.name.lower()
+        records = _read_records(path)
+        if name == "fullspec_task17_stress_validation_summary_rc1.csv":
+            for record in records:
+                if str(record.get("pass_with_watch_count", "0")) != "0":
+                    _add_evidence(
+                        summary,
+                        "residual_noise_high",
+                        source,
+                        "Task17_StressScenarioValidation_RC1",
+                        "Task17 compact summary reports pass_with_watch_count and max_observed_noise_score.",
+                    )
+                    _add_evidence(
+                        summary,
+                        "coactivation_dampen_zone",
+                        source,
+                        "Task17_StressScenarioValidation_RC1",
+                        "Task17 compact summary reports pass_with_watch_count and max_observed_coactivation_risk.",
+                    )
+                    _add_evidence(
+                        summary,
+                        "shock_recovery_window",
+                        source,
+                        "Task17_StressScenarioValidation_RC1",
+                        "Task17 stress matrix summary is the compact evidence source for shock recovery watch review.",
+                    )
+        elif name == "fullspec_task18_ablation_summary_rc1.csv":
+            for record in records:
+                if str(record.get("pass_with_ablation_effect_count", "0")) != "0":
+                    _add_evidence(
+                        summary,
+                        "noise_ledger_exploration_gate_relationship",
+                        source,
+                        "Task18_AblationValidation_RC1",
+                        "Task18 compact summary reports pass_with_ablation_effect_count and ablation_effect_cases.",
+                    )
+
 def build_summary(input_root: Path) -> dict[str, Any]:
     input_root = input_root.resolve()
     result_files, support_files = _candidate_files(input_root)
-    files_to_scan = result_files + support_files
+    # Watch observations must come from extracted/committed result evidence, not
+    # from design notes. Supporting docs are listed for context only.
+    files_to_scan = result_files
 
     summary: dict[str, Any] = {
         "task": "Task20b watch audit",
@@ -143,6 +206,12 @@ def build_summary(input_root: Path) -> dict[str, Any]:
         "missing_input": not result_files,
         "source_inputs": {
             "results": [_short_path(path, input_root) for path in result_files],
+            "task17_stress": [
+                _short_path(path, input_root) for path in result_files if "task17_stress_matrix" in path.parts
+            ],
+            "task18_ablation": [
+                _short_path(path, input_root) for path in result_files if "task18_ablation_validation" in path.parts
+            ],
             "supporting_docs": [_short_path(path, input_root) for path in support_files],
         },
         "watch_items": {},
@@ -179,6 +248,7 @@ def build_summary(input_root: Path) -> dict[str, Any]:
                 if note and len(item["notes"]) < 5:
                     item["notes"].append(note[:240])
 
+    _apply_summary_evidence(summary, result_files, input_root)
     return summary
 
 

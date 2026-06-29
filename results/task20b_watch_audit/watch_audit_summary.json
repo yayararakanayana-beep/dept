@@ -1,9 +1,18 @@
 {
   "task": "Task20b watch audit",
   "scope": "minimal watch-item audit; read-only summary; not a controller",
-  "missing_input": true,
+  "missing_input": false,
   "source_inputs": {
-    "results": [],
+    "results": [
+      "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv",
+      "results/task18_ablation_validation/fullspec_task18_ablation_summary_RC1.csv"
+    ],
+    "task17_stress": [
+      "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv"
+    ],
+    "task18_ablation": [
+      "results/task18_ablation_validation/fullspec_task18_ablation_summary_RC1.csv"
+    ],
     "supporting_docs": [
       "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
       "docs/task20b_watch_audit_design.md"
@@ -13,65 +22,53 @@
     "coactivation_dampen_zone": {
       "observed": true,
       "observed_in": [
-        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
-        "docs/task20b_watch_audit_design.md"
+        "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv"
       ],
-      "cases": [],
+      "cases": [
+        "Task17_StressScenarioValidation_RC1"
+      ],
       "cycles": [],
       "notes": [
-        "| Task12 | `DEPT2_FullSpecIntegratedClosedLoopRunner_Task12_CoactivationGate_RC1.zip` | coactivation_gate_module 統合。 |",
-        "coactivation_gate_module",
-        "| 11 | `coactivation_gate_module` | 圧・探索・作用候補・shadow・risk signalの同時発火を判定。 |",
-        "### Task12: coactivation_gate_module 統合",
-        "coactivation_gate_module"
+        "Task17 compact summary reports pass_with_watch_count and max_observed_coactivation_risk."
       ]
     },
     "residual_noise_high": {
       "observed": true,
       "observed_in": [
-        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
-        "docs/task20b_watch_audit_design.md"
+        "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv"
       ],
-      "cases": [],
+      "cases": [
+        "Task17_StressScenarioValidation_RC1"
+      ],
       "cycles": [],
       "notes": [
-        "S01 high noise / residual growth",
-        "residual_noise_high  # shockケースで追加",
-        "residual_noise_high",
-        "### `residual_noise_high`",
-        "- Which stress cases raised high residual or high noise visibility?"
+        "Task17 compact summary reports pass_with_watch_count and max_observed_noise_score."
       ]
     },
     "shock_recovery_window": {
       "observed": true,
       "observed_in": [
-        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
-        "docs/task20b_watch_audit_design.md"
+        "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv"
       ],
-      "cases": [],
+      "cases": [
+        "Task17_StressScenarioValidation_RC1"
+      ],
       "cycles": [],
       "notes": [
-        "S05 shock recovery window",
-        "shock recovery window",
-        "- Did high residual/noise combine with shock recovery in a way that requires a distinct warning category?",
-        "### Shock Recovery Window",
-        "- Task17 shock recovery scenario outputs."
+        "Task17 stress matrix summary is the compact evidence source for shock recovery watch review."
       ]
     },
     "noise_ledger_exploration_gate_relationship": {
       "observed": true,
       "observed_in": [
-        "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md",
-        "docs/task20b_watch_audit_design.md"
+        "results/task18_ablation_validation/fullspec_task18_ablation_summary_RC1.csv"
       ],
-      "cases": [],
+      "cases": [
+        "Task18_AblationValidation_RC1"
+      ],
       "cycles": [],
       "notes": [
-        "O_t局所観測 + residual/noise ledger",
-        "| Task4 | `DEPT2_FullSpecIntegratedClosedLoopRunner_Task4_OtResidualNoiseLedger_RC1.zip` | O_t局所観測 + residual/noise ledger 強化。 |",
-        "| 9 | `action_surface_planning_module` | O_t_action_view / graph_objects / pressure intents / shadow / exploration projectionから作用候補を作る。 |",
-        "residual/noise ledger最小実装",
-        "### Task4: O_t observation module + residual noise ledger 強化"
+        "Task18 compact summary reports pass_with_ablation_effect_count and ablation_effect_cases."
       ]
     }
   },

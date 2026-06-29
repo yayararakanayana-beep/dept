@@ -33,6 +33,12 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Action modules must not directly access DEPT internals.
 - Action modules must be treated as one-way actuators / translators.
 - Watch audit work is an observation and analysis layer only; it must not become a controller, gate, actuator, or parameter update path.
+- Task20f no-write dry-run proposals are proposal-only summaries and must not become controllers.
+- No-write dry-run proposal generation is not a commit gate.
+- Proposal candidates must not write to canonical parameters, G/K, world state, or ActionModule internals.
+- Task20i guard readiness dry-run is not a commit gate.
+- `gate_ready: false` is a safe-side dry-run finding and does not imply runtime control.
+- Task20j evidence manifest is an extraction plan only and must not migrate RC1 runtime/body code.
 
 ## Documentation and Implementation Discipline
 

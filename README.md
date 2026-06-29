@@ -38,6 +38,12 @@ In the next phase, any verification or migration from the archive should happen 
 
 Run the minimal Task20b watch audit with `python validation/task20b_watch_audit.py`; it writes compact summaries under `results/task20b_watch_audit/` and reports `missing_input` instead of failing when Task17 / Task18 result files are not present.
 
+Task20d documents a watch-audit interpretation report in `docs/task20d_watch_audit_interpretation_report.md`, and Task20e documents proposal-only commit proposal candidate design in `docs/task20e_commit_proposal_candidate_design.md`. These documents prepare future review without implementing commit gates, rollback gates, parameter updates, or actuator connections.
+
+Run the Task20f no-write dry-run proposal summary with `python validation/task20f_no_write_dry_run_proposal.py`; it reads `results/task20b_watch_audit/watch_audit_summary.json`, writes proposal-only summaries under `results/task20f_no_write_dry_run/`, keeps `no_write` true, and leaves all boundary checks false.
+
+Task20g records proposal evidence sufficiency, Task20h drafts a pre-commit gate contract without implementing a gate, Task20i runs no-write guard readiness with `python validation/task20i_no_write_guard_readiness.py`, and Task20j records the next minimal evidence request manifest without extracting additional archive files.
+
 ## Purpose of Closed-Loop Verification
 
 Closed-loop verification is intended to check how a system behaves when outputs, evaluations, and adoption decisions feed back into later steps.
