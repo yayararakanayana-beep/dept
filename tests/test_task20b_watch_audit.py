@@ -61,6 +61,39 @@ def test_watch_items_are_summarized_from_dummy_results(tmp_path):
     assert summary["watch_items"]["noise_ledger_exploration_gate_relationship"]["observed"] is True
 
 
+def test_compact_task17_task18_csv_summaries_are_evidence(tmp_path):
+    task17_dir = tmp_path / "results" / "task17_stress_matrix"
+    task17_dir.mkdir(parents=True)
+    (task17_dir / "fullspec_task17_stress_validation_summary_RC1.csv").write_text(
+        "task,pass_with_watch_count,max_observed_noise_score,max_observed_coactivation_risk\n"
+        "Task17_StressScenarioValidation_RC1,7,0.77,0.56\n",
+        encoding="utf-8",
+    )
+    task18_dir = tmp_path / "results" / "task18_ablation_validation"
+    task18_dir.mkdir(parents=True)
+    (task18_dir / "fullspec_task18_ablation_summary_RC1.csv").write_text(
+        "task,pass_with_ablation_effect_count,ablation_effect_cases\n"
+        "Task18_AblationValidation_RC1,5,5\n",
+        encoding="utf-8",
+    )
+
+    summary = task20b_watch_audit.build_summary(tmp_path)
+
+    assert summary["missing_input"] is False
+    assert summary["source_inputs"]["task17_stress"] == [
+        "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv"
+    ]
+    assert summary["source_inputs"]["task18_ablation"] == [
+        "results/task18_ablation_validation/fullspec_task18_ablation_summary_RC1.csv"
+    ]
+    assert summary["watch_items"]["coactivation_dampen_zone"]["observed_in"] == [
+        "results/task17_stress_matrix/fullspec_task17_stress_validation_summary_RC1.csv"
+    ]
+    assert summary["watch_items"]["noise_ledger_exploration_gate_relationship"]["observed_in"] == [
+        "results/task18_ablation_validation/fullspec_task18_ablation_summary_RC1.csv"
+    ]
+
+
 def test_boundary_flags_remain_disabled(tmp_path):
     summary = task20b_watch_audit.build_summary(tmp_path)
     boundary = summary["boundary_check"]
