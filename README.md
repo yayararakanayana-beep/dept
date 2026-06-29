@@ -18,11 +18,10 @@ This repository is currently in a scaffold / minimal foundation stage.
 
 At this stage:
 
-- There is no implementation code yet.
-- There are no test files yet.
+- The repository contains small validation scripts and pytest coverage for documented audit tasks.
 - There is no runtime entrypoint yet.
 - There is no dependency file yet.
-- The current focus is to establish repository-level working rules and a human-readable project overview.
+- The current focus is to keep audit behavior explicit and no-write while documenting repository-level working rules.
 
 ## RC1 Freeze Archive
 
@@ -41,6 +40,8 @@ Run the minimal Task20b watch audit with `python validation/task20b_watch_audit.
 Task20d documents a watch-audit interpretation report in `docs/task20d_watch_audit_interpretation_report.md`, and Task20e documents proposal-only commit proposal candidate design in `docs/task20e_commit_proposal_candidate_design.md`. These documents prepare future review without implementing commit gates, rollback gates, parameter updates, or actuator connections.
 
 Run the Task20f no-write dry-run proposal summary with `python validation/task20f_no_write_dry_run_proposal.py`; it reads `results/task20b_watch_audit/watch_audit_summary.json`, writes proposal-only summaries under `results/task20f_no_write_dry_run/`, keeps `no_write` true, and leaves all boundary checks false.
+
+Run the Task20G pre-commit readiness audit with `python validation/task20g_pre_commit_readiness_audit.py`; it reads `results/task20f_no_write_dry_run/proposal_summary.json`, writes readiness summaries under `results/task20g_pre_commit_readiness/`, records that compact summaries are insufficient for commit-gate implementation, keeps every candidate `gate_ready` false, and lists the next minimum evidence required for review.
 
 ## Purpose of Closed-Loop Verification
 
