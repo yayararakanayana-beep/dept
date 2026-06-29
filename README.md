@@ -24,6 +24,20 @@ At this stage:
 - There is no dependency file yet.
 - The current focus is to establish repository-level working rules and a human-readable project overview.
 
+## RC1 Freeze Archive
+
+`DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip` is registered in this repository as a frozen RC1 archive for DEPT2 FullSpec Integrated Closed Loop Runner work.
+
+The zip is a reference artifact only. The expanded code from the archive has not been imported as the canonical working-tree implementation, and this scaffold should not treat extracted files as authoritative until they are reviewed and migrated deliberately.
+
+`DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Handoff.md`, when present, records the human-readable handoff notes for the archive and should be read before planning follow-up implementation work.
+
+In the next phase, any verification or migration from the archive should happen through small, reviewable PRs that select a limited scope, add or update tests where behavior changes, and avoid bulk archive extraction in the committed diff.
+
+`docs/task20b_watch_audit_design.md` documents the design-only Task20b watch audit for decomposing Task17 and Task18 watch items before any commit proposal or commit gate work.
+
+Run the minimal Task20b watch audit with `python validation/task20b_watch_audit.py`; it writes compact summaries under `results/task20b_watch_audit/` and reports `missing_input` instead of failing when Task17 / Task18 result files are not present.
+
 ## Purpose of Closed-Loop Verification
 
 Closed-loop verification is intended to check how a system behaves when outputs, evaluations, and adoption decisions feed back into later steps.
