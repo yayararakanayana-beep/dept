@@ -1,0 +1,123 @@
+{
+  "task": "Task20H minimal evidence extraction",
+  "scope": "minimal evidence extraction only; no runtime migration; no gate implementation",
+  "no_write": true,
+  "archive": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip",
+  "max_files": 10,
+  "extracted_count": 10,
+  "missing_input": false,
+  "input_error": null,
+  "missing_categories": [],
+  "boundary_check": {
+    "canonical_write_enabled": false,
+    "gk_writeback_enabled": false,
+    "world_write_by_shadow_enabled": false,
+    "parameter_update_implemented": false,
+    "commit_gate_implemented": false,
+    "rollback_gate_implemented": false,
+    "action_module_reads_dept_internals": false,
+    "evidence_extraction_is_controller": false
+  },
+  "evidence_items": [
+    {
+      "evidence_id": "T20H-E01",
+      "category": "coactivation_dampen_zone",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/fullspec_task17_watchlist_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/01_fullspec_task17_watchlist_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 1504,
+      "matched_reason": "coactivation, dampen",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E02",
+      "category": "residual_noise_high",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/docs/TASK4_OT_OBSERVATION_RESIDUAL_NOISE_LEDGER_RC1.md",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/02_TASK4_OT_OBSERVATION_RESIDUAL_NOISE_LEDGER_RC1.md",
+      "file_type": ".md",
+      "size_bytes": 3258,
+      "matched_reason": "residual noise, residual_noise, noise ledger, noise_ledger, residual",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E03",
+      "category": "shock_recovery_window",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/scenario_outputs/S05_shock_recovery_window/fullspec_task17_S05_shock_recovery_window_boundary_violation_report_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/03_fullspec_task17_S05_shock_recovery_window_boundary_violation_report_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 132,
+      "matched_reason": "recovery, shock",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E04",
+      "category": "noise_ledger_exploration_gate_relationship",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task18_ablation_validation/ablation_outputs/A05_no_coactivation_gate_modulation/fullspec_task18_A05_no_coactivation_gate_modulation_exploration_local_audit_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/04_fullspec_task18_A05_no_coactivation_gate_modulation_exploration_local_audit_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 50260,
+      "matched_reason": "ablation, noise ledger, noise_ledger, exploration, projection",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E05",
+      "category": "shock_recovery_window",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/scenario_outputs/S05_shock_recovery_window/fullspec_task17_S05_shock_recovery_window_boundary_guard_summary_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/05_fullspec_task17_S05_shock_recovery_window_boundary_guard_summary_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 347,
+      "matched_reason": "recovery, shock",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E06",
+      "category": "coactivation_dampen_zone",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/docs/TASK17_STRESS_SCENARIO_VALIDATION_RC1.md",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/06_TASK17_STRESS_SCENARIO_VALIDATION_RC1.md",
+      "file_type": ".md",
+      "size_bytes": 2582,
+      "matched_reason": "coactivation, dampen",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E07",
+      "category": "shock_recovery_window",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/scenario_outputs/S05_shock_recovery_window/fullspec_task17_S05_shock_recovery_window_residual_noise_ledger_audit_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/07_fullspec_task17_S05_shock_recovery_window_residual_noise_ledger_audit_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 4553,
+      "matched_reason": "recovery, shock",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E08",
+      "category": "coactivation_dampen_zone",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/fullspec_task17_stress_scenario_matrix_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/08_fullspec_task17_stress_scenario_matrix_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 5281,
+      "matched_reason": "coactivation, dampen",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E09",
+      "category": "shock_recovery_window",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/scenario_outputs/S05_shock_recovery_window/fullspec_task17_S05_shock_recovery_window_coactivation_gate_RC1.csv",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/09_fullspec_task17_S05_shock_recovery_window_coactivation_gate_RC1.csv",
+      "file_type": ".csv",
+      "size_bytes": 13091,
+      "matched_reason": "recovery, shock",
+      "claim_scope": "evidence only"
+    },
+    {
+      "evidence_id": "T20H-E10",
+      "category": "coactivation_dampen_zone",
+      "archive_path": "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/results/task17_stress_matrix/task17_stress_validation_summary_RC1.json",
+      "extracted_path": "results/task20h_minimal_evidence/extracted/10_task17_stress_validation_summary_RC1.json",
+      "file_type": ".json",
+      "size_bytes": 15844,
+      "matched_reason": "coactivation, dampen",
+      "claim_scope": "evidence only"
+    }
+  ]
+}
