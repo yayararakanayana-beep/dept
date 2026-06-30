@@ -110,6 +110,7 @@
     }
   ],
   "comparison": {},
+  "controlled_commit_fixture_preflight": [],
   "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
   "existing_runner_executed": false,
   "frozen_runner_modified": false,
@@ -129,6 +130,7 @@
   },
   "real_runner_effect_audit": {
     "controlled_boundary_regression_detected": null,
+    "immediate_improvement_required": false,
     "no_valid_metric_improved": true,
     "selected_metric_changed": false
   },
@@ -142,5 +144,5 @@
   "synthetic_metrics_used": false,
   "task": "Task22B Controlled Canonical ParameterBox Update Hook RC1",
   "task22b_status": "blocked",
-  "traceback": "Traceback (most recent call last):\n  File \"/workspace/dept/validation/task22b_controlled_canonical_parameter_update_hook_rc1.py\", line 342, in build_summary\n    runner_root, contracts, runner_mod = _import_runner(tmp)\n                                         ^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/dept/validation/task22b_controlled_canonical_parameter_update_hook_rc1.py\", line 67, in _import_runner\n    contracts = importlib.import_module(\"dept2_fullspec_runner_rc1.contracts\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/.pyenv/versions/3.12.13/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module\nModuleNotFoundError: No module named 'pandas'\n"
+  "traceback": "Traceback (most recent call last):\n  File \"/workspace/dept/validation/task22b_controlled_canonical_parameter_update_hook_rc1.py\", line 418, in build_summary\n    runner_root, contracts, runner_mod = _import_runner(tmp)\n                                         ^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/dept/validation/task22b_controlled_canonical_parameter_update_hook_rc1.py\", line 73, in _import_runner\n    contracts = importlib.import_module(\"dept2_fullspec_runner_rc1.contracts\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/.pyenv/versions/3.12.13/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module\nModuleNotFoundError: No module named 'pandas'\n"
 }

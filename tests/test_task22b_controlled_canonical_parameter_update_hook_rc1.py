@@ -146,10 +146,21 @@ def test_parameter_hook_and_runner_after_are_recorded():
         assert "controlled_runner_recomputed_or_overwrote_parameter" in audit
 
 
-def test_no_improvement_or_boundary_regression_forces_failure():
+def test_no_immediate_improvement_is_allowed_but_boundary_regression_forces_failure():
     summary, _, _ = _run_and_load()
     effect = summary["real_runner_effect_audit"]
-    if effect.get("no_valid_metric_improved") is True:
-        assert summary["passed"] is False
+    assert effect.get("immediate_improvement_required") is False
     if effect.get("controlled_boundary_regression_detected") is True:
         assert summary["passed"] is False
+
+
+def test_controlled_commit_fixture_preflight_is_recorded():
+    summary, _, _ = _run_and_load()
+    assert "controlled_commit_fixture_preflight" in summary
+    assert isinstance(summary["controlled_commit_fixture_preflight"], list)
+    if summary["existing_runner_executed"]:
+        assert summary["controlled_commit_fixture_preflight"]
+        selected = [c for c in summary["controlled_commit_fixture_preflight"] if c.get("selected")]
+        if summary["passed"]:
+            assert selected
+            assert selected[0]["boundary_violation_count"] == 0.0

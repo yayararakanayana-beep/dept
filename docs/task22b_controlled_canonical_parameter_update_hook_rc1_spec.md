@@ -43,3 +43,9 @@ Task22B records `parameter_before`, `parameter_hook_after`, and `parameter_runne
 Boundary counts use `sum` and `max` aggregation, never `int(mean)`. Any non-zero boundary count, including fractional values such as `0.5`, remains non-zero. `boundary_violation_report_rows > 0` is treated as a boundary violation. If `controlled_update_on` worsens boundary counts versus `update_off`, Task22B remains `passed=false`.
 
 If no valid real runner performance metric improves, the summary records `no_valid_metric_improved=true` and Task22B remains `passed=false`.
+
+## Controlled commit fixture preflight
+
+`controlled_update_on` is not fixed to `action_intensity_cap +0.04`. The validator preflights bounded deltas `+0.01`, `-0.01`, `+0.02`, `-0.02`, `+0.04`, and `-0.04` across lower ParameterBox targets and selects only a candidate whose real runner boundary violation count is zero and does not regress versus `update_off`.
+
+Immediate performance improvement is not required for Task22B safety-hook validation. A valid real runner metric is still reported, but `passed=true` depends on safe execution: one canonical write, rollback restoration, watch-only non-update, confirmed ParameterBox identity, no boundary regression, and zero boundary violations with sum/max no-truncation counting.

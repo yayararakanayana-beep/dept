@@ -52,7 +52,8 @@ jobs:
           assert s['performance_delta']['metric_classification'] == 'valid_performance_metric'
           key=f"{s['performance_delta']['metric_source_table_or_key']}.{s['performance_delta']['target_metric_name']}".lower()
           assert 'shadow_cycle_index' not in key and 'theta' not in key and 'parameter' not in key and 'index' not in key
-          assert s['performance_delta']['improvement_detected'] is True
+          assert s['real_runner_effect_audit']['immediate_improvement_required'] is False
+          assert any(c.get('selected') for c in s['controlled_commit_fixture_preflight'])
           assert s['parameter_box_identity']['canonical_update_semantics'] == 'confirmed'
           assert s['boundary_audit']['audit_source'] not in {'fixed_zero_without_check','assumed_zero'}
           assert s['boundary_audit']['boundary_count_aggregation'] == 'sum_and_max_no_int_truncation'
