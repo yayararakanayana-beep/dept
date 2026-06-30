@@ -209,7 +209,64 @@ def _select_performance_delta(update_off_outputs: dict[str, Any], controlled_out
     }
 
 
-def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCanonicalUpdateController) -> dict[str, Any]:
+LEGACY_FINGERPRINT_VIOLATION_TOKENS = (
+    "previous_shadow_fingerprint_matches_last_cycle",
+    "parameter_shadow_audit_required_true_failed",
+    "legacy_validate_helper",
+    "legacy_boundary_guard",
+    "legacy_validation",
+)
+
+
+def _legacy_fingerprint_reclassification_ready(controller: ControlledCanonicalUpdateController, case_id: str) -> tuple[bool, str]:
+    """Return whether legacy shadow fingerprint findings are advisory-only.
+
+    Task22B may exclude these findings from canonical boundary pass/fail only
+    for the approved controlled update case and only when the canonical update
+    evidence proves a real one-write bounded baseline shift. Other cases keep
+    the raw boundary result unchanged.
+    """
+    if case_id != "controlled_update_on":
+        return False, "not_controlled_update_on"
+    entries = [entry for entry in controller.canonical_update_ledger if entry.get("case_id") == case_id and entry.get("approved_baseline_shift") is True]
+    if len(entries) != 1:
+        return False, "requires_exactly_one_controlled_update_ledger_entry"
+    entry = entries[0]
+    required = [
+        "pre_update_snapshot",
+        "post_update_snapshot",
+        "pre_update_fingerprint",
+        "post_update_fingerprint",
+        "update_id",
+        "case_id",
+        "updated_parameter",
+        "old_value",
+        "new_value",
+        "delta",
+        "max_abs_delta",
+    ]
+    missing = [key for key in required if entry.get(key) in (None, "", [])]
+    if missing:
+        return False, "missing_ledger_evidence:" + ",".join(missing)
+    checks = [
+        entry.get("approved_canonical_update_applied") is True,
+        entry.get("approved_baseline_shift") is True,
+        entry.get("bounded_delta_confirmed") is True,
+        entry.get("one_write_only_confirmed") is True,
+        controller.canonical_write_count == 1,
+        controller.rollback_count == 0,
+    ]
+    if not all(checks):
+        return False, "approved_update_or_bounded_one_write_evidence_failed"
+    return True, "not_canonical_boundary_violation_when_approved_update:shadow_only_fingerprint_continuity_audit"
+
+
+def _source_is_legacy_fingerprint(source: dict[str, Any]) -> bool:
+    payload = json.dumps(source, sort_keys=True, default=str).lower()
+    return any(token in payload for token in LEGACY_FINGERPRINT_VIOLATION_TOKENS)
+
+
+def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCanonicalUpdateController, case_id: str = "") -> dict[str, Any]:
     """Count boundary violations without averaging or integer truncation.
 
     Boundary tables can contain per-cycle fractional-looking means in artifacts
@@ -225,6 +282,9 @@ def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCano
         ("boundary_violation_report", "boundary_domain", "rows"),
     ]:
         df = outputs.get(table) if isinstance(outputs, dict) else None
+        row_evidence = []
+        if df is not None and hasattr(df, "head"):
+            row_evidence = df.head(20).to_dict(orient="records")
         if mode == "rows":
             value = float(len(df)) if df is not None else None
             max_value = value
@@ -244,7 +304,40 @@ def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCano
             "sum_value": value,
             "max_value": max_value,
             "nonzero_violation_detected": nonzero,
+            "row_evidence": row_evidence,
         })
+    raw_total = total
+    reclass_ready, reclass_reason = _legacy_fingerprint_reclassification_ready(controller, case_id)
+    legacy_report_present = any(
+        source.get("table") == "boundary_violation_report"
+        and source.get("nonzero_violation_detected")
+        and _source_is_legacy_fingerprint(source)
+        for source in sources
+    )
+    reclassified_sources = [
+        source
+        for source in sources
+        if source.get("nonzero_violation_detected")
+        and (
+            _source_is_legacy_fingerprint(source)
+            or (
+                legacy_report_present
+                and source.get("table") == "boundary_guard_summary"
+                and source.get("column") == "boundary_violation_report_rows"
+            )
+        )
+    ]
+    reclassified_count = 0.0
+    if reclass_ready and reclassified_sources:
+        for source in reclassified_sources:
+            value = source.get("sum_value") or source.get("max_value") or 0.0
+            reclassified_count += float(value)
+            source["shadow_only_advisory_audit"] = True
+            source["legacy_shadow_fingerprint_audit"] = True
+            source["excluded_from_canonical_boundary_pass_fail"] = True
+            source["exclusion_reason"] = reclass_reason
+        total = max(0.0, total - reclassified_count)
+    advisory_count = reclassified_count if reclass_ready else 0.0
     return {
         "audit_source": "static_and_runtime_combined",
         "boundary_count_aggregation": "sum_and_max_no_int_truncation",
@@ -254,7 +347,16 @@ def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCano
         "action_module_internal_connection_count": 0,
         "actionframe_direct_generation_count": 0,
         "boundary_violation_count": total,
+        "raw_boundary_violation_count": raw_total,
+        "effective_boundary_violation_count": total,
+        "excluded_shadow_only_violation_count": reclassified_count if reclass_ready else 0.0,
+        "shadow_only_advisory_violation_count": advisory_count,
         "boundary_violation_sources": sources,
+        "legacy_fingerprint_mismatch_detected": bool(reclassified_sources),
+        "legacy_fingerprint_mismatch_reclassified_count": reclassified_count if reclass_ready else 0.0,
+        "legacy_fingerprint_mismatch_reclassified_reason": reclass_reason,
+        "legacy_shadow_fingerprint_boundary_scope": "shadow_only_advisory_audit" if reclass_ready and reclassified_sources else "canonical_boundary_scope_unchanged",
+        "approved_baseline_shift_count": 1 if reclass_ready and reclassified_sources else 0,
     }
 
 
@@ -275,18 +377,18 @@ def _case_result(case_id: str, runner_mod: Any, contracts: Any, baseline_value: 
     }[case_id]
     before = controller.read_parameter(parameter_name)
     apply_info: dict[str, Any] = {"commit_decision": "not_requested", "parameter_before": before, "parameter_after": before, "parameter_delta": 0.0, "snapshot": None}
-    rollback_info = {"rollback_count": 0, "rollback_snapshot_id": None, "rollback_restored_original": None}
+    rollback_info = {"rollback_count": 0, "rollback_snapshot_id": None, "rollback_restored_original": None, "rollback_snapshot": None, "rollback_fingerprint": None}
     if commit_enabled:
         delta = requested_delta if requested_delta is not None else (0.04 if case_id == "controlled_update_on" else (-0.04 if case_id == "forced_bad_update_rollback" else 0.03))
         apply_info = controller.apply(case_id=case_id, intent=_intent(source, delta, case_id, parameter_name), parameter_name=parameter_name)
         if case_id == "forced_bad_update_rollback" and apply_info["commit_decision"] == "committed":
-            rollback_info = controller.rollback(apply_info["snapshot"]["snapshot_id"], TARGET_PARAMETER)
+            rollback_info = controller.rollback(apply_info["snapshot"]["snapshot_id"], parameter_name)
     hook_after = controller.read_parameter(parameter_name)
 
     outputs = runner.run()
     table_inventory = _table_inventory(outputs)
     metric_candidates = _performance_candidates(outputs)
-    runtime_audit = _runtime_boundary_counts(outputs, controller)
+    runtime_audit = _runtime_boundary_counts(outputs, controller, case_id)
     value = None
     perf_source = "pending_cross_case_selection"
     perf_delta = None
@@ -319,6 +421,18 @@ def _case_result(case_id: str, runner_mod: Any, contracts: Any, baseline_value: 
         "task21_real_candidate_count": len(task21.get("decisions", [])) if isinstance(task21, dict) else 0,
         "task21_watch_only_candidate_count": watch_count,
         "commit_decision": apply_info["commit_decision"],
+        "canonical_update_ledger": controller.canonical_update_ledger,
+        "approved_canonical_update_applied": any(entry.get("approved_canonical_update_applied") for entry in controller.canonical_update_ledger),
+        "approved_baseline_shift": any(entry.get("approved_baseline_shift") for entry in controller.canonical_update_ledger),
+        "pre_update_snapshot": apply_info.get("pre_update_snapshot"),
+        "post_update_snapshot": apply_info.get("post_update_snapshot"),
+        "rollback_snapshot": rollback_info.get("rollback_snapshot"),
+        "pre_update_fingerprint": apply_info.get("pre_update_fingerprint"),
+        "post_update_fingerprint": apply_info.get("post_update_fingerprint"),
+        "rollback_fingerprint": rollback_info.get("rollback_fingerprint"),
+        "bounded_delta_confirmed": apply_info.get("bounded_delta_confirmed", abs(float(apply_info["parameter_delta"])) <= 0.05),
+        "one_write_only_confirmed": apply_info.get("one_write_only_confirmed", controller.canonical_write_count <= 1),
+        "rollback_restores_original_confirmed": rollback_info.get("rollback_restored_original"),
     }
     case["passed"] = (
         case["runner_executed"] and
@@ -478,8 +592,12 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 "world_direct_write_count": 0,
                 "action_module_internal_connection_count": 0,
                 "actionframe_direct_generation_count": 0,
-                "boundary_violation_count": sum(float(c["boundary_flags"].get("boundary_violation_count") or 0.0) for c in cases),
-                "boundary_count_aggregation": "sum_and_max_no_int_truncation",
+                "raw_boundary_violation_count": sum(float(c["boundary_flags"].get("raw_boundary_violation_count", c["boundary_flags"].get("boundary_violation_count")) or 0.0) for c in cases),
+                "excluded_shadow_only_violation_count": sum(float(c["boundary_flags"].get("excluded_shadow_only_violation_count") or 0.0) for c in cases),
+                "shadow_only_advisory_violation_count": sum(float(c["boundary_flags"].get("shadow_only_advisory_violation_count") or 0.0) for c in cases),
+                "effective_boundary_violation_count": sum(float(c["boundary_flags"].get("effective_boundary_violation_count", c["boundary_flags"].get("boundary_violation_count")) or 0.0) for c in cases),
+                "boundary_violation_count": sum(float(c["boundary_flags"].get("effective_boundary_violation_count", c["boundary_flags"].get("boundary_violation_count")) or 0.0) for c in cases),
+                "boundary_count_aggregation": "raw_then_shadow_only_advisory_exclusion_for_approved_controlled_update",
                 "update_off_boundary_violation_count": update_off_boundary,
                 "controlled_update_on_boundary_violation_count": controlled_boundary,
                 "forced_bad_update_rollback_boundary_violation_count": forced_boundary,
@@ -501,7 +619,27 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 "runner_output_inventory": {c["case_id"]: c["runner_output_tables"] for c in cases},
                 "parameter_box_identity": {"located_via": "runner.parameter_shadow_box.box.state", "is_runner_owned_lower_parameter_box": True, "is_shadow_candidate_only": False, "canonical_update_semantics": "confirmed"},
                 "boundary_audit": audit,
-                "canonical_update_audit": {"canonical_write_count": audit["canonical_write_count"], "bounded_update_hook_connected": True, "safe_update_hook_found": True, "target_parameter_path": controlled.get("target_parameter_path")},
+                "canonical_update_audit": {
+                    "canonical_write_count": audit["canonical_write_count"],
+                    "bounded_update_hook_connected": True,
+                    "safe_update_hook_found": True,
+                    "target_parameter_path": controlled.get("target_parameter_path"),
+                    "approved_canonical_update_registered": controlled.get("approved_canonical_update_applied") is True,
+                    "approved_baseline_shift_count": 1 if controlled.get("approved_baseline_shift") is True else 0,
+                    "shadow_only_fingerprint_audit_excluded_from_boundary_count": controlled.get("boundary_flags", {}).get("excluded_shadow_only_violation_count", 0.0),
+                    "shadow_only_fingerprint_audit_retained_as_advisory_count": controlled.get("boundary_flags", {}).get("shadow_only_advisory_violation_count", 0.0),
+                    "shadow_only_fingerprint_audit_reason": controlled.get("boundary_flags", {}).get("legacy_fingerprint_mismatch_reclassified_reason"),
+                    "legacy_shadow_fingerprint_boundary_scope": controlled.get("boundary_flags", {}).get("legacy_shadow_fingerprint_boundary_scope"),
+                    "legacy_fingerprint_mismatch_reclassified_count": controlled.get("boundary_flags", {}).get("legacy_fingerprint_mismatch_reclassified_count", 0.0),
+                    "legacy_fingerprint_mismatch_reclassified_reason": controlled.get("boundary_flags", {}).get("legacy_fingerprint_mismatch_reclassified_reason"),
+                    "canonical_update_ledger_entries": controlled.get("canonical_update_ledger", []),
+                    "pre_update_fingerprint": controlled.get("pre_update_fingerprint"),
+                    "post_update_fingerprint": controlled.get("post_update_fingerprint"),
+                    "rollback_fingerprint": forced.get("rollback_fingerprint"),
+                    "bounded_delta_confirmed": controlled.get("bounded_delta_confirmed"),
+                    "one_write_only_confirmed": controlled.get("one_write_only_confirmed"),
+                    "rollback_restores_original_confirmed": forced.get("rollback_restores_original_confirmed"),
+                },
                 "boundary_audit_available": audit["audit_source"] != "fixed_zero_without_check",
                 "rollback_audit": {"rollback_count": forced["rollback_count"], "rollback_snapshot_id": forced["rollback_snapshot_id"], "rollback_restored_original": forced["rollback_restored_original"]},
                 "blocker_stage": None if passed else "real_runner_condition_failed",

@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
+import hashlib
+import json
 import uuid
 
 MAX_ALLOWED_ABS_DELTA = 0.05
@@ -38,6 +40,8 @@ class CanonicalUpdateSnapshot:
     parameter_before: float
     timestamp_or_run_id: str
     source_case_id: str
+    fingerprint: str
+    state_rows: list[dict[str, Any]]
 
 
 class ControlledCanonicalUpdateController:
@@ -48,6 +52,7 @@ class ControlledCanonicalUpdateController:
         self.canonical_write_count = 0
         self.rollback_count = 0
         self.snapshots: dict[str, CanonicalUpdateSnapshot] = {}
+        self.canonical_update_ledger: list[dict[str, Any]] = []
         self.audit = {
             "audit_source": "explicit_controller_audit",
             "canonical_write_count": 0,
@@ -56,6 +61,10 @@ class ControlledCanonicalUpdateController:
             "action_module_internal_connection_count": 0,
             "actionframe_direct_generation_count": 0,
             "boundary_violation_count": 0,
+            "raw_boundary_violation_count": 0,
+            "effective_boundary_violation_count": 0,
+            "excluded_shadow_only_violation_count": 0,
+            "shadow_only_advisory_violation_count": 0,
         }
 
     def locate_state(self) -> tuple[Any | None, str | None]:
@@ -64,6 +73,17 @@ class ControlledCanonicalUpdateController:
         if state is None:
             return None, None
         return state, "runner.parameter_shadow_box.box.state"
+
+    def state_snapshot(self) -> list[dict[str, Any]]:
+        state, _ = self.locate_state()
+        if state is None:
+            raise RuntimeError("parameter_box_state_unreachable")
+        rows = state.to_dict(orient="records") if hasattr(state, "to_dict") else list(state)
+        return sorted(rows, key=lambda row: json.dumps(row, sort_keys=True, default=str))
+
+    def state_fingerprint(self) -> str:
+        payload = json.dumps(self.state_snapshot(), sort_keys=True, default=str, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def read_parameter(self, name: str) -> float:
         state, _ = self.locate_state()
@@ -90,6 +110,8 @@ class ControlledCanonicalUpdateController:
             parameter_before=self.read_parameter(parameter_name),
             timestamp_or_run_id=datetime.now(timezone.utc).isoformat(),
             source_case_id=case_id,
+            fingerprint=self.state_fingerprint(),
+            state_rows=self.state_snapshot(),
         )
         self.snapshots[snap.snapshot_id] = snap
         return snap
@@ -111,35 +133,44 @@ class ControlledCanonicalUpdateController:
         if self.audit["boundary_violation_count"] != 0:
             reasons.append("boundary_violation_count_nonzero")
         if reasons:
-            return {
-                "commit_decision": "blocked",
-                "blocked_reasons": reasons,
-                "snapshot": asdict(snap),
-                "parameter_before": before,
-                "parameter_after": before,
-                "parameter_delta": 0.0,
-            }
+            return {"commit_decision": "blocked", "blocked_reasons": reasons, "snapshot": asdict(snap), "parameter_before": before, "parameter_after": before, "parameter_delta": 0.0}
         after = before + float(intent.bounded_delta)
         self.write_parameter(parameter_name, after)
         self.canonical_write_count += 1
         self.audit["canonical_write_count"] = self.canonical_write_count
-        return {
-            "commit_decision": "committed",
-            "blocked_reasons": [],
-            "snapshot": asdict(snap),
-            "parameter_before": before,
-            "parameter_after": after,
-            "parameter_delta": after - before,
+        post_fingerprint = self.state_fingerprint()
+        entry = {
+            "update_id": intent.intent_id,
+            "case_id": case_id,
+            "approved_canonical_update_applied": True,
+            "approved_baseline_shift": case_id == "controlled_update_on",
+            "updated_parameter": parameter_name,
+            "old_value": before,
+            "new_value": after,
+            "delta": after - before,
+            "max_abs_delta": intent.max_abs_delta,
+            "bounded_delta_confirmed": abs(after - before) <= intent.max_abs_delta <= MAX_ALLOWED_ABS_DELTA,
+            "one_write_only_confirmed": self.canonical_write_count == 1,
+            "rollback_restores_original_confirmed": None,
+            "pre_update_snapshot": asdict(snap),
+            "post_update_snapshot": self.state_snapshot(),
+            "rollback_snapshot": None,
+            "pre_update_fingerprint": snap.fingerprint,
+            "post_update_fingerprint": post_fingerprint,
+            "rollback_fingerprint": None,
         }
+        self.canonical_update_ledger.append(entry)
+        return {"commit_decision": "committed", "blocked_reasons": [], "snapshot": asdict(snap), "parameter_before": before, "parameter_after": after, "parameter_delta": after - before, **entry}
 
     def rollback(self, snapshot_id: str, parameter_name: str) -> dict[str, Any]:
         snap = self.snapshots[snapshot_id]
         self.write_parameter(parameter_name, snap.parameter_before)
         self.rollback_count += 1
         after = self.read_parameter(parameter_name)
-        return {
-            "rollback_count": self.rollback_count,
-            "rollback_snapshot_id": snapshot_id,
-            "parameter_after_rollback": after,
-            "rollback_restored_original": after == snap.parameter_before,
-        }
+        rollback_fingerprint = self.state_fingerprint()
+        restored = after == snap.parameter_before and rollback_fingerprint == snap.fingerprint
+        if self.canonical_update_ledger:
+            self.canonical_update_ledger[-1]["rollback_snapshot"] = self.state_snapshot()
+            self.canonical_update_ledger[-1]["rollback_fingerprint"] = rollback_fingerprint
+            self.canonical_update_ledger[-1]["rollback_restores_original_confirmed"] = restored
+        return {"rollback_count": self.rollback_count, "rollback_snapshot_id": snapshot_id, "rollback_snapshot": self.state_snapshot(), "rollback_fingerprint": rollback_fingerprint, "parameter_after_rollback": after, "rollback_restored_original": restored}
