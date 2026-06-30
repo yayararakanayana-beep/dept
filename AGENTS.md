@@ -55,3 +55,11 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task20J freezes the no-write parameter-adoption precheck contract.
 - It classifies lower-parameter update candidates into blocked / watch_only / shadow_trial_candidate / commit_candidate without allowing canonical ParameterBox writes.
 - Task21 may read the contract but must remain no-write unless a later explicit task changes that boundary.
+## Task22 Boundary
+
+- Task22 may run `python validation/task22_controlled_canonical_parameter_update_rc1.py` to attempt existing-runner execution before comparing `update_off`, `controlled_update_on`, `forced_bad_update_rollback`, and `real_watch_only_candidates`.
+- Task22 declares `pandas` in `requirements.txt` for frozen RC1 runner execution, but must still report `passed: false` when the existing runner cannot execute; synthetic metrics or fixed-zero boundary flags must not produce a passing validation.
+- Task22's intended canonical update scope is limited to bounded in-run lower ParameterBox state only.
+- G/K writeback, world direct write, ActionModule internal DEPT connection, and ActionFrame direct generation boundaries remain closed.
+- Task22 is not a Parameter Shadow Box redesign or Task21 classifier rebuild; Task21 real `watch_only` candidates must not be canonically updated.
+

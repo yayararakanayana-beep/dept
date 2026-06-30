@@ -1,0 +1,21 @@
+{
+  "checks": {
+    "boundary_audit_from_execution_path": false,
+    "controlled_update_on_runner_executed": false,
+    "existing_runner_executed": false,
+    "existing_runner_execution_blocker_recorded": true,
+    "existing_runner_found": true,
+    "forced_bad_update_rollback_runner_executed": false,
+    "missing_dependency_recorded_when_present": true,
+    "no_parallel_runner_created": true,
+    "passed_requires_existing_runner_execution": true,
+    "performance_delta_from_real_runner_outputs": false,
+    "real_watch_only_candidates_runner_executed": false,
+    "synthetic_improvement_cannot_pass_target_metric": true,
+    "synthetic_metrics_not_primary_validation": true,
+    "update_off_runner_executed": false,
+    "validation_failed_instead_of_synthetic_pass": true
+  },
+  "passed": false,
+  "task": "Task22 Runner Execution Blocker Report"
+}
