@@ -102,3 +102,4 @@ def test_pandas_dependency_is_declared_for_runner_execution():
     assert manifest["path"] == "requirements.txt"
     assert manifest["pandas_declared"] is True
     assert (ROOT / "requirements.txt").read_text().strip().startswith("pandas")
+    assert summary["dependency_runtime_status"]["pandas_importable"] in {True, False}

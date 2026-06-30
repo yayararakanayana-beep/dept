@@ -33,6 +33,14 @@ CASE_IDS = ["update_off", "controlled_update_on", "forced_bad_update_rollback", 
 
 
 
+
+def _dependency_runtime_status() -> dict[str, Any]:
+    try:
+        pandas = importlib.import_module("pandas")
+    except ModuleNotFoundError as exc:
+        return {"pandas_importable": False, "import_error": f"{type(exc).__name__}: {exc}"}
+    return {"pandas_importable": True, "version": getattr(pandas, "__version__", "unknown")}
+
 def _dependency_manifest() -> dict[str, Any]:
     manifest = ROOT / "requirements.txt"
     if not manifest.exists():
@@ -164,6 +172,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
     _read_json(TASK20J_CONTRACT)
     exec_result = _attempt_existing_runner_execution()
     dependency_manifest = _dependency_manifest()
+    dependency_runtime_status = _dependency_runtime_status()
 
     if not exec_result["existing_runner_executed"]:
         cases = [_blocked_case(case_id, 2201 + idx, exec_result) for idx, case_id in enumerate(CASE_IDS)]
@@ -197,6 +206,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
             "runner_traceback": exec_result["traceback"],
             "no_parallel_runner_created": True,
             "dependency_manifest": dependency_manifest,
+            "dependency_runtime_status": dependency_runtime_status,
             "synthetic_metrics_used_for_primary_validation": False,
             "task21_input_read": True,
             "task21_candidate_count": len(task21_decisions.get("decisions", [])) if isinstance(task21_decisions, dict) else None,
@@ -237,7 +247,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
             "pass_conditions": checks,
             "passed": False,
             "next_required_fix": [
-                "Install the declared runtime dependency from requirements.txt so the frozen RC1 runner can import pandas in the validation environment.",
+                "Resolve the package-index/network blocker so `python -m pip install -r requirements.txt` can install pandas into the active validation environment.",
                 "Then connect the bounded canonical update hook to the runner-owned lower ParameterBox state during closed-loop execution.",
                 "Compute performance_delta and boundary counts only from real runner outputs/audits.",
             ],
@@ -267,6 +277,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
         "missing_dependency": None,
         "no_parallel_runner_created": True,
         "dependency_manifest": dependency_manifest,
+        "dependency_runtime_status": dependency_runtime_status,
         "synthetic_metrics_used_for_primary_validation": False,
         "cases": [],
         "comparison": {"cases_compared": CASE_IDS, "comparison_status": "not_computed_update_hook_missing"},

@@ -159,12 +159,16 @@
     "pandas_declared": true,
     "path": "requirements.txt"
   },
+  "dependency_runtime_status": {
+    "import_error": "ModuleNotFoundError: No module named 'pandas'",
+    "pandas_importable": false
+  },
   "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
   "existing_runner_executed": false,
   "existing_runner_found": true,
   "missing_dependency": "pandas",
   "next_required_fix": [
-    "Install the declared runtime dependency from requirements.txt so the frozen RC1 runner can import pandas in the validation environment.",
+    "Resolve the package-index/network blocker so `python -m pip install -r requirements.txt` can install pandas into the active validation environment.",
     "Then connect the bounded canonical update hook to the runner-owned lower ParameterBox state during closed-loop execution.",
     "Compute performance_delta and boundary counts only from real runner outputs/audits."
   ],
@@ -205,7 +209,7 @@
     "rollback_snapshot_id": null,
     "status": "not_executed_runner_blocked"
   },
-  "runner_traceback": "Traceback (most recent call last):\n  File \"/workspace/dept/validation/task22_controlled_canonical_parameter_update_rc1.py\", line 93, in _attempt_existing_runner_execution\n    contracts = importlib.import_module(\"dept2_fullspec_runner_rc1.contracts\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/.pyenv/versions/3.12.13/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\nModuleNotFoundError: No module named 'pandas'\n",
+  "runner_traceback": "Traceback (most recent call last):\n  File \"/workspace/dept/validation/task22_controlled_canonical_parameter_update_rc1.py\", line 101, in _attempt_existing_runner_execution\n    contracts = importlib.import_module(\"dept2_fullspec_runner_rc1.contracts\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/.pyenv/versions/3.12.13/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\nModuleNotFoundError: No module named 'pandas'\n",
   "scope": "attempt existing closed-loop runner execution before any bounded canonical ParameterBox update validation",
   "synthetic_metrics_used_for_primary_validation": false,
   "task": "Task22 Runner Execution Blocker Report",

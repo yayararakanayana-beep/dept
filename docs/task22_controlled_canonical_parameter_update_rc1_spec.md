@@ -25,7 +25,7 @@ Task22 must not create a new parallel runner, redesign the Parameter Shadow Box,
 
 ## Dependency Follow-up
 
-The frozen RC1 runner import path requires `pandas`; Task22 now declares `pandas>=2.0` in `requirements.txt` as the minimal dependency needed to attempt runner execution. If the active environment has not installed that dependency, the validation remains `passed: false` and records `missing_dependency: pandas` rather than substituting synthetic metrics.
+The frozen RC1 runner import path requires `pandas`; Task22 now declares `pandas>=2.0` in `requirements.txt` as the minimal dependency needed to attempt runner execution. If the active environment has not installed that dependency, the validation remains `passed: false`, records `missing_dependency: pandas`, and records runtime dependency status rather than substituting synthetic metrics. In this environment, `python -m pip install -r requirements.txt` was attempted but the package index/tunnel returned no installable pandas distribution.
 
 ## Current Blocker Behavior
 
