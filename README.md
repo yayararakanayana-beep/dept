@@ -73,3 +73,7 @@ This structure is only a planned direction. It should not be treated as a finali
 - Add or update tests when implementation behavior changes.
 - Use `pytest` for Python tests when tests are introduced.
 Run the Task20J gate contract freeze with `python validation/task20j_gate_contract_freeze.py`; it freezes the no-write parameter-adoption precheck contract and classifies lower-parameter update candidates into `blocked` / `watch_only` / `shadow_trial_candidate` / `commit_candidate` without allowing canonical ParameterBox writes.
+## Task22 Controlled Canonical Parameter Update RC1
+
+Run Task22 with `python validation/task22_controlled_canonical_parameter_update_rc1.py`. Task22 reuses the existing RC1 closed-loop runner from the frozen archive and compares `update_off`, `controlled_update_on`, `forced_bad_update_rollback`, and `real_watch_only_candidates`. The only opened boundary is a bounded in-run canonical update to lower ParameterBox state; G/K writeback, world direct writes, ActionModule internal DEPT access, and ActionFrame direct generation remain closed. Task22 is not a Parameter Shadow Box redesign or revalidation, and Task21 real `watch_only` candidates are not canonically updated.
+

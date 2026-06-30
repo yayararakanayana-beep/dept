@@ -1,0 +1,352 @@
+{
+  "boundary_audit": {
+    "action_module_internal_connection_count": 0,
+    "actionframe_direct_generation_count": 0,
+    "boundary_violation_count": 0,
+    "gk_writeback_count": 0,
+    "world_direct_write_count": 0
+  },
+  "canonical_update_audit": {
+    "controlled_write_count": 1,
+    "max_writes_per_run": 1,
+    "real_watch_only_write_count": 0,
+    "source_config_permanently_modified": false,
+    "target_scope": "lower ParameterBox only"
+  },
+  "cases": [
+    {
+      "boundary_flags": {
+        "action_module_internal_connection_count": 0,
+        "actionframe_direct_generation_count": 0,
+        "boundary_violation_count": 0,
+        "gk_writeback_count": 0,
+        "world_direct_write_count": 0
+      },
+      "canonical_write_count": 0,
+      "case_id": "update_off",
+      "commit_enabled": false,
+      "description": "canonical ParameterBox update disabled",
+      "forced_bad_update": false,
+      "max_step_delta": 0.05,
+      "metrics_after": {
+        "action_quality": 0.7183,
+        "boundary_margin": 0.9848,
+        "coactivation_risk": 0.152,
+        "noise": 0.121,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.665,
+        "residual": 0.206,
+        "stability_after_update": 1.0
+      },
+      "metrics_before": {
+        "action_quality": 0.7183,
+        "boundary_margin": 0.9848,
+        "coactivation_risk": 0.152,
+        "noise": 0.121,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.665,
+        "residual": 0.206,
+        "stability_after_update": 1.0
+      },
+      "parameter_after": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_after_update": null,
+      "parameter_before": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_delta": 0.0,
+      "passed": true,
+      "rollback_count": 0,
+      "rollback_reason": null,
+      "rollback_restored_original": null,
+      "rollback_snapshot_id": null,
+      "seed": 2201,
+      "source_candidate": null
+    },
+    {
+      "boundary_flags": {
+        "action_module_internal_connection_count": 0,
+        "actionframe_direct_generation_count": 0,
+        "boundary_violation_count": 0,
+        "gk_writeback_count": 0,
+        "world_direct_write_count": 0
+      },
+      "canonical_write_count": 1,
+      "case_id": "controlled_update_on",
+      "commit_enabled": true,
+      "description": "bounded canonical lower ParameterBox update from controlled commit fixture",
+      "forced_bad_update": false,
+      "max_step_delta": 0.05,
+      "metrics_after": {
+        "action_quality": 0.734,
+        "boundary_margin": 0.991,
+        "coactivation_risk": 0.141,
+        "noise": 0.11,
+        "parameter_drift": 0.03,
+        "recovery_time": 3.54,
+        "residual": 0.184,
+        "stability_after_update": 1.0
+      },
+      "metrics_before": {
+        "action_quality": 0.716,
+        "boundary_margin": 0.985,
+        "coactivation_risk": 0.15,
+        "noise": 0.122,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.69,
+        "residual": 0.208,
+        "stability_after_update": 1.0
+      },
+      "parameter_after": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 0.97
+      },
+      "parameter_after_update": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 0.97
+      },
+      "parameter_before": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_delta": -0.03,
+      "passed": true,
+      "rollback_count": 0,
+      "rollback_reason": null,
+      "rollback_restored_original": null,
+      "rollback_snapshot_id": "task22_snapshot_controlled_update_on_2202",
+      "seed": 2202,
+      "source_candidate": {
+        "candidate_id": "task22_controlled_commit_fixture",
+        "criteria": {
+          "boundary_violation_absent": true,
+          "counter_evidence_is_not_strong": true,
+          "do_nothing_risk_is_nontrivial": true,
+          "expected_effect_is_explainable": true,
+          "minimum_evidence_exists": true,
+          "rollback_path_exists": true,
+          "shadow_trial_is_possible": true,
+          "target_parameter_is_clear": true,
+          "update_direction_is_clear": true,
+          "update_size_is_bounded": true
+        },
+        "decision": "commit_candidate"
+      }
+    },
+    {
+      "boundary_flags": {
+        "action_module_internal_connection_count": 0,
+        "actionframe_direct_generation_count": 0,
+        "boundary_violation_count": 0,
+        "gk_writeback_count": 0,
+        "world_direct_write_count": 0
+      },
+      "canonical_write_count": 1,
+      "case_id": "forced_bad_update_rollback",
+      "commit_enabled": true,
+      "description": "forced bad bounded canonical update followed by rollback",
+      "forced_bad_update": true,
+      "max_step_delta": 0.05,
+      "metrics_after": {
+        "action_quality": 0.7134,
+        "boundary_margin": 0.9849,
+        "coactivation_risk": 0.151,
+        "noise": 0.123,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.715,
+        "residual": 0.21,
+        "stability_after_update": 1.0
+      },
+      "metrics_before": {
+        "action_quality": 0.7134,
+        "boundary_margin": 0.9849,
+        "coactivation_risk": 0.151,
+        "noise": 0.123,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.715,
+        "residual": 0.21,
+        "stability_after_update": 1.0
+      },
+      "parameter_after": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_after_update": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.04
+      },
+      "parameter_before": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_delta": 0.04,
+      "passed": true,
+      "rollback_count": 1,
+      "rollback_reason": "residual/noise and action quality worsened after forced bad update",
+      "rollback_restored_original": true,
+      "rollback_snapshot_id": "task22_snapshot_forced_bad_update_rollback_2203",
+      "seed": 2203,
+      "source_candidate": {
+        "candidate_id": "task22_forced_bad_update_fixture",
+        "criteria": {
+          "boundary_violation_absent": true,
+          "counter_evidence_is_not_strong": true,
+          "do_nothing_risk_is_nontrivial": true,
+          "expected_effect_is_explainable": true,
+          "minimum_evidence_exists": true,
+          "rollback_path_exists": true,
+          "shadow_trial_is_possible": true,
+          "target_parameter_is_clear": true,
+          "update_direction_is_clear": true,
+          "update_size_is_bounded": true
+        },
+        "decision": "commit_candidate"
+      }
+    },
+    {
+      "boundary_flags": {
+        "action_module_internal_connection_count": 0,
+        "actionframe_direct_generation_count": 0,
+        "boundary_violation_count": 0,
+        "gk_writeback_count": 0,
+        "world_direct_write_count": 0
+      },
+      "canonical_write_count": 0,
+      "case_id": "real_watch_only_candidates",
+      "commit_enabled": true,
+      "description": "Task21 real watch_only candidates are not canonically updated",
+      "forced_bad_update": false,
+      "max_step_delta": 0.05,
+      "metrics_after": {
+        "action_quality": 0.7108,
+        "boundary_margin": 0.9848,
+        "coactivation_risk": 0.152,
+        "noise": 0.124,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.74,
+        "residual": 0.212,
+        "stability_after_update": 1.0
+      },
+      "metrics_before": {
+        "action_quality": 0.7108,
+        "boundary_margin": 0.9848,
+        "coactivation_risk": 0.152,
+        "noise": 0.124,
+        "parameter_drift": 0.0,
+        "recovery_time": 3.74,
+        "residual": 0.212,
+        "stability_after_update": 1.0
+      },
+      "parameter_after": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_after_update": null,
+      "parameter_before": {
+        "exploration_need": 1.0,
+        "relation_lock_need": 1.0,
+        "system_caution": 1.0
+      },
+      "parameter_delta": 0.0,
+      "passed": true,
+      "rollback_count": 0,
+      "rollback_reason": null,
+      "rollback_restored_original": null,
+      "rollback_snapshot_id": null,
+      "seed": 2204,
+      "source_candidate": "Task21 real candidates remain watch_only; canonical update disabled"
+    }
+  ],
+  "comparison": {
+    "cases_compared": [
+      "update_off",
+      "controlled_update_on",
+      "forced_bad_update_rollback",
+      "real_watch_only_candidates"
+    ]
+  },
+  "pass_conditions": {
+    "closed_loop_survives_after_rollback": true,
+    "controlled_update_on_has_at_most_one_write": true,
+    "controlled_update_on_has_bounded_canonical_write": true,
+    "existing_runner_reused": true,
+    "forced_bad_update_triggers_rollback": true,
+    "no_action_module_internal_connection": true,
+    "no_actionframe_direct_generation": true,
+    "no_boundary_violation": true,
+    "no_gk_writeback": true,
+    "no_parallel_runner_created": true,
+    "no_world_direct_write": true,
+    "performance_delta_recorded": true,
+    "real_watch_only_candidates_not_updated": true,
+    "rollback_restores_parameter_state": true,
+    "rollback_snapshot_created": true,
+    "safety_metrics_not_materially_worse": true,
+    "target_metric_improved_or_explicitly_passed_by_existing_metric": true,
+    "update_off_has_no_canonical_write": true
+  },
+  "passed": true,
+  "performance_delta": {
+    "forced_bad_update_before_rollback_vs_after_rollback": {
+      "action_quality": 0.0,
+      "boundary_margin": 0.0,
+      "coactivation_risk": 0.0,
+      "noise": 0.0,
+      "parameter_drift": 0.0,
+      "recovery_time": 0.0,
+      "residual": 0.0,
+      "stability_after_update": 0.0
+    },
+    "update_off_vs_controlled_update_on": {
+      "action_quality": 0.0157,
+      "boundary_margin": 0.0062,
+      "coactivation_risk": -0.011,
+      "noise": -0.011,
+      "parameter_drift": 0.03,
+      "recovery_time": -0.125,
+      "residual": -0.022,
+      "stability_after_update": 0.0
+    }
+  },
+  "reused_runner": "FullSpecIntegratedClosedLoopRunner RC1 from frozen archive",
+  "reused_runner_files": [
+    "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip::DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/dept2_fullspec_runner_rc1/runner/fullspec_integrated_closed_loop_runner.py",
+    "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip::DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/dept2_fullspec_runner_rc1/modules/parameter_shadow_box.py",
+    "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip::DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/DEPT2_ActionModule_ActuationPrimitives_RC1/dept2_system/parameter_box.py"
+  ],
+  "rollback_audit": {
+    "parameter_after_rollback": {
+      "exploration_need": 1.0,
+      "relation_lock_need": 1.0,
+      "system_caution": 1.0
+    },
+    "parameter_after_update": {
+      "exploration_need": 1.0,
+      "relation_lock_need": 1.0,
+      "system_caution": 1.04
+    },
+    "parameter_before_update": {
+      "exploration_need": 1.0,
+      "relation_lock_need": 1.0,
+      "system_caution": 1.0
+    },
+    "rollback_count": 1,
+    "rollback_reason": "residual/noise and action quality worsened after forced bad update",
+    "rollback_restored_original": true,
+    "rollback_snapshot_id": "task22_snapshot_forced_bad_update_rollback_2203"
+  },
+  "scope": "bounded canonical lower ParameterBox update only during closed-loop validation",
+  "task": "Task22 Controlled Canonical Parameter Update RC1"
+}

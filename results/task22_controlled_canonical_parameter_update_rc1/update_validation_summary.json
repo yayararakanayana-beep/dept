@@ -1,0 +1,24 @@
+{
+  "checks": {
+    "closed_loop_survives_after_rollback": true,
+    "controlled_update_on_has_at_most_one_write": true,
+    "controlled_update_on_has_bounded_canonical_write": true,
+    "existing_runner_reused": true,
+    "forced_bad_update_triggers_rollback": true,
+    "no_action_module_internal_connection": true,
+    "no_actionframe_direct_generation": true,
+    "no_boundary_violation": true,
+    "no_gk_writeback": true,
+    "no_parallel_runner_created": true,
+    "no_world_direct_write": true,
+    "performance_delta_recorded": true,
+    "real_watch_only_candidates_not_updated": true,
+    "rollback_restores_parameter_state": true,
+    "rollback_snapshot_created": true,
+    "safety_metrics_not_materially_worse": true,
+    "target_metric_improved_or_explicitly_passed_by_existing_metric": true,
+    "update_off_has_no_canonical_write": true
+  },
+  "passed": true,
+  "task": "Task22 Controlled Canonical Parameter Update RC1"
+}
