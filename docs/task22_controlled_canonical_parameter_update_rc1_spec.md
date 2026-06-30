@@ -1,45 +1,40 @@
-# Task22 Controlled Canonical Parameter Update RC1
+# Task22 Runner Execution Blocker Report
 
 ## Purpose
 
-Task22 minimally integrates a bounded canonical lower-ParameterBox update into closed-loop validation. It compares `update_off`, `controlled_update_on`, `forced_bad_update_rollback`, and `real_watch_only_candidates` while reusing the existing RC1 closed-loop runner from the frozen archive.
+Task22 attempted to connect a bounded canonical lower-ParameterBox update to the existing closed-loop runner so that `update_off`, `controlled_update_on`, `forced_bad_update_rollback`, and `real_watch_only_candidates` could be compared from measured closed-loop execution.
+
+## Critical Audit Fix
+
+Task22 must not pass from synthesized metrics, hand-adjusted residual/noise improvements, fixed-zero boundary flags, or a fixed `existing_runner_reused=true` value. The validation now fails closed unless the existing closed-loop runner is actually executable and the Task22 update path can be evaluated from runner outputs/audits.
 
 ## Relationship to Task21
 
-Task21 remains a no-write classifier. Task22 reads Task21 outputs to confirm that the real candidate set is still `watch_only` and therefore receives no canonical update. The canonical update path is exercised only with Task22 controlled fixtures.
+Task21 remains a no-write classifier. Task22 reads the Task21 decision and validation summaries, but Task21 real `watch_only` candidates are not eligible for canonical updates.
 
-## Canonical Update Scope
+## Intended Canonical Update Scope
 
-- The only opened boundary is an in-run canonical update to lower ParameterBox state.
-- At most one canonical write is allowed per run.
-- The target parameter must already exist in the ParameterBox state.
-- The delta must be within `max_step_delta`.
-- The validation records before, after, delta, source candidate, rollback snapshot, canonical write count, and update reason.
-- Source configuration and frozen archive contents are not permanently modified.
+- The only intended opened boundary is an in-run bounded canonical update to lower ParameterBox state.
+- Source configuration must not be permanently rewritten.
+- A run may perform at most one canonical lower-ParameterBox write.
+- The target parameter must already exist, the delta must be within `max_step_delta`, and rollback must snapshot the before state.
 
-## Prohibited Behavior
+## Still-Prohibited Behavior
 
-Task22 does not add G/K writeback, world direct writes, ActionModule internal DEPT reads, ActionFrame direct generation, exploration-sidecar direct coupling, hidden threshold updates, unbounded updates, Task21 classifier redesign, or Parameter Shadow Box redesign.
+Task22 must not create a new parallel runner, redesign the Parameter Shadow Box, rebuild the Task21 classifier, add G/K writeback, add world direct writes, connect ActionModule internals to DEPT state, generate ActionFrame directly, or pass validation from synthetic improvements.
 
-## Commit Conditions
+## Current Blocker Behavior
 
-A controlled fixture may commit only when it has `decision = commit_candidate`, clear target and direction, explainable expected effect, minimum evidence, weak counter-evidence, bounded update size, rollback path, nontrivial do-nothing risk, absent boundary violation, possible shadow trial, an existing target parameter, delta within `max_step_delta`, and a creatable rollback snapshot.
+If the existing runner cannot execute because of a missing dependency or import/runtime blocker, the validation emits:
 
-## Rollback Conditions
+- `existing_runner_executed: false`
+- `execution_blocker`
+- `missing_dependency` when detectable
+- `task22_status: blocked_by_runner_execution`
+- `passed: false`
 
-Rollback is triggered if post-update evidence worsens residual/noise, recovery, coactivation risk, boundary margin, action quality, or parameter drift beyond the Task22 tolerance. Rollback must restore the pre-update ParameterBox state and record the rollback reason and snapshot id.
+No performance delta, boundary pass, canonical update pass, or rollback pass is claimed in the blocked state.
 
-## Closed-Loop Comparison Cases
+## Completion Conditions for a Future Passing Task22
 
-- **Case A: `update_off`** — canonical updates disabled.
-- **Case B: `controlled_update_on`** — a controlled commit fixture performs one bounded canonical lower-ParameterBox update when all commit conditions pass.
-- **Case C: `forced_bad_update_rollback`** — a forced bad bounded update intentionally worsens metrics and must roll back.
-- **Case D: `real_watch_only_candidates`** — Task21 real watch-only candidates are read but never canonically updated.
-
-## Performance Metrics
-
-Task22 records residual/noise, recovery time, coactivation risk, boundary margin, action quality, parameter drift, rollback count, and stability after update. Existing runner outputs are reused where present, with minimal derived metrics from those outputs when an exact metric name is not emitted.
-
-## Completion Conditions
-
-Task22 passes only when bounded writes and rollback behavior are observed in the controlled cases, real watch-only candidates are not updated, boundary counts stay zero, controlled update improves at least one target metric versus update-off, safety metrics are not materially worse, the forced rollback run survives, and validation reports include performance deltas.
+A future passing Task22 must execute the existing runner for all four cases, apply the bounded canonical update inside closed-loop ParameterBox state, compute performance deltas from real runner outputs, derive boundary counts from execution/audit logs, roll back a measured bad update, keep Task21 watch-only candidates uncommitted, and only then set `passed: true`.

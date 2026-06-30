@@ -1,23 +1,20 @@
-# Task22 Validation Summary
+# Task22 Runner Execution Blocker Report Validation
 
-passed: `true`
+passed: `false`
 
 ## Checks
-- existing_runner_reused: `true`
+- existing_runner_found: `true`
+- existing_runner_executed: `false`
 - no_parallel_runner_created: `true`
-- update_off_has_no_canonical_write: `true`
-- controlled_update_on_has_bounded_canonical_write: `true`
-- controlled_update_on_has_at_most_one_write: `true`
-- real_watch_only_candidates_not_updated: `true`
-- rollback_snapshot_created: `true`
-- forced_bad_update_triggers_rollback: `true`
-- rollback_restores_parameter_state: `true`
-- no_gk_writeback: `true`
-- no_world_direct_write: `true`
-- no_action_module_internal_connection: `true`
-- no_actionframe_direct_generation: `true`
-- no_boundary_violation: `true`
-- performance_delta_recorded: `true`
-- target_metric_improved_or_explicitly_passed_by_existing_metric: `true`
-- safety_metrics_not_materially_worse: `true`
-- closed_loop_survives_after_rollback: `true`
+- synthetic_metrics_not_primary_validation: `true`
+- passed_requires_existing_runner_execution: `true`
+- update_off_runner_executed: `false`
+- controlled_update_on_runner_executed: `false`
+- forced_bad_update_rollback_runner_executed: `false`
+- real_watch_only_candidates_runner_executed: `false`
+- performance_delta_from_real_runner_outputs: `false`
+- boundary_audit_from_execution_path: `false`
+- synthetic_improvement_cannot_pass_target_metric: `true`
+- existing_runner_execution_blocker_recorded: `true`
+- missing_dependency_recorded_when_present: `true`
+- validation_failed_instead_of_synthetic_pass: `true`

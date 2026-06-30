@@ -1,272 +1,149 @@
 {
   "boundary_audit": {
-    "action_module_internal_connection_count": 0,
-    "actionframe_direct_generation_count": 0,
-    "boundary_violation_count": 0,
-    "gk_writeback_count": 0,
-    "world_direct_write_count": 0
+    "action_module_internal_connection_count": null,
+    "actionframe_direct_generation_count": null,
+    "audit_source": "not_available_existing_runner_not_executed",
+    "boundary_violation_count": null,
+    "canonical_write_count": null,
+    "gk_writeback_count": null,
+    "world_direct_write_count": null
   },
   "canonical_update_audit": {
-    "controlled_write_count": 1,
+    "controlled_write_count": null,
     "max_writes_per_run": 1,
-    "real_watch_only_write_count": 0,
+    "real_watch_only_write_count": null,
     "source_config_permanently_modified": false,
+    "status": "not_executed_runner_blocked",
     "target_scope": "lower ParameterBox only"
   },
   "cases": [
     {
       "boundary_flags": {
-        "action_module_internal_connection_count": 0,
-        "actionframe_direct_generation_count": 0,
-        "boundary_violation_count": 0,
-        "gk_writeback_count": 0,
-        "world_direct_write_count": 0
+        "action_module_internal_connection_count": null,
+        "actionframe_direct_generation_count": null,
+        "audit_source": "not_available_existing_runner_not_executed",
+        "boundary_violation_count": null,
+        "canonical_write_count": null,
+        "gk_writeback_count": null,
+        "world_direct_write_count": null
       },
-      "canonical_write_count": 0,
+      "canonical_write_count": null,
       "case_id": "update_off",
       "commit_enabled": false,
-      "description": "canonical ParameterBox update disabled",
+      "description": "blocked before update_off runner execution completed",
+      "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
       "forced_bad_update": false,
-      "max_step_delta": 0.05,
-      "metrics_after": {
-        "action_quality": 0.7183,
-        "boundary_margin": 0.9848,
-        "coactivation_risk": 0.152,
-        "noise": 0.121,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.665,
-        "residual": 0.206,
-        "stability_after_update": 1.0
-      },
-      "metrics_before": {
-        "action_quality": 0.7183,
-        "boundary_margin": 0.9848,
-        "coactivation_risk": 0.152,
-        "noise": 0.121,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.665,
-        "residual": 0.206,
-        "stability_after_update": 1.0
-      },
-      "parameter_after": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_after_update": null,
-      "parameter_before": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_delta": 0.0,
-      "passed": true,
-      "rollback_count": 0,
-      "rollback_reason": null,
-      "rollback_restored_original": null,
+      "metrics_after": null,
+      "metrics_before": null,
+      "metrics_source": "not_available_existing_runner_not_executed",
+      "missing_dependency": "pandas",
+      "parameter_after": null,
+      "parameter_before": null,
+      "parameter_delta": null,
+      "passed": false,
+      "performance_delta_source": "not_available_existing_runner_not_executed",
+      "rollback_count": null,
       "rollback_snapshot_id": null,
+      "runner_executed": false,
+      "runner_execution_path": "frozen_archive_import_and_smoke_run_attempt",
       "seed": 2201,
       "source_candidate": null
     },
     {
       "boundary_flags": {
-        "action_module_internal_connection_count": 0,
-        "actionframe_direct_generation_count": 0,
-        "boundary_violation_count": 0,
-        "gk_writeback_count": 0,
-        "world_direct_write_count": 0
+        "action_module_internal_connection_count": null,
+        "actionframe_direct_generation_count": null,
+        "audit_source": "not_available_existing_runner_not_executed",
+        "boundary_violation_count": null,
+        "canonical_write_count": null,
+        "gk_writeback_count": null,
+        "world_direct_write_count": null
       },
-      "canonical_write_count": 1,
+      "canonical_write_count": null,
       "case_id": "controlled_update_on",
       "commit_enabled": true,
-      "description": "bounded canonical lower ParameterBox update from controlled commit fixture",
+      "description": "blocked before in-run bounded canonical update could be connected",
+      "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
       "forced_bad_update": false,
-      "max_step_delta": 0.05,
-      "metrics_after": {
-        "action_quality": 0.734,
-        "boundary_margin": 0.991,
-        "coactivation_risk": 0.141,
-        "noise": 0.11,
-        "parameter_drift": 0.03,
-        "recovery_time": 3.54,
-        "residual": 0.184,
-        "stability_after_update": 1.0
-      },
-      "metrics_before": {
-        "action_quality": 0.716,
-        "boundary_margin": 0.985,
-        "coactivation_risk": 0.15,
-        "noise": 0.122,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.69,
-        "residual": 0.208,
-        "stability_after_update": 1.0
-      },
-      "parameter_after": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 0.97
-      },
-      "parameter_after_update": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 0.97
-      },
-      "parameter_before": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_delta": -0.03,
-      "passed": true,
-      "rollback_count": 0,
-      "rollback_reason": null,
-      "rollback_restored_original": null,
-      "rollback_snapshot_id": "task22_snapshot_controlled_update_on_2202",
+      "metrics_after": null,
+      "metrics_before": null,
+      "metrics_source": "not_available_existing_runner_not_executed",
+      "missing_dependency": "pandas",
+      "parameter_after": null,
+      "parameter_before": null,
+      "parameter_delta": null,
+      "passed": false,
+      "performance_delta_source": "not_available_existing_runner_not_executed",
+      "rollback_count": null,
+      "rollback_snapshot_id": null,
+      "runner_executed": false,
+      "runner_execution_path": "frozen_archive_import_and_smoke_run_attempt",
       "seed": 2202,
-      "source_candidate": {
-        "candidate_id": "task22_controlled_commit_fixture",
-        "criteria": {
-          "boundary_violation_absent": true,
-          "counter_evidence_is_not_strong": true,
-          "do_nothing_risk_is_nontrivial": true,
-          "expected_effect_is_explainable": true,
-          "minimum_evidence_exists": true,
-          "rollback_path_exists": true,
-          "shadow_trial_is_possible": true,
-          "target_parameter_is_clear": true,
-          "update_direction_is_clear": true,
-          "update_size_is_bounded": true
-        },
-        "decision": "commit_candidate"
-      }
+      "source_candidate": null
     },
     {
       "boundary_flags": {
-        "action_module_internal_connection_count": 0,
-        "actionframe_direct_generation_count": 0,
-        "boundary_violation_count": 0,
-        "gk_writeback_count": 0,
-        "world_direct_write_count": 0
+        "action_module_internal_connection_count": null,
+        "actionframe_direct_generation_count": null,
+        "audit_source": "not_available_existing_runner_not_executed",
+        "boundary_violation_count": null,
+        "canonical_write_count": null,
+        "gk_writeback_count": null,
+        "world_direct_write_count": null
       },
-      "canonical_write_count": 1,
+      "canonical_write_count": null,
       "case_id": "forced_bad_update_rollback",
       "commit_enabled": true,
-      "description": "forced bad bounded canonical update followed by rollback",
+      "description": "blocked before forced bad update and measured rollback could execute",
+      "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
       "forced_bad_update": true,
-      "max_step_delta": 0.05,
-      "metrics_after": {
-        "action_quality": 0.7134,
-        "boundary_margin": 0.9849,
-        "coactivation_risk": 0.151,
-        "noise": 0.123,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.715,
-        "residual": 0.21,
-        "stability_after_update": 1.0
-      },
-      "metrics_before": {
-        "action_quality": 0.7134,
-        "boundary_margin": 0.9849,
-        "coactivation_risk": 0.151,
-        "noise": 0.123,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.715,
-        "residual": 0.21,
-        "stability_after_update": 1.0
-      },
-      "parameter_after": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_after_update": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.04
-      },
-      "parameter_before": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_delta": 0.04,
-      "passed": true,
-      "rollback_count": 1,
-      "rollback_reason": "residual/noise and action quality worsened after forced bad update",
-      "rollback_restored_original": true,
-      "rollback_snapshot_id": "task22_snapshot_forced_bad_update_rollback_2203",
+      "metrics_after": null,
+      "metrics_before": null,
+      "metrics_source": "not_available_existing_runner_not_executed",
+      "missing_dependency": "pandas",
+      "parameter_after": null,
+      "parameter_before": null,
+      "parameter_delta": null,
+      "passed": false,
+      "performance_delta_source": "not_available_existing_runner_not_executed",
+      "rollback_count": null,
+      "rollback_snapshot_id": null,
+      "runner_executed": false,
+      "runner_execution_path": "frozen_archive_import_and_smoke_run_attempt",
       "seed": 2203,
-      "source_candidate": {
-        "candidate_id": "task22_forced_bad_update_fixture",
-        "criteria": {
-          "boundary_violation_absent": true,
-          "counter_evidence_is_not_strong": true,
-          "do_nothing_risk_is_nontrivial": true,
-          "expected_effect_is_explainable": true,
-          "minimum_evidence_exists": true,
-          "rollback_path_exists": true,
-          "shadow_trial_is_possible": true,
-          "target_parameter_is_clear": true,
-          "update_direction_is_clear": true,
-          "update_size_is_bounded": true
-        },
-        "decision": "commit_candidate"
-      }
+      "source_candidate": null
     },
     {
       "boundary_flags": {
-        "action_module_internal_connection_count": 0,
-        "actionframe_direct_generation_count": 0,
-        "boundary_violation_count": 0,
-        "gk_writeback_count": 0,
-        "world_direct_write_count": 0
+        "action_module_internal_connection_count": null,
+        "actionframe_direct_generation_count": null,
+        "audit_source": "not_available_existing_runner_not_executed",
+        "boundary_violation_count": null,
+        "canonical_write_count": null,
+        "gk_writeback_count": null,
+        "world_direct_write_count": null
       },
-      "canonical_write_count": 0,
+      "canonical_write_count": null,
       "case_id": "real_watch_only_candidates",
       "commit_enabled": true,
-      "description": "Task21 real watch_only candidates are not canonically updated",
+      "description": "blocked before Task21 watch_only non-update could be confirmed by runner execution",
+      "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
       "forced_bad_update": false,
-      "max_step_delta": 0.05,
-      "metrics_after": {
-        "action_quality": 0.7108,
-        "boundary_margin": 0.9848,
-        "coactivation_risk": 0.152,
-        "noise": 0.124,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.74,
-        "residual": 0.212,
-        "stability_after_update": 1.0
-      },
-      "metrics_before": {
-        "action_quality": 0.7108,
-        "boundary_margin": 0.9848,
-        "coactivation_risk": 0.152,
-        "noise": 0.124,
-        "parameter_drift": 0.0,
-        "recovery_time": 3.74,
-        "residual": 0.212,
-        "stability_after_update": 1.0
-      },
-      "parameter_after": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_after_update": null,
-      "parameter_before": {
-        "exploration_need": 1.0,
-        "relation_lock_need": 1.0,
-        "system_caution": 1.0
-      },
-      "parameter_delta": 0.0,
-      "passed": true,
-      "rollback_count": 0,
-      "rollback_reason": null,
-      "rollback_restored_original": null,
+      "metrics_after": null,
+      "metrics_before": null,
+      "metrics_source": "not_available_existing_runner_not_executed",
+      "missing_dependency": "pandas",
+      "parameter_after": null,
+      "parameter_before": null,
+      "parameter_delta": null,
+      "passed": false,
+      "performance_delta_source": "not_available_existing_runner_not_executed",
+      "rollback_count": null,
       "rollback_snapshot_id": null,
+      "runner_executed": false,
+      "runner_execution_path": "frozen_archive_import_and_smoke_run_attempt",
       "seed": 2204,
-      "source_candidate": "Task21 real candidates remain watch_only; canonical update disabled"
+      "source_candidate": null
     }
   ],
   "comparison": {
@@ -275,51 +152,39 @@
       "controlled_update_on",
       "forced_bad_update_rollback",
       "real_watch_only_candidates"
-    ]
+    ],
+    "comparison_status": "not_computed_runner_execution_blocked"
   },
+  "execution_blocker": "ModuleNotFoundError: No module named 'pandas'",
+  "existing_runner_executed": false,
+  "existing_runner_found": true,
+  "missing_dependency": "pandas",
+  "next_required_fix": [
+    "Make the frozen RC1 runner importable/executable in the active validation environment (for example by providing its runtime dependencies such as pandas).",
+    "Then connect the bounded canonical update hook to the runner-owned lower ParameterBox state during closed-loop execution.",
+    "Compute performance_delta and boundary counts only from real runner outputs/audits."
+  ],
+  "no_parallel_runner_created": true,
   "pass_conditions": {
-    "closed_loop_survives_after_rollback": true,
-    "controlled_update_on_has_at_most_one_write": true,
-    "controlled_update_on_has_bounded_canonical_write": true,
-    "existing_runner_reused": true,
-    "forced_bad_update_triggers_rollback": true,
-    "no_action_module_internal_connection": true,
-    "no_actionframe_direct_generation": true,
-    "no_boundary_violation": true,
-    "no_gk_writeback": true,
+    "boundary_audit_from_execution_path": false,
+    "controlled_update_on_runner_executed": false,
+    "existing_runner_executed": false,
+    "existing_runner_execution_blocker_recorded": true,
+    "existing_runner_found": true,
+    "forced_bad_update_rollback_runner_executed": false,
+    "missing_dependency_recorded_when_present": true,
     "no_parallel_runner_created": true,
-    "no_world_direct_write": true,
-    "performance_delta_recorded": true,
-    "real_watch_only_candidates_not_updated": true,
-    "rollback_restores_parameter_state": true,
-    "rollback_snapshot_created": true,
-    "safety_metrics_not_materially_worse": true,
-    "target_metric_improved_or_explicitly_passed_by_existing_metric": true,
-    "update_off_has_no_canonical_write": true
+    "passed_requires_existing_runner_execution": true,
+    "performance_delta_from_real_runner_outputs": false,
+    "real_watch_only_candidates_runner_executed": false,
+    "synthetic_improvement_cannot_pass_target_metric": true,
+    "synthetic_metrics_not_primary_validation": true,
+    "update_off_runner_executed": false,
+    "validation_failed_instead_of_synthetic_pass": true
   },
-  "passed": true,
-  "performance_delta": {
-    "forced_bad_update_before_rollback_vs_after_rollback": {
-      "action_quality": 0.0,
-      "boundary_margin": 0.0,
-      "coactivation_risk": 0.0,
-      "noise": 0.0,
-      "parameter_drift": 0.0,
-      "recovery_time": 0.0,
-      "residual": 0.0,
-      "stability_after_update": 0.0
-    },
-    "update_off_vs_controlled_update_on": {
-      "action_quality": 0.0157,
-      "boundary_margin": 0.0062,
-      "coactivation_risk": -0.011,
-      "noise": -0.011,
-      "parameter_drift": 0.03,
-      "recovery_time": -0.125,
-      "residual": -0.022,
-      "stability_after_update": 0.0
-    }
-  },
+  "passed": false,
+  "performance_delta": null,
+  "performance_delta_source": "not_available_existing_runner_not_executed",
   "reused_runner": "FullSpecIntegratedClosedLoopRunner RC1 from frozen archive",
   "reused_runner_files": [
     "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip::DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/dept2_fullspec_runner_rc1/runner/fullspec_integrated_closed_loop_runner.py",
@@ -327,26 +192,20 @@
     "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip::DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/DEPT2_ActionModule_ActuationPrimitives_RC1/dept2_system/parameter_box.py"
   ],
   "rollback_audit": {
-    "parameter_after_rollback": {
-      "exploration_need": 1.0,
-      "relation_lock_need": 1.0,
-      "system_caution": 1.0
-    },
-    "parameter_after_update": {
-      "exploration_need": 1.0,
-      "relation_lock_need": 1.0,
-      "system_caution": 1.04
-    },
-    "parameter_before_update": {
-      "exploration_need": 1.0,
-      "relation_lock_need": 1.0,
-      "system_caution": 1.0
-    },
-    "rollback_count": 1,
-    "rollback_reason": "residual/noise and action quality worsened after forced bad update",
-    "rollback_restored_original": true,
-    "rollback_snapshot_id": "task22_snapshot_forced_bad_update_rollback_2203"
+    "parameter_after_rollback": null,
+    "parameter_after_update": null,
+    "parameter_before_update": null,
+    "rollback_count": null,
+    "rollback_reason": null,
+    "rollback_restored_original": null,
+    "rollback_snapshot_id": null,
+    "status": "not_executed_runner_blocked"
   },
-  "scope": "bounded canonical lower ParameterBox update only during closed-loop validation",
-  "task": "Task22 Controlled Canonical Parameter Update RC1"
+  "runner_traceback": "Traceback (most recent call last):\n  File \"/workspace/dept/validation/task22_controlled_canonical_parameter_update_rc1.py\", line 82, in _attempt_existing_runner_execution\n    contracts = importlib.import_module(\"dept2_fullspec_runner_rc1.contracts\")\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/root/.pyenv/versions/3.12.13/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1331, in _find_and_load_unlocked\n  File \"<frozen importlib._bootstrap>\", line 935, in _load_unlocked\n  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed\nModuleNotFoundError: No module named 'pandas'\n",
+  "scope": "attempt existing closed-loop runner execution before any bounded canonical ParameterBox update validation",
+  "synthetic_metrics_used_for_primary_validation": false,
+  "task": "Task22 Runner Execution Blocker Report",
+  "task21_candidate_count": 4,
+  "task21_input_read": true,
+  "task22_status": "blocked_by_runner_execution"
 }

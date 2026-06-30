@@ -18,67 +18,79 @@ def _run_and_load():
     return summary, validation, out
 
 
-def test_output_files_are_generated_and_validation_passes():
+def test_output_files_are_generated_with_blocker_status():
     summary, validation, out = _run_and_load()
     assert (out / "update_comparison_summary.json").is_file()
     assert (out / "update_comparison_summary.md").is_file()
     assert (out / "update_validation_summary.json").is_file()
     assert (out / "update_validation_summary.md").is_file()
-    assert json.loads((out / "update_validation_summary.json").read_text())["passed"] is True
-    assert summary["passed"] is True
-    assert validation["passed"] is True
+    persisted = json.loads((out / "update_validation_summary.json").read_text())
+    assert persisted["passed"] is False
+    assert summary["passed"] is False
+    assert validation["passed"] is False
 
 
-def test_existing_runner_reused_and_no_parallel_runner_created():
+def test_synthetic_metrics_path_is_not_primary_validation():
     summary, validation, _ = _run_and_load()
-    assert summary["reused_runner"]
-    assert summary["reused_runner_files"]
-    assert validation["checks"]["existing_runner_reused"] is True
-    assert validation["checks"]["no_parallel_runner_created"] is True
+    assert summary["synthetic_metrics_used_for_primary_validation"] is False
+    assert validation["checks"].get("synthetic_metrics_not_primary_validation", True) is True
+    assert "performance_delta_source" not in summary or summary["performance_delta_source"] != "synthetic"
 
 
-def test_case_write_counts_and_watch_only_behavior():
+def test_passed_true_requires_existing_runner_executed_true():
     summary, _, _ = _run_and_load()
-    cases = {c["case_id"]: c for c in summary["cases"]}
-    assert cases["update_off"]["canonical_write_count"] == 0
-    assert cases["real_watch_only_candidates"]["canonical_write_count"] == 0
-    assert cases["controlled_update_on"]["canonical_write_count"] >= 1
-    assert cases["controlled_update_on"]["canonical_write_count"] <= 1
+    if summary["passed"] is True:
+        assert summary["existing_runner_executed"] is True
+    else:
+        assert summary["existing_runner_executed"] is False or summary["task22_status"] == "blocked_by_missing_in_run_update_hook"
 
 
-def test_update_delta_bounded_and_rollback_snapshot_exists():
-    summary, _, _ = _run_and_load()
-    cases = {c["case_id"]: c for c in summary["cases"]}
-    controlled = cases["controlled_update_on"]
-    forced = cases["forced_bad_update_rollback"]
-    assert abs(controlled["parameter_delta"]) <= controlled["max_step_delta"]
-    assert forced["rollback_snapshot_id"]
-    assert forced["rollback_count"] >= 1
-    assert forced["rollback_restored_original"] is True
-    assert forced["parameter_before"] == forced["parameter_after"]
-
-
-def test_boundary_counts_remain_zero():
+def test_existing_runner_execution_failure_is_failed_report():
     summary, validation, _ = _run_and_load()
-    for case in summary["cases"]:
-        flags = case["boundary_flags"]
-        assert flags["gk_writeback_count"] == 0
-        assert flags["world_direct_write_count"] == 0
-        assert flags["action_module_internal_connection_count"] == 0
-        assert flags["actionframe_direct_generation_count"] == 0
-        assert flags["boundary_violation_count"] == 0
-    assert validation["checks"]["no_gk_writeback"] is True
-    assert validation["checks"]["no_world_direct_write"] is True
-    assert validation["checks"]["no_action_module_internal_connection"] is True
-    assert validation["checks"]["no_actionframe_direct_generation"] is True
-    assert validation["checks"]["no_boundary_violation"] is True
+    if summary["existing_runner_executed"] is False:
+        assert summary["passed"] is False
+        assert validation["passed"] is False
+        assert summary["task22_status"] == "blocked_by_runner_execution"
+        assert summary["execution_blocker"]
+        assert "missing_dependency" in summary
 
 
-def test_performance_delta_improves_target_metric_and_safety_ok():
+def test_performance_delta_must_come_from_real_runner_outputs():
     summary, validation, _ = _run_and_load()
-    delta = summary["performance_delta"]["update_off_vs_controlled_update_on"]
-    assert delta
-    assert delta["residual"] < 0 or delta["noise"] < 0 or delta["action_quality"] > 0
-    assert validation["checks"]["target_metric_improved_or_explicitly_passed_by_existing_metric"] is True
-    assert validation["checks"]["safety_metrics_not_materially_worse"] is True
-    assert validation["checks"]["performance_delta_recorded"] is True
+    if summary["existing_runner_executed"] is False:
+        assert summary["performance_delta"] is None
+        assert summary["performance_delta_source"] == "not_available_existing_runner_not_executed"
+        assert validation["checks"]["performance_delta_from_real_runner_outputs"] is False
+    else:
+        assert validation["checks"]["performance_delta_from_real_runner_outputs"] is False
+
+
+def test_boundary_audit_must_come_from_execution_path():
+    summary, validation, _ = _run_and_load()
+    audit = summary["boundary_audit"]
+    if summary["existing_runner_executed"] is False:
+        assert audit["audit_source"] == "not_available_existing_runner_not_executed"
+        assert audit["gk_writeback_count"] is None
+        assert audit["world_direct_write_count"] is None
+        assert validation["checks"]["boundary_audit_from_execution_path"] is False
+
+
+def test_cases_require_real_runner_or_wrapper_path():
+    summary, validation, _ = _run_and_load()
+    if summary["existing_runner_executed"] is False:
+        cases = {c["case_id"]: c for c in summary["cases"]}
+        for case_id in task22.CASE_IDS:
+            assert cases[case_id]["runner_execution_path"] == "frozen_archive_import_and_smoke_run_attempt"
+            assert cases[case_id]["runner_executed"] is False
+            assert cases[case_id]["metrics_source"] == "not_available_existing_runner_not_executed"
+        assert validation["checks"]["update_off_runner_executed"] is False
+        assert validation["checks"]["controlled_update_on_runner_executed"] is False
+        assert validation["checks"]["forced_bad_update_rollback_runner_executed"] is False
+
+
+def test_synthetic_improvement_cannot_make_target_metric_pass():
+    summary, validation, _ = _run_and_load()
+    assert summary["synthetic_metrics_used_for_primary_validation"] is False
+    if summary["existing_runner_executed"] is False:
+        assert "target_metric_improved_or_explicitly_passed_by_existing_metric" not in validation["checks"]
+        assert validation["checks"]["synthetic_improvement_cannot_pass_target_metric"] is True
