@@ -1,0 +1,90 @@
+from pathlib import Path
+import importlib.util
+import json
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+MODULE_PATH = ROOT / "validation" / "task22b_controlled_canonical_parameter_update_hook_rc1.py"
+spec = importlib.util.spec_from_file_location("task22b", MODULE_PATH)
+task22b = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = task22b
+spec.loader.exec_module(task22b)
+
+
+def _run_and_load():
+    summary, validation = task22b.build_summary()
+    task22b.write_outputs(summary, validation)
+    out = ROOT / "results/task22b_controlled_canonical_parameter_update_hook_rc1"
+    return summary, validation, out
+
+
+def test_summary_and_validation_json_exist():
+    summary, validation, out = _run_and_load()
+    assert (out / "update_hook_summary.json").is_file()
+    assert (out / "update_hook_validation.json").is_file()
+    assert (out / "update_hook_summary.md").is_file()
+    assert (out / "update_hook_validation.md").is_file()
+    assert json.loads((out / "update_hook_summary.json").read_text())["task"] == summary["task"]
+    assert json.loads((out / "update_hook_validation.json").read_text())["passed"] == validation["passed"]
+
+
+def test_required_four_cases_exist():
+    summary, _, _ = _run_and_load()
+    assert {c["case_id"] for c in summary["cases"]} == set(task22b.CASE_IDS)
+
+
+def test_passed_true_requires_all_case_runner_execution_and_counts():
+    summary, _, _ = _run_and_load()
+    cases = {c["case_id"]: c for c in summary["cases"]}
+    if summary["passed"]:
+        assert all(c["runner_executed"] for c in cases.values())
+        assert cases["controlled_update_on"]["canonical_write_count"] == 1
+        assert cases["update_off"]["canonical_write_count"] == 0
+        assert cases["real_watch_only_candidates"]["canonical_write_count"] == 0
+        assert cases["forced_bad_update_rollback"]["rollback_count"] >= 1
+        assert cases["forced_bad_update_rollback"]["rollback_restored_original"] is True
+
+
+def test_passed_true_rejects_synthetic_fixed_mock_performance_sources():
+    summary, _, _ = _run_and_load()
+    if summary["passed"]:
+        src = summary["performance_delta"]["performance_delta_source"]
+        assert src == "real_runner_output"
+        assert not any(token in src for token in ["synthetic", "fixed", "mock", "stub"])
+
+
+def test_passed_true_rejects_fixed_or_assumed_boundary_audit():
+    summary, _, _ = _run_and_load()
+    audit_source = summary["boundary_audit"].get("audit_source")
+    if summary["passed"]:
+        assert audit_source not in {"fixed_zero_without_check", "assumed_zero"}
+        assert summary["boundary_audit_available"] is True
+
+
+def test_repository_boundary_flags_remain_closed():
+    summary, _, _ = _run_and_load()
+    assert summary["synthetic_metrics_used"] is False
+    assert summary["parallel_runner_created"] is False
+    assert summary["frozen_runner_modified"] is False
+    audit = summary["boundary_audit"]
+    if summary["passed"]:
+        assert audit["gk_writeback_count"] == 0
+        assert audit["world_direct_write_count"] == 0
+        assert audit["action_module_internal_connection_count"] == 0
+        assert audit["actionframe_direct_generation_count"] == 0
+
+
+def test_bounded_update_hook_connected_only_when_safe_hook_found():
+    summary, _, _ = _run_and_load()
+    if summary["bounded_update_hook_connected"]:
+        assert summary["safe_update_hook_found"] is True
+
+
+def test_runner_unexecuted_metric_or_boundary_unavailable_force_failure():
+    summary, _, _ = _run_and_load()
+    if not summary["existing_runner_executed"]:
+        assert summary["passed"] is False
+    if summary["performance_delta"].get("performance_delta_source") == "unavailable_real_output_insufficient":
+        assert summary["passed"] is False
+    if summary.get("boundary_audit_available") is False:
+        assert summary["passed"] is False

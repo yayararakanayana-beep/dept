@@ -1,0 +1,60 @@
+name: Task22B Controlled Canonical Parameter Update
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  task22b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run Task22B validation
+        run: python validation/task22b_controlled_canonical_parameter_update_hook_rc1.py
+      - name: Run tests
+        run: pytest -q
+      - name: Print Task22B artifacts
+        if: always()
+        run: |
+          cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.json || true
+          cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.md || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task22b-controlled-canonical-parameter-update
+          path: results/task22b_controlled_canonical_parameter_update_hook_rc1/
+      - name: Enforce Task22B pass criteria
+        run: |
+          python - <<'PY'
+          import json
+          s=json.load(open('results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.json'))
+          cases={c['case_id']:c for c in s['cases']}
+          assert s['passed'] is True
+          assert s['existing_runner_executed'] is True
+          for cid in ['update_off','controlled_update_on','forced_bad_update_rollback','real_watch_only_candidates']:
+              assert cases[cid]['runner_executed'] is True
+          assert cases['controlled_update_on']['canonical_write_count'] == 1
+          assert cases['update_off']['canonical_write_count'] == 0
+          assert cases['real_watch_only_candidates']['canonical_write_count'] == 0
+          assert cases['forced_bad_update_rollback']['rollback_count'] >= 1
+          assert cases['forced_bad_update_rollback']['rollback_restored_original'] is True
+          assert s['performance_delta']['performance_delta_source'] == 'real_runner_output'
+          assert s['boundary_audit']['audit_source'] not in {'fixed_zero_without_check','assumed_zero'}
+          assert s['synthetic_metrics_used'] is False
+          assert s['parallel_runner_created'] is False
+          assert s['frozen_runner_modified'] is False
+          assert s['boundary_audit']['gk_writeback_count'] == 0
+          assert s['boundary_audit']['world_direct_write_count'] == 0
+          assert s['boundary_audit']['action_module_internal_connection_count'] == 0
+          assert s['boundary_audit']['actionframe_direct_generation_count'] == 0
+          PY
