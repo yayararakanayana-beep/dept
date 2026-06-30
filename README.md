@@ -72,3 +72,4 @@ This structure is only a planned direction. It should not be treated as a finali
 - Avoid large redesigns without proposing them first.
 - Add or update tests when implementation behavior changes.
 - Use `pytest` for Python tests when tests are introduced.
+Run the Task20J gate contract freeze with `python validation/task20j_gate_contract_freeze.py`; it writes a no-write contract under `results/task20j_gate_contract_freeze/` for future Task21 decision-interface work without implementing a commit gate, rollback gate, ActionFrame generation, or parameter update.

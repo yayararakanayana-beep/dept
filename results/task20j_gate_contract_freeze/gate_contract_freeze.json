@@ -1,0 +1,138 @@
+{
+  "task": "Task20J gate contract freeze",
+  "scope": "contract freeze only; not a commit gate implementation; no parameter update",
+  "no_write": true,
+  "contract_frozen": true,
+  "ready_for_task21_no_write_gate": true,
+  "missing_input": false,
+  "input_errors": [],
+  "loaded_inputs": {
+    "proposal_summary": true,
+    "task20g_readiness": true,
+    "task20h_evidence": true,
+    "task20i_rerun": true
+  },
+  "source_trace": {
+    "proposal_summary": "results/task20f_no_write_dry_run/proposal_summary.json",
+    "task20g_readiness": "results/task20g_pre_commit_readiness/readiness_summary.json",
+    "task20h_evidence": "results/task20h_minimal_evidence/evidence_index.json",
+    "task20i_rerun": "results/task20i_readiness_rerun/readiness_rerun_summary.json"
+  },
+  "boundary_check": {
+    "canonical_write_enabled": false,
+    "gk_writeback_enabled": false,
+    "world_write_by_shadow_enabled": false,
+    "parameter_update_implemented": false,
+    "commit_gate_implemented": false,
+    "rollback_gate_implemented": false,
+    "action_module_reads_dept_internals": false,
+    "action_frame_generation_implemented": false,
+    "exploration_sidecar_to_actionframe_enabled": false,
+    "gate_contract_is_controller": false
+  },
+  "task21_allowed_behavior": [
+    "read Task20F proposal candidates",
+    "read Task20I readiness rerun",
+    "read Task20J gate contract",
+    "generate gate_decision as no-write output only",
+    "emit one decision per candidate: blocked, watch_only, or eligible_for_future_review",
+    "record decision reason",
+    "keep every boundary_check value false",
+    "write summary output under results/task21_no_write_commit_gate/"
+  ],
+  "task21_forbidden_behavior": [
+    "canonical parameter write",
+    "ParameterBox update",
+    "G/K writeback",
+    "world write",
+    "rollback execution",
+    "ActionModule internal DEPT read",
+    "ActionFrame generation",
+    "exploration sidecar direct coupling",
+    "commit gate acting as controller",
+    "converting readiness into action",
+    "hidden threshold-based parameter update"
+  ],
+  "task21_decision_schema": {
+    "proposal_id": "...",
+    "source_watch_item": "...",
+    "decision": "blocked | watch_only | eligible_for_future_review",
+    "decision_reason": "...",
+    "required_before_any_write": [],
+    "no_write": true,
+    "can_update_parameter": false,
+    "can_write_gk": false,
+    "can_write_world": false,
+    "can_trigger_action_module": false
+  },
+  "candidate_contract": [
+    {
+      "proposal_id": "T20F-P01-coactivation_dampen_zone",
+      "source_watch_item": "coactivation_dampen_zone",
+      "default_decision": "blocked",
+      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "allowed_task21_decisions": {
+        "blocked": "insufficient evidence or unconfirmed boundary",
+        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
+        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+      },
+      "gate_approval_allowed": false,
+      "commit_allowed": false,
+      "parameter_update_allowed": false,
+      "no_write": true
+    },
+    {
+      "proposal_id": "T20F-P02-residual_noise_high",
+      "source_watch_item": "residual_noise_high",
+      "default_decision": "blocked",
+      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "allowed_task21_decisions": {
+        "blocked": "insufficient evidence or unconfirmed boundary",
+        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
+        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+      },
+      "gate_approval_allowed": false,
+      "commit_allowed": false,
+      "parameter_update_allowed": false,
+      "no_write": true
+    },
+    {
+      "proposal_id": "T20F-P03-shock_recovery_window",
+      "source_watch_item": "shock_recovery_window",
+      "default_decision": "blocked",
+      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "allowed_task21_decisions": {
+        "blocked": "insufficient evidence or unconfirmed boundary",
+        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
+        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+      },
+      "gate_approval_allowed": false,
+      "commit_allowed": false,
+      "parameter_update_allowed": false,
+      "no_write": true
+    },
+    {
+      "proposal_id": "T20F-P04-noise_ledger_exploration_gate_relationship",
+      "source_watch_item": "noise_ledger_exploration_gate_relationship",
+      "default_decision": "blocked",
+      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "allowed_task21_decisions": {
+        "blocked": "insufficient evidence or unconfirmed boundary",
+        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
+        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+      },
+      "gate_approval_allowed": false,
+      "commit_allowed": false,
+      "parameter_update_allowed": false,
+      "no_write": true
+    }
+  ],
+  "claim_scope": [
+    "This contract only freezes a no-write gate decision interface.",
+    "It does not prove safety.",
+    "It does not prove superiority.",
+    "It does not permit real-world deployment.",
+    "It does not implement control.",
+    "It does not implement parameter updates."
+  ]
+}

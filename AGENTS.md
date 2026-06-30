@@ -50,3 +50,8 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task20H minimal evidence extraction is evidence-only and must not migrate RC1 runtime code.
 - Task20I readiness re-run is not a commit gate and must not enable parameter updates.
 - Extracted evidence must remain small, bounded, and reviewable.
+## Task20J Boundary
+
+- Task20J freezes the no-write gate contract only.
+- Task20J must not implement a commit gate, rollback gate, ActionFrame generation, or parameter update.
+- Task21 may read the contract but must remain no-write unless a later explicit task changes that boundary.
