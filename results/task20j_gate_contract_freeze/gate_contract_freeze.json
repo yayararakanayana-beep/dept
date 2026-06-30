@@ -35,7 +35,7 @@
     "read Task20I readiness rerun",
     "read Task20J gate contract",
     "generate gate_decision as no-write output only",
-    "emit one decision per candidate: blocked, watch_only, or eligible_for_future_review",
+    "emit one decision per candidate: blocked, watch_only, shadow_trial_candidate, or commit_candidate",
     "record decision reason",
     "keep every boundary_check value false",
     "write summary output under results/task21_no_write_commit_gate/"
@@ -53,10 +53,22 @@
     "converting readiness into action",
     "hidden threshold-based parameter update"
   ],
+  "criteria": [
+    "target_parameter_is_clear",
+    "update_direction_is_clear",
+    "expected_effect_is_explainable",
+    "minimum_evidence_exists",
+    "counter_evidence_is_not_strong",
+    "update_size_is_bounded",
+    "rollback_path_exists",
+    "do_nothing_risk_is_nontrivial",
+    "boundary_violation_absent",
+    "shadow_trial_is_possible"
+  ],
   "task21_decision_schema": {
     "proposal_id": "...",
     "source_watch_item": "...",
-    "decision": "blocked | watch_only | eligible_for_future_review",
+    "decision": "blocked | watch_only | shadow_trial_candidate | commit_candidate",
     "decision_reason": "...",
     "required_before_any_write": [],
     "no_write": true,
@@ -69,61 +81,121 @@
     {
       "proposal_id": "T20F-P01-coactivation_dampen_zone",
       "source_watch_item": "coactivation_dampen_zone",
-      "default_decision": "blocked",
-      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "default_decision": "watch_only",
+      "default_decision_reason": "current evidence preserves observation value, but Task20J does not authorize canonical writes or force all candidates to blocked; Task21 must classify using the frozen criteria.",
       "allowed_task21_decisions": {
-        "blocked": "insufficient evidence or unconfirmed boundary",
-        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
-        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+        "blocked": "adoption unavailable due to a boundary violation, unclear target parameter, strong counter-evidence, unavailable rollback, or comparable blocker",
+        "watch_only": "continued observation only; signal exists but remains weak as an update candidate",
+        "shadow_trial_candidate": "canonical update remains forbidden, but a no-write Parameter Shadow Box trial may be worth future review when criteria are satisfied",
+        "commit_candidate": "future formal ParameterBox update candidate only; Task20J/Task21 remain no-write and cannot perform the update"
       },
       "gate_approval_allowed": false,
       "commit_allowed": false,
       "parameter_update_allowed": false,
+      "shadow_trial_allowed_now": false,
+      "commit_allowed_now": false,
+      "classification_criteria": [
+        "target_parameter_is_clear",
+        "update_direction_is_clear",
+        "expected_effect_is_explainable",
+        "minimum_evidence_exists",
+        "counter_evidence_is_not_strong",
+        "update_size_is_bounded",
+        "rollback_path_exists",
+        "do_nothing_risk_is_nontrivial",
+        "boundary_violation_absent",
+        "shadow_trial_is_possible"
+      ],
       "no_write": true
     },
     {
       "proposal_id": "T20F-P02-residual_noise_high",
       "source_watch_item": "residual_noise_high",
-      "default_decision": "blocked",
-      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "default_decision": "watch_only",
+      "default_decision_reason": "current evidence preserves observation value, but Task20J does not authorize canonical writes or force all candidates to blocked; Task21 must classify using the frozen criteria.",
       "allowed_task21_decisions": {
-        "blocked": "insufficient evidence or unconfirmed boundary",
-        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
-        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+        "blocked": "adoption unavailable due to a boundary violation, unclear target parameter, strong counter-evidence, unavailable rollback, or comparable blocker",
+        "watch_only": "continued observation only; signal exists but remains weak as an update candidate",
+        "shadow_trial_candidate": "canonical update remains forbidden, but a no-write Parameter Shadow Box trial may be worth future review when criteria are satisfied",
+        "commit_candidate": "future formal ParameterBox update candidate only; Task20J/Task21 remain no-write and cannot perform the update"
       },
       "gate_approval_allowed": false,
       "commit_allowed": false,
       "parameter_update_allowed": false,
+      "shadow_trial_allowed_now": false,
+      "commit_allowed_now": false,
+      "classification_criteria": [
+        "target_parameter_is_clear",
+        "update_direction_is_clear",
+        "expected_effect_is_explainable",
+        "minimum_evidence_exists",
+        "counter_evidence_is_not_strong",
+        "update_size_is_bounded",
+        "rollback_path_exists",
+        "do_nothing_risk_is_nontrivial",
+        "boundary_violation_absent",
+        "shadow_trial_is_possible"
+      ],
       "no_write": true
     },
     {
       "proposal_id": "T20F-P03-shock_recovery_window",
       "source_watch_item": "shock_recovery_window",
-      "default_decision": "blocked",
-      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "default_decision": "watch_only",
+      "default_decision_reason": "current evidence preserves observation value, but Task20J does not authorize canonical writes or force all candidates to blocked; Task21 must classify using the frozen criteria.",
       "allowed_task21_decisions": {
-        "blocked": "insufficient evidence or unconfirmed boundary",
-        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
-        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+        "blocked": "adoption unavailable due to a boundary violation, unclear target parameter, strong counter-evidence, unavailable rollback, or comparable blocker",
+        "watch_only": "continued observation only; signal exists but remains weak as an update candidate",
+        "shadow_trial_candidate": "canonical update remains forbidden, but a no-write Parameter Shadow Box trial may be worth future review when criteria are satisfied",
+        "commit_candidate": "future formal ParameterBox update candidate only; Task20J/Task21 remain no-write and cannot perform the update"
       },
       "gate_approval_allowed": false,
       "commit_allowed": false,
       "parameter_update_allowed": false,
+      "shadow_trial_allowed_now": false,
+      "commit_allowed_now": false,
+      "classification_criteria": [
+        "target_parameter_is_clear",
+        "update_direction_is_clear",
+        "expected_effect_is_explainable",
+        "minimum_evidence_exists",
+        "counter_evidence_is_not_strong",
+        "update_size_is_bounded",
+        "rollback_path_exists",
+        "do_nothing_risk_is_nontrivial",
+        "boundary_violation_absent",
+        "shadow_trial_is_possible"
+      ],
       "no_write": true
     },
     {
       "proposal_id": "T20F-P04-noise_ledger_exploration_gate_relationship",
       "source_watch_item": "noise_ledger_exploration_gate_relationship",
-      "default_decision": "blocked",
-      "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+      "default_decision": "watch_only",
+      "default_decision_reason": "current evidence preserves observation value, but Task20J does not authorize canonical writes or force all candidates to blocked; Task21 must classify using the frozen criteria.",
       "allowed_task21_decisions": {
-        "blocked": "insufficient evidence or unconfirmed boundary",
-        "watch_only": "continued observation is allowed, but gate adoption is forbidden",
-        "eligible_for_future_review": "future review candidate only; execution remains forbidden"
+        "blocked": "adoption unavailable due to a boundary violation, unclear target parameter, strong counter-evidence, unavailable rollback, or comparable blocker",
+        "watch_only": "continued observation only; signal exists but remains weak as an update candidate",
+        "shadow_trial_candidate": "canonical update remains forbidden, but a no-write Parameter Shadow Box trial may be worth future review when criteria are satisfied",
+        "commit_candidate": "future formal ParameterBox update candidate only; Task20J/Task21 remain no-write and cannot perform the update"
       },
       "gate_approval_allowed": false,
       "commit_allowed": false,
       "parameter_update_allowed": false,
+      "shadow_trial_allowed_now": false,
+      "commit_allowed_now": false,
+      "classification_criteria": [
+        "target_parameter_is_clear",
+        "update_direction_is_clear",
+        "expected_effect_is_explainable",
+        "minimum_evidence_exists",
+        "counter_evidence_is_not_strong",
+        "update_size_is_bounded",
+        "rollback_path_exists",
+        "do_nothing_risk_is_nontrivial",
+        "boundary_violation_absent",
+        "shadow_trial_is_possible"
+      ],
       "no_write": true
     }
   ],

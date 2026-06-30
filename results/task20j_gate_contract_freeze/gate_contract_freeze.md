@@ -30,10 +30,22 @@
 - read Task20I readiness rerun
 - read Task20J gate contract
 - generate gate_decision as no-write output only
-- emit one decision per candidate: blocked, watch_only, or eligible_for_future_review
+- emit one decision per candidate: blocked, watch_only, shadow_trial_candidate, or commit_candidate
 - record decision reason
 - keep every boundary_check value false
 - write summary output under results/task21_no_write_commit_gate/
+
+## Criteria
+- target_parameter_is_clear
+- update_direction_is_clear
+- expected_effect_is_explainable
+- minimum_evidence_exists
+- counter_evidence_is_not_strong
+- update_size_is_bounded
+- rollback_path_exists
+- do_nothing_risk_is_nontrivial
+- boundary_violation_absent
+- shadow_trial_is_possible
 
 ## Task21 Forbidden Behavior
 - canonical parameter write
@@ -49,10 +61,10 @@
 - hidden threshold-based parameter update
 
 ## Candidate Contract
-- T20F-P01-coactivation_dampen_zone (coactivation_dampen_zone): default_decision=blocked
-- T20F-P02-residual_noise_high (residual_noise_high): default_decision=blocked
-- T20F-P03-shock_recovery_window (shock_recovery_window): default_decision=blocked
-- T20F-P04-noise_ledger_exploration_gate_relationship (noise_ledger_exploration_gate_relationship): default_decision=blocked
+- T20F-P01-coactivation_dampen_zone (coactivation_dampen_zone): default_decision=watch_only
+- T20F-P02-residual_noise_high (residual_noise_high): default_decision=watch_only
+- T20F-P03-shock_recovery_window (shock_recovery_window): default_decision=watch_only
+- T20F-P04-noise_ledger_exploration_gate_relationship (noise_ledger_exploration_gate_relationship): default_decision=watch_only
 
 ## Task21 Decision Schema
 
@@ -60,7 +72,7 @@
 {
   "proposal_id": "...",
   "source_watch_item": "...",
-  "decision": "blocked | watch_only | eligible_for_future_review",
+  "decision": "blocked | watch_only | shadow_trial_candidate | commit_candidate",
   "decision_reason": "...",
   "required_before_any_write": [],
   "no_write": true,

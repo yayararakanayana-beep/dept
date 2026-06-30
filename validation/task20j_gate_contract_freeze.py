@@ -40,10 +40,23 @@ TASK21_ALLOWED_BEHAVIOR = [
     "read Task20I readiness rerun",
     "read Task20J gate contract",
     "generate gate_decision as no-write output only",
-    "emit one decision per candidate: blocked, watch_only, or eligible_for_future_review",
+    "emit one decision per candidate: blocked, watch_only, shadow_trial_candidate, or commit_candidate",
     "record decision reason",
     "keep every boundary_check value false",
     "write summary output under results/task21_no_write_commit_gate/",
+]
+
+CRITERIA = [
+    "target_parameter_is_clear",
+    "update_direction_is_clear",
+    "expected_effect_is_explainable",
+    "minimum_evidence_exists",
+    "counter_evidence_is_not_strong",
+    "update_size_is_bounded",
+    "rollback_path_exists",
+    "do_nothing_risk_is_nontrivial",
+    "boundary_violation_absent",
+    "shadow_trial_is_possible",
 ]
 
 TASK21_FORBIDDEN_BEHAVIOR = [
@@ -63,7 +76,7 @@ TASK21_FORBIDDEN_BEHAVIOR = [
 DECISION_SCHEMA = {
     "proposal_id": "...",
     "source_watch_item": "...",
-    "decision": "blocked | watch_only | eligible_for_future_review",
+    "decision": "blocked | watch_only | shadow_trial_candidate | commit_candidate",
     "decision_reason": "...",
     "required_before_any_write": [],
     "no_write": True,
@@ -104,16 +117,20 @@ def _candidate_contract() -> list[dict[str, Any]]:
         {
             "proposal_id": proposal_id,
             "source_watch_item": source_watch_item,
-            "default_decision": "blocked",
-            "default_decision_reason": "gate_ready_overall is false; evidence remains insufficient or boundaries remain unconfirmed for any write or adoption.",
+            "default_decision": "watch_only",
+            "default_decision_reason": "current evidence preserves observation value, but Task20J does not authorize canonical writes or force all candidates to blocked; Task21 must classify using the frozen criteria.",
             "allowed_task21_decisions": {
-                "blocked": "insufficient evidence or unconfirmed boundary",
-                "watch_only": "continued observation is allowed, but gate adoption is forbidden",
-                "eligible_for_future_review": "future review candidate only; execution remains forbidden",
+                "blocked": "adoption unavailable due to a boundary violation, unclear target parameter, strong counter-evidence, unavailable rollback, or comparable blocker",
+                "watch_only": "continued observation only; signal exists but remains weak as an update candidate",
+                "shadow_trial_candidate": "canonical update remains forbidden, but a no-write Parameter Shadow Box trial may be worth future review when criteria are satisfied",
+                "commit_candidate": "future formal ParameterBox update candidate only; Task20J/Task21 remain no-write and cannot perform the update",
             },
             "gate_approval_allowed": False,
             "commit_allowed": False,
             "parameter_update_allowed": False,
+            "shadow_trial_allowed_now": False,
+            "commit_allowed_now": False,
+            "classification_criteria": CRITERIA,
             "no_write": True,
         }
         for proposal_id, source_watch_item in EXPECTED_CANDIDATES
@@ -142,6 +159,7 @@ def build_contract() -> dict[str, Any]:
         "boundary_check": BOUNDARY_CHECK,
         "task21_allowed_behavior": TASK21_ALLOWED_BEHAVIOR,
         "task21_forbidden_behavior": TASK21_FORBIDDEN_BEHAVIOR,
+        "criteria": CRITERIA,
         "task21_decision_schema": DECISION_SCHEMA,
         "candidate_contract": _candidate_contract(),
         "claim_scope": CLAIM_SCOPE,
@@ -170,6 +188,10 @@ def render_markdown(contract: dict[str, Any]) -> str:
 
     lines.extend(["", "## Task21 Allowed Behavior"])
     for item in contract["task21_allowed_behavior"]:
+        lines.append(f"- {item}")
+
+    lines.extend(["", "## Criteria"])
+    for item in contract["criteria"]:
         lines.append(f"- {item}")
 
     lines.extend(["", "## Task21 Forbidden Behavior"])

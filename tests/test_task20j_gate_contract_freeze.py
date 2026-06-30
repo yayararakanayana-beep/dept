@@ -24,7 +24,7 @@ def test_contract_core_flags_and_boundaries():
     assert contract["boundary_check"]["parameter_update_implemented"] is False
 
 
-def test_candidate_contract_defaults_blocked():
+def test_candidate_contract_keeps_all_candidates_and_open_classifications():
     contract = task20j.build_contract()
     candidates = contract["candidate_contract"]
     assert {item["proposal_id"] for item in candidates} == {
@@ -33,15 +33,29 @@ def test_candidate_contract_defaults_blocked():
         "T20F-P03-shock_recovery_window",
         "T20F-P04-noise_ledger_exploration_gate_relationship",
     }
-    assert all(item["default_decision"] == "blocked" for item in candidates)
+    assert not all(item["default_decision"] == "blocked" for item in candidates)
+    for item in candidates:
+        assert "shadow_trial_candidate" in item["allowed_task21_decisions"]
+        assert "commit_candidate" in item["allowed_task21_decisions"]
+        assert item["parameter_update_allowed"] is False
+        assert item["commit_allowed_now"] is False
 
 
 def test_task21_decision_schema_disallows_writes_and_actions():
-    schema = task20j.build_contract()["task21_decision_schema"]
+    contract = task20j.build_contract()
+    schema = contract["task21_decision_schema"]
+    assert "shadow_trial_candidate" in schema["decision"]
+    assert "commit_candidate" in schema["decision"]
     assert schema["can_update_parameter"] is False
     assert schema["can_write_gk"] is False
     assert schema["can_write_world"] is False
     assert schema["can_trigger_action_module"] is False
+
+
+def test_criteria_include_shadow_and_risk_prechecks():
+    criteria = task20j.build_contract()["criteria"]
+    assert "do_nothing_risk_is_nontrivial" in criteria
+    assert "shadow_trial_is_possible" in criteria
 
 
 def test_script_generates_json_and_markdown_outputs():
