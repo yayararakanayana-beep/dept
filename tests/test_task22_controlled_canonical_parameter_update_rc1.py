@@ -94,3 +94,11 @@ def test_synthetic_improvement_cannot_make_target_metric_pass():
     if summary["existing_runner_executed"] is False:
         assert "target_metric_improved_or_explicitly_passed_by_existing_metric" not in validation["checks"]
         assert validation["checks"]["synthetic_improvement_cannot_pass_target_metric"] is True
+
+
+def test_pandas_dependency_is_declared_for_runner_execution():
+    summary, _, _ = _run_and_load()
+    manifest = summary["dependency_manifest"]
+    assert manifest["path"] == "requirements.txt"
+    assert manifest["pandas_declared"] is True
+    assert (ROOT / "requirements.txt").read_text().strip().startswith("pandas")

@@ -28,6 +28,6 @@ missing_dependency: `pandas`
 - execution_blocker: `ModuleNotFoundError: No module named 'pandas'`
 
 ## Next Required Fix
-- Make the frozen RC1 runner importable/executable in the active validation environment (for example by providing its runtime dependencies such as pandas).
+- Install the declared runtime dependency from requirements.txt so the frozen RC1 runner can import pandas in the validation environment.
 - Then connect the bounded canonical update hook to the runner-owned lower ParameterBox state during closed-loop execution.
 - Compute performance_delta and boundary counts only from real runner outputs/audits.

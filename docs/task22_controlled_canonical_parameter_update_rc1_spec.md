@@ -23,6 +23,10 @@ Task21 remains a no-write classifier. Task22 reads the Task21 decision and valid
 
 Task22 must not create a new parallel runner, redesign the Parameter Shadow Box, rebuild the Task21 classifier, add G/K writeback, add world direct writes, connect ActionModule internals to DEPT state, generate ActionFrame directly, or pass validation from synthetic improvements.
 
+## Dependency Follow-up
+
+The frozen RC1 runner import path requires `pandas`; Task22 now declares `pandas>=2.0` in `requirements.txt` as the minimal dependency needed to attempt runner execution. If the active environment has not installed that dependency, the validation remains `passed: false` and records `missing_dependency: pandas` rather than substituting synthetic metrics.
+
 ## Current Blocker Behavior
 
 If the existing runner cannot execute because of a missing dependency or import/runtime blocker, the validation emits:
