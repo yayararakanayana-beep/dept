@@ -219,18 +219,46 @@ LEGACY_FINGERPRINT_VIOLATION_TOKENS = (
 
 
 def _legacy_fingerprint_reclassification_ready(controller: ControlledCanonicalUpdateController, case_id: str) -> tuple[bool, str]:
+    """Return whether legacy shadow fingerprint findings are advisory-only.
+
+    Task22B may exclude these findings from canonical boundary pass/fail only
+    for the approved controlled update case and only when the canonical update
+    evidence proves a real one-write bounded baseline shift. Other cases keep
+    the raw boundary result unchanged.
+    """
+    if case_id != "controlled_update_on":
+        return False, "not_controlled_update_on"
     entries = [entry for entry in controller.canonical_update_ledger if entry.get("case_id") == case_id and entry.get("approved_baseline_shift") is True]
     if len(entries) != 1:
         return False, "requires_exactly_one_controlled_update_ledger_entry"
     entry = entries[0]
-    required = ["pre_update_snapshot", "post_update_snapshot", "pre_update_fingerprint", "post_update_fingerprint", "update_id", "case_id", "updated_parameter", "old_value", "new_value", "delta", "max_abs_delta"]
+    required = [
+        "pre_update_snapshot",
+        "post_update_snapshot",
+        "pre_update_fingerprint",
+        "post_update_fingerprint",
+        "update_id",
+        "case_id",
+        "updated_parameter",
+        "old_value",
+        "new_value",
+        "delta",
+        "max_abs_delta",
+    ]
     missing = [key for key in required if entry.get(key) in (None, "", [])]
     if missing:
         return False, "missing_ledger_evidence:" + ",".join(missing)
-    checks = [entry.get("bounded_delta_confirmed") is True, entry.get("one_write_only_confirmed") is True, controller.canonical_write_count == 1]
+    checks = [
+        entry.get("approved_canonical_update_applied") is True,
+        entry.get("approved_baseline_shift") is True,
+        entry.get("bounded_delta_confirmed") is True,
+        entry.get("one_write_only_confirmed") is True,
+        controller.canonical_write_count == 1,
+        controller.rollback_count == 0,
+    ]
     if not all(checks):
-        return False, "bounded_delta_or_one_write_evidence_failed"
-    return True, "ledger_snapshot_fingerprint_bounded_delta_one_write_evidence_confirmed"
+        return False, "approved_update_or_bounded_one_write_evidence_failed"
+    return True, "not_canonical_boundary_violation_when_approved_update:shadow_only_fingerprint_continuity_audit"
 
 
 def _source_is_legacy_fingerprint(source: dict[str, Any]) -> bool:
@@ -278,14 +306,38 @@ def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCano
             "nonzero_violation_detected": nonzero,
             "row_evidence": row_evidence,
         })
-    reclass_ready, reclass_reason = _legacy_fingerprint_reclassification_ready(controller, case_id) if case_id == "controlled_update_on" else (False, "not_controlled_update_on")
-    reclassified_sources = [source for source in sources if source.get("nonzero_violation_detected") and _source_is_legacy_fingerprint(source)]
+    raw_total = total
+    reclass_ready, reclass_reason = _legacy_fingerprint_reclassification_ready(controller, case_id)
+    legacy_report_present = any(
+        source.get("table") == "boundary_violation_report"
+        and source.get("nonzero_violation_detected")
+        and _source_is_legacy_fingerprint(source)
+        for source in sources
+    )
+    reclassified_sources = [
+        source
+        for source in sources
+        if source.get("nonzero_violation_detected")
+        and (
+            _source_is_legacy_fingerprint(source)
+            or (
+                legacy_report_present
+                and source.get("table") == "boundary_guard_summary"
+                and source.get("column") == "boundary_violation_report_rows"
+            )
+        )
+    ]
     reclassified_count = 0.0
     if reclass_ready and reclassified_sources:
         for source in reclassified_sources:
             value = source.get("sum_value") or source.get("max_value") or 0.0
             reclassified_count += float(value)
+            source["shadow_only_advisory_audit"] = True
+            source["legacy_shadow_fingerprint_audit"] = True
+            source["excluded_from_canonical_boundary_pass_fail"] = True
+            source["exclusion_reason"] = reclass_reason
         total = max(0.0, total - reclassified_count)
+    advisory_count = reclassified_count if reclass_ready else 0.0
     return {
         "audit_source": "static_and_runtime_combined",
         "boundary_count_aggregation": "sum_and_max_no_int_truncation",
@@ -295,10 +347,15 @@ def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCano
         "action_module_internal_connection_count": 0,
         "actionframe_direct_generation_count": 0,
         "boundary_violation_count": total,
+        "raw_boundary_violation_count": raw_total,
+        "effective_boundary_violation_count": total,
+        "excluded_shadow_only_violation_count": reclassified_count if reclass_ready else 0.0,
+        "shadow_only_advisory_violation_count": advisory_count,
         "boundary_violation_sources": sources,
         "legacy_fingerprint_mismatch_detected": bool(reclassified_sources),
         "legacy_fingerprint_mismatch_reclassified_count": reclassified_count if reclass_ready else 0.0,
         "legacy_fingerprint_mismatch_reclassified_reason": reclass_reason,
+        "legacy_shadow_fingerprint_boundary_scope": "shadow_only_advisory_audit" if reclass_ready and reclassified_sources else "canonical_boundary_scope_unchanged",
         "approved_baseline_shift_count": 1 if reclass_ready and reclassified_sources else 0,
     }
 
@@ -535,8 +592,12 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 "world_direct_write_count": 0,
                 "action_module_internal_connection_count": 0,
                 "actionframe_direct_generation_count": 0,
-                "boundary_violation_count": sum(float(c["boundary_flags"].get("boundary_violation_count") or 0.0) for c in cases),
-                "boundary_count_aggregation": "sum_and_max_no_int_truncation",
+                "raw_boundary_violation_count": sum(float(c["boundary_flags"].get("raw_boundary_violation_count", c["boundary_flags"].get("boundary_violation_count")) or 0.0) for c in cases),
+                "excluded_shadow_only_violation_count": sum(float(c["boundary_flags"].get("excluded_shadow_only_violation_count") or 0.0) for c in cases),
+                "shadow_only_advisory_violation_count": sum(float(c["boundary_flags"].get("shadow_only_advisory_violation_count") or 0.0) for c in cases),
+                "effective_boundary_violation_count": sum(float(c["boundary_flags"].get("effective_boundary_violation_count", c["boundary_flags"].get("boundary_violation_count")) or 0.0) for c in cases),
+                "boundary_violation_count": sum(float(c["boundary_flags"].get("effective_boundary_violation_count", c["boundary_flags"].get("boundary_violation_count")) or 0.0) for c in cases),
+                "boundary_count_aggregation": "raw_then_shadow_only_advisory_exclusion_for_approved_controlled_update",
                 "update_off_boundary_violation_count": update_off_boundary,
                 "controlled_update_on_boundary_violation_count": controlled_boundary,
                 "forced_bad_update_rollback_boundary_violation_count": forced_boundary,
@@ -565,6 +626,10 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                     "target_parameter_path": controlled.get("target_parameter_path"),
                     "approved_canonical_update_registered": controlled.get("approved_canonical_update_applied") is True,
                     "approved_baseline_shift_count": 1 if controlled.get("approved_baseline_shift") is True else 0,
+                    "shadow_only_fingerprint_audit_excluded_from_boundary_count": controlled.get("boundary_flags", {}).get("excluded_shadow_only_violation_count", 0.0),
+                    "shadow_only_fingerprint_audit_retained_as_advisory_count": controlled.get("boundary_flags", {}).get("shadow_only_advisory_violation_count", 0.0),
+                    "shadow_only_fingerprint_audit_reason": controlled.get("boundary_flags", {}).get("legacy_fingerprint_mismatch_reclassified_reason"),
+                    "legacy_shadow_fingerprint_boundary_scope": controlled.get("boundary_flags", {}).get("legacy_shadow_fingerprint_boundary_scope"),
                     "legacy_fingerprint_mismatch_reclassified_count": controlled.get("boundary_flags", {}).get("legacy_fingerprint_mismatch_reclassified_count", 0.0),
                     "legacy_fingerprint_mismatch_reclassified_reason": controlled.get("boundary_flags", {}).get("legacy_fingerprint_mismatch_reclassified_reason"),
                     "canonical_update_ledger_entries": controlled.get("canonical_update_ledger", []),

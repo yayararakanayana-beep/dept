@@ -61,6 +61,10 @@ class ControlledCanonicalUpdateController:
             "action_module_internal_connection_count": 0,
             "actionframe_direct_generation_count": 0,
             "boundary_violation_count": 0,
+            "raw_boundary_violation_count": 0,
+            "effective_boundary_violation_count": 0,
+            "excluded_shadow_only_violation_count": 0,
+            "shadow_only_advisory_violation_count": 0,
         }
 
     def locate_state(self) -> tuple[Any | None, str | None]:

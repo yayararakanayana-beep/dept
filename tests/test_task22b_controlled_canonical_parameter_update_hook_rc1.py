@@ -160,3 +160,35 @@ def test_non_update_cases_do_not_register_baseline_shift(artifacts):
         assert cases["real_watch_only_candidates"].get("approved_baseline_shift") is False
         assert cases["real_watch_only_candidates"].get("canonical_update_ledger") == []
         assert cases["real_watch_only_candidates"]["canonical_write_count"] == 0
+
+
+def test_shadow_only_fingerprint_audit_exclusion_is_scoped(artifacts):
+    summary, _, _, _ = artifacts
+    if not summary["existing_runner_executed"]:
+        assert summary["passed"] is False
+        return
+    cases = {case["case_id"]: case for case in summary["cases"]}
+    controlled_flags = cases["controlled_update_on"]["boundary_flags"]
+    boundary_audit = summary["boundary_audit"]
+    canonical_audit = summary["canonical_update_audit"]
+
+    assert "raw_boundary_violation_count" in controlled_flags
+    assert "excluded_shadow_only_violation_count" in controlled_flags
+    assert "effective_boundary_violation_count" in controlled_flags
+    assert controlled_flags["boundary_violation_count"] == controlled_flags["effective_boundary_violation_count"]
+    assert boundary_audit["boundary_violation_count"] == boundary_audit["effective_boundary_violation_count"]
+    assert canonical_audit["legacy_shadow_fingerprint_boundary_scope"] in {
+        "shadow_only_advisory_audit",
+        "canonical_boundary_scope_unchanged",
+    }
+    if controlled_flags["excluded_shadow_only_violation_count"]:
+        assert cases["controlled_update_on"]["approved_canonical_update_applied"] is True
+        assert cases["controlled_update_on"]["approved_baseline_shift"] is True
+        assert cases["controlled_update_on"]["canonical_write_count"] == 1
+        assert cases["controlled_update_on"]["rollback_count"] == 0
+        assert cases["controlled_update_on"]["bounded_delta_confirmed"] is True
+        assert cases["controlled_update_on"]["one_write_only_confirmed"] is True
+        assert canonical_audit["shadow_only_fingerprint_audit_excluded_from_boundary_count"] == controlled_flags["excluded_shadow_only_violation_count"]
+        assert canonical_audit["shadow_only_fingerprint_audit_retained_as_advisory_count"] == controlled_flags["shadow_only_advisory_violation_count"]
+    for case_id in ["update_off", "forced_bad_update_rollback", "real_watch_only_candidates"]:
+        assert cases[case_id]["boundary_flags"].get("excluded_shadow_only_violation_count", 0.0) == 0.0
