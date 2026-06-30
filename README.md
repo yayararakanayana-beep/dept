@@ -72,3 +72,4 @@ This structure is only a planned direction. It should not be treated as a finali
 - Avoid large redesigns without proposing them first.
 - Add or update tests when implementation behavior changes.
 - Use `pytest` for Python tests when tests are introduced.
+Run the Task20J gate contract freeze with `python validation/task20j_gate_contract_freeze.py`; it freezes the no-write parameter-adoption precheck contract and classifies lower-parameter update candidates into `blocked` / `watch_only` / `shadow_trial_candidate` / `commit_candidate` without allowing canonical ParameterBox writes.
