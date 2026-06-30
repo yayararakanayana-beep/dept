@@ -103,3 +103,15 @@ def test_pandas_dependency_is_declared_for_runner_execution():
     assert manifest["pandas_declared"] is True
     assert (ROOT / "requirements.txt").read_text().strip().startswith("pandas")
     assert summary["dependency_runtime_status"]["pandas_importable"] in {True, False}
+
+
+def test_pip_install_attempt_is_recorded():
+    summary, _, _ = _run_and_load()
+    assert summary["pip_install_attempted"] is True
+    assert isinstance(summary["pip_install_exit_code"], int)
+    assert "pip_install_stdout_or_summary" in summary
+    assert "pip_install_stderr_or_summary" in summary
+    if summary["pip_install_exit_code"] != 0:
+        assert summary["execution_blocker"].startswith("pip_install_failed")
+        assert summary["pip_install_failure_class"] in {"package-index/network", "permission", "version_conflict", None}
+        assert summary["passed"] is False

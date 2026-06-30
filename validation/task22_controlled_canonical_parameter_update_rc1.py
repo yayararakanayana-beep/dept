@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -30,8 +31,46 @@ REUSED_RUNNER_FILES = [
     "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip::DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze/DEPT2_ActionModule_ActuationPrimitives_RC1/dept2_system/parameter_box.py",
 ]
 CASE_IDS = ["update_off", "controlled_update_on", "forced_bad_update_rollback", "real_watch_only_candidates"]
+_PIP_INSTALL_RESULT: dict[str, Any] | None = None
 
 
+
+
+def _summarize_stream(text: str, limit: int = 1200) -> str:
+    compact = "\n".join(line for line in text.splitlines() if line.strip())
+    if len(compact) <= limit:
+        return compact
+    return compact[:limit] + "...<truncated>"
+
+
+def _classify_pip_failure(stdout: str, stderr: str) -> str | None:
+    text = f"{stdout}\n{stderr}".lower()
+    if "tunnel connection failed" in text or "403 forbidden" in text or "proxy" in text:
+        return "package-index/network"
+    if "permission denied" in text:
+        return "permission"
+    if "version" in text or "requires" in text or "conflict" in text:
+        return "version_conflict"
+    if "no matching distribution" in text or "from versions: none" in text:
+        return "package-index/network"
+    return None
+
+
+def _attempt_pip_install() -> dict[str, Any]:
+    global _PIP_INSTALL_RESULT
+    if _PIP_INSTALL_RESULT is not None:
+        return _PIP_INSTALL_RESULT
+    cmd = [sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt")]
+    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
+    _PIP_INSTALL_RESULT = {
+        "pip_install_attempted": True,
+        "pip_install_command": "python -m pip install -r requirements.txt",
+        "pip_install_exit_code": int(proc.returncode),
+        "pip_install_stdout_or_summary": _summarize_stream(proc.stdout),
+        "pip_install_stderr_or_summary": _summarize_stream(proc.stderr),
+        "pip_install_failure_class": None if proc.returncode == 0 else _classify_pip_failure(proc.stdout, proc.stderr),
+    }
+    return _PIP_INSTALL_RESULT
 
 
 def _dependency_runtime_status() -> dict[str, Any]:
@@ -170,9 +209,19 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
     task21_decisions = _read_json(TASK21_DECISIONS)
     _read_json(TASK21_VALIDATION)
     _read_json(TASK20J_CONTRACT)
-    exec_result = _attempt_existing_runner_execution()
     dependency_manifest = _dependency_manifest()
+    pip_install_result = _attempt_pip_install()
     dependency_runtime_status = _dependency_runtime_status()
+    if pip_install_result["pip_install_exit_code"] != 0 and not dependency_runtime_status.get("pandas_importable", False):
+        exec_result = {
+            "existing_runner_found": True,
+            "existing_runner_executed": False,
+            "execution_blocker": f"pip_install_failed: {pip_install_result.get('pip_install_failure_class') or 'unclassified'}",
+            "missing_dependency": "pandas",
+            "traceback": None,
+        }
+    else:
+        exec_result = _attempt_existing_runner_execution()
 
     if not exec_result["existing_runner_executed"]:
         cases = [_blocked_case(case_id, 2201 + idx, exec_result) for idx, case_id in enumerate(CASE_IDS)]
@@ -207,6 +256,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
             "no_parallel_runner_created": True,
             "dependency_manifest": dependency_manifest,
             "dependency_runtime_status": dependency_runtime_status,
+            **pip_install_result,
             "synthetic_metrics_used_for_primary_validation": False,
             "task21_input_read": True,
             "task21_candidate_count": len(task21_decisions.get("decisions", [])) if isinstance(task21_decisions, dict) else None,
@@ -247,7 +297,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
             "pass_conditions": checks,
             "passed": False,
             "next_required_fix": [
-                "Resolve the package-index/network blocker so `python -m pip install -r requirements.txt` can install pandas into the active validation environment.",
+                "Resolve the recorded pip install blocker so `python -m pip install -r requirements.txt` can install pandas into the active validation environment.",
                 "Then connect the bounded canonical update hook to the runner-owned lower ParameterBox state during closed-loop execution.",
                 "Compute performance_delta and boundary counts only from real runner outputs/audits.",
             ],
@@ -278,6 +328,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
         "no_parallel_runner_created": True,
         "dependency_manifest": dependency_manifest,
         "dependency_runtime_status": dependency_runtime_status,
+        **pip_install_result,
         "synthetic_metrics_used_for_primary_validation": False,
         "cases": [],
         "comparison": {"cases_compared": CASE_IDS, "comparison_status": "not_computed_update_hook_missing"},
@@ -332,6 +383,8 @@ def main() -> int:
     print(json.dumps({
         "task": summary["task"],
         "task22_status": summary.get("task22_status"),
+        "pip_install_attempted": summary.get("pip_install_attempted"),
+        "pip_install_exit_code": summary.get("pip_install_exit_code"),
         "existing_runner_executed": summary.get("existing_runner_executed"),
         "missing_dependency": summary.get("missing_dependency"),
         "passed": summary["passed"],
