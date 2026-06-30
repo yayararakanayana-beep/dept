@@ -35,3 +35,11 @@ The summary includes `parameter_box_identity` with `located_via`, `is_runner_own
 ## Pass rule
 
 `passed=true` is allowed only when the existing runner executes, the lower ParameterBox state and safe hook are found, the controlled case writes exactly once, rollback restores the original value, real watch-only candidates are not written, performance delta is extracted from a valid real runner output metric that improves, boundary audit is explicit rather than assumed, and all prohibited boundary counts remain zero.
+
+## Real effect and boundary regression checks
+
+Task22B records `parameter_before`, `parameter_hook_after`, and `parameter_runner_after` separately for each case. The `runner_recomputed_or_overwrote_parameter` flag shows whether `runner.run()` changed the hooked value after the controller wrote it.
+
+Boundary counts use `sum` and `max` aggregation, never `int(mean)`. Any non-zero boundary count, including fractional values such as `0.5`, remains non-zero. `boundary_violation_report_rows > 0` is treated as a boundary violation. If `controlled_update_on` worsens boundary counts versus `update_off`, Task22B remains `passed=false`.
+
+If no valid real runner performance metric improves, the summary records `no_valid_metric_improved=true` and Task22B remains `passed=false`.

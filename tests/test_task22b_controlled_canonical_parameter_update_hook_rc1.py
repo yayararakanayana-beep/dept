@@ -119,3 +119,37 @@ def test_parameter_box_identity_is_recorded_and_confirmed_only_on_pass():
         assert identity["is_runner_owned_lower_parameter_box"] is True
         assert identity["is_shadow_candidate_only"] is False
         assert identity["canonical_update_semantics"] == "confirmed"
+
+
+
+def test_boundary_counts_do_not_truncate_fractional_violations():
+    summary, _, _ = _run_and_load()
+    audit = summary["boundary_audit"]
+    if summary["existing_runner_executed"]:
+        assert audit["boundary_count_aggregation"] == "sum_and_max_no_int_truncation"
+        assert isinstance(audit["boundary_violation_count"], float)
+        if audit["controlled_boundary_regression_detected"]:
+            assert summary["passed"] is False
+
+
+def test_parameter_hook_and_runner_after_are_recorded():
+    summary, _, _ = _run_and_load()
+    cases = {c["case_id"]: c for c in summary["cases"]}
+    controlled = cases["controlled_update_on"]
+    assert "parameter_hook_after" in controlled
+    assert "parameter_runner_after" in controlled
+    assert "runner_recomputed_or_overwrote_parameter" in controlled
+    if summary["existing_runner_executed"]:
+        audit = summary["real_runner_effect_audit"]
+        assert "controlled_parameter_hook_after" in audit
+        assert "controlled_parameter_runner_after" in audit
+        assert "controlled_runner_recomputed_or_overwrote_parameter" in audit
+
+
+def test_no_improvement_or_boundary_regression_forces_failure():
+    summary, _, _ = _run_and_load()
+    effect = summary["real_runner_effect_audit"]
+    if effect.get("no_valid_metric_improved") is True:
+        assert summary["passed"] is False
+    if effect.get("controlled_boundary_regression_detected") is True:
+        assert summary["passed"] is False

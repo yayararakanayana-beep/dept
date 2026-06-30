@@ -55,6 +55,9 @@ jobs:
           assert s['performance_delta']['improvement_detected'] is True
           assert s['parameter_box_identity']['canonical_update_semantics'] == 'confirmed'
           assert s['boundary_audit']['audit_source'] not in {'fixed_zero_without_check','assumed_zero'}
+          assert s['boundary_audit']['boundary_count_aggregation'] == 'sum_and_max_no_int_truncation'
+          assert s['boundary_audit']['boundary_violation_count'] == 0
+          assert s['boundary_audit']['controlled_boundary_regression_detected'] is False
           assert s['synthetic_metrics_used'] is False
           assert s['parallel_runner_created'] is False
           assert s['frozen_runner_modified'] is False

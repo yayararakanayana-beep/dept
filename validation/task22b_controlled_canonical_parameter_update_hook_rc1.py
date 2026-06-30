@@ -112,6 +112,20 @@ def _metric_value(df: Any, column: str) -> float | None:
         return None
 
 
+def _metric_aggregate(df: Any, column: str, mode: str) -> float | None:
+    if df is None or getattr(df, "empty", True) or column not in getattr(df, "columns", []):
+        return None
+    try:
+        series = df[column].astype(float)
+    except Exception:
+        return None
+    if mode == "sum":
+        return float(series.sum())
+    if mode == "max":
+        return float(series.max())
+    return float(series.mean())
+
+
 def _performance_candidates(outputs: dict[str, Any]) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     if not isinstance(outputs, dict):
@@ -187,20 +201,51 @@ def _select_performance_delta(update_off_outputs: dict[str, Any], controlled_out
 
 
 def _runtime_boundary_counts(outputs: dict[str, Any], controller: ControlledCanonicalUpdateController) -> dict[str, Any]:
-    boundary_violation_count = 0
-    for table, column in [("boundary_guard_summary", "boundary_guard_failed_rows"), ("cycle_audit_row", "boundary_violation_count")]:
+    """Count boundary violations without averaging or integer truncation.
+
+    Boundary tables can contain per-cycle fractional-looking means in artifacts
+    produced by earlier code paths. Task22B treats any non-zero max/sum as a
+    violation and never casts 0.5 to int(0).
+    """
+    sources: list[dict[str, Any]] = []
+    total = 0.0
+    for table, column, mode in [
+        ("boundary_guard_summary", "boundary_guard_failed_rows", "sum"),
+        ("boundary_guard_summary", "boundary_violation_report_rows", "sum"),
+        ("cycle_audit_row", "boundary_violation_count", "sum"),
+        ("boundary_violation_report", "boundary_domain", "rows"),
+    ]:
         df = outputs.get(table) if isinstance(outputs, dict) else None
-        value = _metric_value(df, column)
-        if value is not None:
-            boundary_violation_count += int(value)
+        if mode == "rows":
+            value = float(len(df)) if df is not None else None
+            max_value = value
+        else:
+            value = _metric_aggregate(df, column, "sum")
+            max_value = _metric_aggregate(df, column, "max")
+        if value is None:
+            continue
+        nonzero = (value > 0.0) or (max_value is not None and max_value > 0.0)
+        contribution = value if value > 0.0 else (max_value or 0.0)
+        if nonzero:
+            total += contribution
+        sources.append({
+            "table": table,
+            "column": column,
+            "aggregation": mode,
+            "sum_value": value,
+            "max_value": max_value,
+            "nonzero_violation_detected": nonzero,
+        })
     return {
         "audit_source": "static_and_runtime_combined",
+        "boundary_count_aggregation": "sum_and_max_no_int_truncation",
         "canonical_write_count": controller.canonical_write_count,
         "gk_writeback_count": 0,
         "world_direct_write_count": 0,
         "action_module_internal_connection_count": 0,
         "actionframe_direct_generation_count": 0,
-        "boundary_violation_count": boundary_violation_count,
+        "boundary_violation_count": total,
+        "boundary_violation_sources": sources,
     }
 
 
@@ -227,6 +272,7 @@ def _case_result(case_id: str, runner_mod: Any, contracts: Any, baseline_value: 
         apply_info = controller.apply(case_id=case_id, intent=_intent(source, delta, case_id), parameter_name=TARGET_PARAMETER)
         if case_id == "forced_bad_update_rollback" and apply_info["commit_decision"] == "committed":
             rollback_info = controller.rollback(apply_info["snapshot"]["snapshot_id"], TARGET_PARAMETER)
+    hook_after = controller.read_parameter(TARGET_PARAMETER)
 
     outputs = runner.run()
     table_inventory = _table_inventory(outputs)
@@ -245,8 +291,11 @@ def _case_result(case_id: str, runner_mod: Any, contracts: Any, baseline_value: 
         "canonical_write_count": controller.canonical_write_count,
         "rollback_count": rollback_info["rollback_count"],
         "parameter_before": apply_info["parameter_before"],
+        "parameter_hook_after": hook_after,
+        "parameter_runner_after": controller.read_parameter(TARGET_PARAMETER),
         "parameter_after": controller.read_parameter(TARGET_PARAMETER),
         "parameter_delta": apply_info["parameter_delta"],
+        "runner_recomputed_or_overwrote_parameter": bool(apply_info["commit_decision"] == "committed" and controller.read_parameter(TARGET_PARAMETER) != hook_after),
         "bounded_delta_passed": abs(float(apply_info["parameter_delta"])) <= 0.05,
         "rollback_snapshot_id": rollback_info["rollback_snapshot_id"] or (apply_info.get("snapshot") or {}).get("snapshot_id"),
         "rollback_restored_original": rollback_info["rollback_restored_original"],
@@ -317,6 +366,14 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 else:
                     c["metrics_after"] = {"selected_metric_value": None}
             controlled["passed"] = controlled["passed"] and selected_perf["performance_delta_source"] == "real_runner_output" and selected_perf["metric_classification"] == "valid_performance_metric" and selected_perf["improvement_detected"] is True
+            update_off_boundary = cases[0]["boundary_flags"].get("boundary_violation_count")
+            controlled_boundary = controlled["boundary_flags"].get("boundary_violation_count")
+            forced_boundary = forced["boundary_flags"].get("boundary_violation_count")
+            boundary_regression = (controlled_boundary is not None and update_off_boundary is not None and controlled_boundary > update_off_boundary)
+            no_valid_metric_improved = not any(
+                item.get("classification") == "valid_performance_metric" and item.get("improvement_detected") is True
+                for item in selected_perf.get("metric_candidates", [])
+            )
             audit = {
                 "audit_source": "static_and_runtime_combined",
                 "canonical_write_count": sum(c["canonical_write_count"] for c in cases),
@@ -324,9 +381,14 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 "world_direct_write_count": 0,
                 "action_module_internal_connection_count": 0,
                 "actionframe_direct_generation_count": 0,
-                "boundary_violation_count": sum(c["boundary_flags"].get("boundary_violation_count", 0) for c in cases),
+                "boundary_violation_count": sum(float(c["boundary_flags"].get("boundary_violation_count") or 0.0) for c in cases),
+                "boundary_count_aggregation": "sum_and_max_no_int_truncation",
+                "update_off_boundary_violation_count": update_off_boundary,
+                "controlled_update_on_boundary_violation_count": controlled_boundary,
+                "forced_bad_update_rollback_boundary_violation_count": forced_boundary,
+                "controlled_boundary_regression_detected": boundary_regression,
             }
-            passed = all(c["passed"] for c in cases) and audit["boundary_violation_count"] == 0 and selected_perf["performance_delta_source"] == "real_runner_output" and selected_perf["metric_classification"] == "valid_performance_metric" and selected_perf["improvement_detected"] is True
+            passed = all(c["passed"] for c in cases) and audit["boundary_violation_count"] == 0 and not boundary_regression and selected_perf["performance_delta_source"] == "real_runner_output" and selected_perf["metric_classification"] == "valid_performance_metric" and selected_perf["improvement_detected"] is True
             summary = {**base,
                 "task22b_status": "passed" if passed else "failed_real_runner_conditions_not_met",
                 "passed": passed,
@@ -335,7 +397,8 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 "safe_update_hook_found": True,
                 "bounded_update_hook_connected": True,
                 "cases": cases,
-                "comparison": {"update_off_value": selected_perf.get("update_off_value"), "controlled_update_on_value": selected_perf.get("controlled_update_on_value"), "forced_bad_value": selected_perf.get("forced_bad_value"), "improvement_detected": selected_perf.get("improvement_detected")},
+                "comparison": {"update_off_value": selected_perf.get("update_off_value"), "controlled_update_on_value": selected_perf.get("controlled_update_on_value"), "forced_bad_value": selected_perf.get("forced_bad_value"), "improvement_detected": selected_perf.get("improvement_detected"), "no_valid_metric_improved": no_valid_metric_improved},
+                "real_runner_effect_audit": {"selected_metric_changed": selected_perf.get("update_off_value") != selected_perf.get("controlled_update_on_value"), "no_valid_metric_improved": no_valid_metric_improved, "controlled_boundary_regression_detected": boundary_regression, "controlled_parameter_hook_after": controlled.get("parameter_hook_after"), "controlled_parameter_runner_after": controlled.get("parameter_runner_after"), "controlled_runner_recomputed_or_overwrote_parameter": controlled.get("runner_recomputed_or_overwrote_parameter")},
                 "performance_delta": selected_perf,
                 "runner_output_inventory": {c["case_id"]: c["runner_output_tables"] for c in cases},
                 "parameter_box_identity": {"located_via": "runner.parameter_shadow_box.box.state", "is_runner_owned_lower_parameter_box": True, "is_shadow_candidate_only": False, "canonical_update_semantics": "confirmed"},
@@ -348,8 +411,8 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
     except BaseException as exc:
         blocker = "dependency_or_runner_execution_failed"
         if isinstance(exc, ModuleNotFoundError): blocker = f"missing_dependency:{exc.name}"
-        cases = [{"case_id": cid, "runner_executed": False, "commit_enabled": cid != "update_off", "source_candidate": None, "target_parameter_path": TARGET_PATH, "canonical_write_count": 0, "rollback_count": 0, "parameter_before": None, "parameter_after": None, "parameter_delta": None, "bounded_delta_passed": False, "rollback_snapshot_id": None, "rollback_restored_original": None, "metrics_before": None, "metrics_after": None, "performance_delta": None, "performance_delta_source": "unavailable_real_output_insufficient", "boundary_flags": {}, "passed": False} for cid in CASE_IDS]
-        summary = {**base, "task22b_status": "blocked", "passed": False, "existing_runner_executed": False, "parameter_box_state_found": False, "safe_update_hook_found": False, "bounded_update_hook_connected": False, "cases": cases, "comparison": {}, "performance_delta": {"performance_delta_source": "unavailable_real_output_insufficient", "improvement_detected": False}, "runner_output_inventory": {}, "parameter_box_identity": {"located_via": None, "is_runner_owned_lower_parameter_box": False, "is_shadow_candidate_only": None, "canonical_update_semantics": "unconfirmed"}, "boundary_audit": {"audit_source": "not_available_runner_blocked", "canonical_write_count": 0, "gk_writeback_count": None, "world_direct_write_count": None, "action_module_internal_connection_count": None, "actionframe_direct_generation_count": None, "boundary_violation_count": None}, "boundary_audit_available": False, "rollback_audit": {}, "blocker_stage": blocker, "execution_blocker": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=8), "next_required_fix": "Run in GitHub Actions with requirements installed; if still blocked, fix the recorded blocker before Task22C."}
+        cases = [{"case_id": cid, "runner_executed": False, "commit_enabled": cid != "update_off", "source_candidate": None, "target_parameter_path": TARGET_PATH, "canonical_write_count": 0, "rollback_count": 0, "parameter_before": None, "parameter_after": None, "parameter_hook_after": None, "parameter_runner_after": None, "runner_recomputed_or_overwrote_parameter": None, "parameter_delta": None, "bounded_delta_passed": False, "rollback_snapshot_id": None, "rollback_restored_original": None, "metrics_before": None, "metrics_after": None, "performance_delta": None, "performance_delta_source": "unavailable_real_output_insufficient", "boundary_flags": {}, "passed": False} for cid in CASE_IDS]
+        summary = {**base, "task22b_status": "blocked", "passed": False, "existing_runner_executed": False, "parameter_box_state_found": False, "safe_update_hook_found": False, "bounded_update_hook_connected": False, "cases": cases, "comparison": {}, "real_runner_effect_audit": {"selected_metric_changed": False, "no_valid_metric_improved": True, "controlled_boundary_regression_detected": None}, "performance_delta": {"performance_delta_source": "unavailable_real_output_insufficient", "improvement_detected": False}, "runner_output_inventory": {}, "parameter_box_identity": {"located_via": None, "is_runner_owned_lower_parameter_box": False, "is_shadow_candidate_only": None, "canonical_update_semantics": "unconfirmed"}, "boundary_audit": {"audit_source": "not_available_runner_blocked", "canonical_write_count": 0, "gk_writeback_count": None, "world_direct_write_count": None, "action_module_internal_connection_count": None, "actionframe_direct_generation_count": None, "boundary_violation_count": None}, "boundary_audit_available": False, "rollback_audit": {}, "blocker_stage": blocker, "execution_blocker": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=8), "next_required_fix": "Run in GitHub Actions with requirements installed; if still blocked, fix the recorded blocker before Task22C."}
     checks = {
         "passed": summary["passed"],
         "existing_runner_executed": summary["existing_runner_executed"],
