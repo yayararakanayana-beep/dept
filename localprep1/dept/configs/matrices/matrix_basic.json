@@ -1,0 +1,44 @@
+{
+  "name": "matrix_basic",
+  "description": "Minimal world/action profile matrix for LocalPrep-1.",
+  "runs": [
+    {
+      "label": "default_world_default_action",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 11
+      }
+    },
+    {
+      "label": "default_world_conservative_action",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_conservative",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 12
+      }
+    },
+    {
+      "label": "shock_world_default_action",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 13,
+        "steps": 10
+      }
+    },
+    {
+      "label": "shock_world_conservative_action",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 14,
+        "steps": 10
+      }
+    }
+  ]
+}

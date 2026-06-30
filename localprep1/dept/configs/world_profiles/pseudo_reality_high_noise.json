@@ -1,0 +1,13 @@
+{
+  "name": "pseudo_reality_high_noise",
+  "description": "High-noise normal pseudo-reality.",
+  "config": {
+    "scenario": "normal",
+    "n_entities": 24,
+    "noise_scale": 0.03,
+    "drift_scale": 0.009,
+    "action_coupling": 0.045,
+    "shock_time": 18,
+    "shock_strength": 0.18
+  }
+}

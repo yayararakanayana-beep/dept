@@ -1,0 +1,13 @@
+{
+  "name": "pseudo_reality_default",
+  "description": "RC1 standard pseudo-reality profile.",
+  "config": {
+    "scenario": "normal",
+    "n_entities": 18,
+    "noise_scale": 0.018,
+    "drift_scale": 0.006,
+    "action_coupling": 0.045,
+    "shock_time": 18,
+    "shock_strength": 0.18
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "stress_medium",
+  "description": "Medium stress validation profile.",
+  "defaults": {
+    "steps": 12,
+    "seed": 7,
+    "canonical_commit_enabled": true,
+    "canonical_commit_dry_run": false,
+    "canonical_binding_source": "canonical",
+    "exploration_enabled": true
+  }
+}

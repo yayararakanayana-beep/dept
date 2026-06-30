@@ -1,0 +1,13 @@
+{
+  "name": "pseudo_reality_exploration_loss",
+  "description": "Exploration-loss biased pseudo-reality.",
+  "config": {
+    "scenario": "exploration_loss",
+    "n_entities": 18,
+    "noise_scale": 0.022,
+    "drift_scale": 0.008,
+    "action_coupling": 0.045,
+    "shock_time": 18,
+    "shock_strength": 0.18
+  }
+}

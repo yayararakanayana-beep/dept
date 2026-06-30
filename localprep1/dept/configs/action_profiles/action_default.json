@@ -1,0 +1,11 @@
+{
+  "name": "action_default",
+  "description": "RC1 standard action profile.",
+  "config": {
+    "action_coupling": 0.045,
+    "min_action_strength": 0.006,
+    "max_action_strength": 0.03,
+    "strength_scale": 0.12,
+    "alignment_threshold": 0.5
+  }
+}
