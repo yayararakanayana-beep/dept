@@ -123,3 +123,40 @@ def test_boundary_and_rollback_failure_conditions_remain_visible(artifacts):
         assert summary["passed"] is False
     if summary.get("real_runner_effect_audit", {}).get("controlled_boundary_regression_detected") is True:
         assert summary["passed"] is False
+
+
+def test_approved_canonical_update_audit_schema_when_present(artifacts):
+    summary, _, _, _ = artifacts
+    if not summary["existing_runner_executed"]:
+        assert summary["passed"] is False
+        return
+    audit = summary["canonical_update_audit"]
+    expected_keys = {
+        "approved_canonical_update_registered",
+        "approved_baseline_shift_count",
+        "legacy_fingerprint_mismatch_reclassified_count",
+        "legacy_fingerprint_mismatch_reclassified_reason",
+        "canonical_update_ledger_entries",
+        "pre_update_fingerprint",
+        "post_update_fingerprint",
+        "rollback_fingerprint",
+        "bounded_delta_confirmed",
+        "one_write_only_confirmed",
+        "rollback_restores_original_confirmed",
+    }
+    assert expected_keys.issubset(audit)
+    if summary["passed"]:
+        assert audit["approved_canonical_update_registered"] is True
+        assert audit["approved_baseline_shift_count"] == 1
+        assert audit["canonical_update_ledger_entries"]
+
+
+def test_non_update_cases_do_not_register_baseline_shift(artifacts):
+    summary, _, _, _ = artifacts
+    cases = {case["case_id"]: case for case in summary["cases"]}
+    if summary["existing_runner_executed"]:
+        assert cases["update_off"].get("approved_baseline_shift") is False
+        assert cases["update_off"].get("canonical_update_ledger") == []
+        assert cases["real_watch_only_candidates"].get("approved_baseline_shift") is False
+        assert cases["real_watch_only_candidates"].get("canonical_update_ledger") == []
+        assert cases["real_watch_only_candidates"]["canonical_write_count"] == 0
