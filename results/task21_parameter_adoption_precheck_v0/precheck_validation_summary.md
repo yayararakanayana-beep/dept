@@ -15,5 +15,6 @@
 - blocked_not_mechanical_without_hard_blocker: true
 - commit_candidate_has_required_conditions: true
 - shadow_trial_candidate_path_exists: true
+- commit_candidate_path_exists: true
 - do_nothing_risk_is_nontrivial_in_criteria: true
 - shadow_trial_is_possible_in_criteria: true

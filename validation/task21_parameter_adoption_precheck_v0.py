@@ -67,22 +67,29 @@ def criteria_for_candidate(candidate: dict[str, Any], readiness: dict[str, Any] 
     }
 
 
-def classify_from_criteria(criteria: dict[str, str | bool], hard_blockers: list[str], *, no_write: bool = True, commit_review_ready: bool = False) -> str:
-    if hard_blockers or not no_write or criteria.get("boundary_violation_absent") is False:
+def classify_from_criteria(criteria: dict[str, str | bool], hard_blockers: list[str], *, no_write: bool = True) -> str:
+    if hard_blockers or not no_write:
         return "blocked"
+    if criteria.get("boundary_violation_absent") is False:
+        return "blocked"
+    if criteria.get("rollback_path_exists") is False:
+        return "blocked"
+    if criteria.get("counter_evidence_is_not_strong") is False:
+        return "blocked"
+
     commit_required = [
         "target_parameter_is_clear", "update_direction_is_clear", "expected_effect_is_explainable",
         "minimum_evidence_exists", "counter_evidence_is_not_strong", "update_size_is_bounded",
         "rollback_path_exists", "do_nothing_risk_is_nontrivial", "boundary_violation_absent",
         "shadow_trial_is_possible",
     ]
-    if commit_review_ready and all(criteria.get(key) is True for key in commit_required):
+    if all(criteria.get(key) is True for key in commit_required):
         return "commit_candidate"
+
     shadow_required = [
         "target_parameter_is_clear", "update_direction_is_clear", "expected_effect_is_explainable",
-        "minimum_evidence_exists", "counter_evidence_is_not_strong", "update_size_is_bounded",
-        "rollback_path_exists", "do_nothing_risk_is_nontrivial", "boundary_violation_absent",
-        "shadow_trial_is_possible",
+        "minimum_evidence_exists", "counter_evidence_is_not_strong", "rollback_path_exists",
+        "boundary_violation_absent", "shadow_trial_is_possible",
     ]
     if all(criteria.get(key) is True for key in shadow_required):
         return "shadow_trial_candidate"
@@ -182,7 +189,8 @@ def build_validation(summary: dict[str, Any], proposal_count: int, contract: dic
         "boundary_check_all_false": all(value is False for value in summary["boundary_check"].values()),
         "blocked_not_mechanical_without_hard_blocker": all(d["decision"] != "blocked" or "hard blocker present" in d["decision_reason"] for d in decisions),
         "commit_candidate_has_required_conditions": all(d["decision"] != "commit_candidate" or all(d["criteria"][k] is True for k in ["rollback_path_exists", "update_size_is_bounded", "minimum_evidence_exists", "boundary_violation_absent", "counter_evidence_is_not_strong"]) for d in decisions),
-        "shadow_trial_candidate_path_exists": classify_from_criteria({k: True for k in CRITERIA}, []) == "shadow_trial_candidate",
+        "shadow_trial_candidate_path_exists": classify_from_criteria({**{k: True for k in CRITERIA}, "update_size_is_bounded": "unknown"}, []) == "shadow_trial_candidate",
+        "commit_candidate_path_exists": classify_from_criteria({k: True for k in CRITERIA}, []) == "commit_candidate",
         "do_nothing_risk_is_nontrivial_in_criteria": all("do_nothing_risk_is_nontrivial" in d["criteria"] for d in decisions),
         "shadow_trial_is_possible_in_criteria": all("shadow_trial_is_possible" in d["criteria"] for d in decisions),
     }

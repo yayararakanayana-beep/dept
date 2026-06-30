@@ -54,13 +54,24 @@ def test_commit_candidate_requires_safeguards():
     for missing_key in ["rollback_path_exists", "update_size_is_bounded", "minimum_evidence_exists"]:
         criteria = dict(base)
         criteria[missing_key] = False
-        assert task21.classify_from_criteria(criteria, [], commit_review_ready=True) != "commit_candidate"
-    criteria = dict(base)
-    criteria["boundary_violation_absent"] = False
-    assert task21.classify_from_criteria(criteria, [], commit_review_ready=True) not in {"shadow_trial_candidate", "commit_candidate"}
-    criteria = dict(base)
-    criteria["counter_evidence_is_not_strong"] = False
-    assert task21.classify_from_criteria(criteria, [], commit_review_ready=True) != "commit_candidate"
+        assert task21.classify_from_criteria(criteria, []) != "commit_candidate"
+
+
+def test_explicit_hard_blockers_are_blocked_but_unknown_is_watch_only():
+    base = {key: True for key in task21.CRITERIA}
+    for hard_blocker_key in [
+        "rollback_path_exists",
+        "counter_evidence_is_not_strong",
+        "boundary_violation_absent",
+    ]:
+        criteria = dict(base)
+        criteria[hard_blocker_key] = False
+        assert task21.classify_from_criteria(criteria, []) == "blocked"
+    assert task21.classify_from_criteria(base, [], no_write=False) == "blocked"
+
+    unknown = {key: "unknown" for key in task21.CRITERIA}
+    unknown["boundary_violation_absent"] = "unknown"
+    assert task21.classify_from_criteria(unknown, []) == "watch_only"
 
 
 def test_synthetic_fixture_reaches_all_four_classifications():
@@ -69,8 +80,10 @@ def test_synthetic_fixture_reaches_all_four_classifications():
     weak["boundary_violation_absent"] = True
     assert task21.classify_from_criteria(weak, ["boundary violation"]) == "blocked"
     assert task21.classify_from_criteria(weak, []) == "watch_only"
-    assert task21.classify_from_criteria(all_true, []) == "shadow_trial_candidate"
-    assert task21.classify_from_criteria(all_true, [], commit_review_ready=True) == "commit_candidate"
+    shadow_ready = dict(all_true)
+    shadow_ready["update_size_is_bounded"] = "unknown"
+    assert task21.classify_from_criteria(shadow_ready, []) == "shadow_trial_candidate"
+    assert task21.classify_from_criteria(all_true, []) == "commit_candidate"
 
 
 def test_generated_json_contains_all_candidates_and_validation_checks():
