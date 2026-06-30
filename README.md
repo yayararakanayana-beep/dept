@@ -43,6 +43,10 @@ Run the Task20f no-write dry-run proposal summary with `python validation/task20
 
 Run the Task20G pre-commit readiness audit with `python validation/task20g_pre_commit_readiness_audit.py`; it reads `results/task20f_no_write_dry_run/proposal_summary.json`, writes readiness summaries under `results/task20g_pre_commit_readiness/`, records that compact summaries are insufficient for commit-gate implementation, keeps every candidate `gate_ready` false, and lists the next minimum evidence required for review.
 
+Run the Task20H minimal evidence extraction with `python validation/task20h_minimal_evidence_extraction.py`; it scans the RC1 freeze archive without bulk extraction and writes a bounded evidence index under `results/task20h_minimal_evidence/`.
+
+Run the Task20I readiness re-run with `python validation/task20i_readiness_rerun_with_evidence.py`; it reads the Task20G readiness summary and Task20H evidence index, writes conservative no-write results under `results/task20i_readiness_rerun/`, and does not implement a commit gate or parameter update.
+
 ## Purpose of Closed-Loop Verification
 
 Closed-loop verification is intended to check how a system behaves when outputs, evaluations, and adoption decisions feed back into later steps.

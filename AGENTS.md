@@ -44,3 +44,9 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Avoid over-specifying behavior that is not yet implemented.
 - Keep README updates aligned with the actual repository state.
 - Do not create `src/` or `tests/` contents unless the requested task explicitly includes implementation or tests.
+
+## Task20H / Task20I Boundaries
+
+- Task20H minimal evidence extraction is evidence-only and must not migrate RC1 runtime code.
+- Task20I readiness re-run is not a commit gate and must not enable parameter updates.
+- Extracted evidence must remain small, bounded, and reviewable.
