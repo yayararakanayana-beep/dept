@@ -17,6 +17,21 @@ Task22B does not redesign Parameter Shadow Box, rebuild the Task21 classifier, c
 3. `forced_bad_update_rollback`: bounded write followed by rollback to the snapshot before runner execution continues.
 4. `real_watch_only_candidates`: Task21 real `watch_only` candidates are read and confirmed as non-updating.
 
+## Runner output inventory and metric classification
+
+The summary records every runner output table/key plus its columns and numeric columns. Numeric metric candidates are classified as:
+
+- `valid_performance_metric`: real closed-loop performance fields whose names indicate residual, error, loss, stability, recovery, violation, unsafe, boundary, closed-loop, risk, cost, uncertainty, volatility, conflict, instability, noise, reversibility, success, or passed semantics.
+- `audit_or_index_metric`: audit row, cycle, step, seed, table index, or row index fields. These are excluded from performance improvement.
+- `parameter_value_metric`: theta, ParameterBox value, shadow value, or `shadow_cycle_index` fields. These are excluded from performance improvement.
+- `unavailable`: numeric fields without recognizable closed-loop performance semantics.
+
+`shadow_cycle_index`, audit/index fields, row/cycle/step indices, `theta_after`, and raw parameter values cannot satisfy Task22B performance improvement. If no valid real runner metric improves in `controlled_update_on` versus `update_off`, Task22B remains `passed=false`.
+
+## ParameterBox identity
+
+The summary includes `parameter_box_identity` with `located_via`, `is_runner_owned_lower_parameter_box`, `is_shadow_candidate_only`, and `canonical_update_semantics`. `canonical_update_semantics=confirmed` is required for `passed=true`.
+
 ## Pass rule
 
-`passed=true` is allowed only when the existing runner executes, the lower ParameterBox state and safe hook are found, the controlled case writes exactly once, rollback restores the original value, real watch-only candidates are not written, performance delta is extracted from real runner output, boundary audit is explicit rather than assumed, and all prohibited boundary counts remain zero.
+`passed=true` is allowed only when the existing runner executes, the lower ParameterBox state and safe hook are found, the controlled case writes exactly once, rollback restores the original value, real watch-only candidates are not written, performance delta is extracted from a valid real runner output metric that improves, boundary audit is explicit rather than assumed, and all prohibited boundary counts remain zero.

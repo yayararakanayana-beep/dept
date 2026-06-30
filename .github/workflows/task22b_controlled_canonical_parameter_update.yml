@@ -49,6 +49,11 @@ jobs:
           assert cases['forced_bad_update_rollback']['rollback_count'] >= 1
           assert cases['forced_bad_update_rollback']['rollback_restored_original'] is True
           assert s['performance_delta']['performance_delta_source'] == 'real_runner_output'
+          assert s['performance_delta']['metric_classification'] == 'valid_performance_metric'
+          key=f"{s['performance_delta']['metric_source_table_or_key']}.{s['performance_delta']['target_metric_name']}".lower()
+          assert 'shadow_cycle_index' not in key and 'theta' not in key and 'parameter' not in key and 'index' not in key
+          assert s['performance_delta']['improvement_detected'] is True
+          assert s['parameter_box_identity']['canonical_update_semantics'] == 'confirmed'
           assert s['boundary_audit']['audit_source'] not in {'fixed_zero_without_check','assumed_zero'}
           assert s['synthetic_metrics_used'] is False
           assert s['parallel_runner_created'] is False

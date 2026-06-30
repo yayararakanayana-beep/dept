@@ -88,3 +88,34 @@ def test_runner_unexecuted_metric_or_boundary_unavailable_force_failure():
         assert summary["passed"] is False
     if summary.get("boundary_audit_available") is False:
         assert summary["passed"] is False
+
+
+def test_runner_output_inventory_and_metric_classification_are_recorded():
+    summary, _, _ = _run_and_load()
+    assert "runner_output_inventory" in summary
+    assert isinstance(summary["runner_output_inventory"], dict)
+    assert "metric_candidates" in summary["performance_delta"] or summary["passed"] is False
+    if summary["passed"]:
+        perf = summary["performance_delta"]
+        assert perf["metric_classification"] == "valid_performance_metric"
+        assert perf["metric_source_table_or_key"]
+        assert perf["target_metric_name"]
+        metric_key = f"{perf['metric_source_table_or_key']}.{perf['target_metric_name']}".lower()
+        assert "shadow_cycle_index" not in metric_key
+        assert "theta" not in metric_key
+        assert "parameter" not in metric_key
+        assert "index" not in metric_key
+
+
+def test_parameter_box_identity_is_recorded_and_confirmed_only_on_pass():
+    summary, _, _ = _run_and_load()
+    identity = summary["parameter_box_identity"]
+    assert "located_via" in identity
+    assert "is_runner_owned_lower_parameter_box" in identity
+    assert "is_shadow_candidate_only" in identity
+    assert "canonical_update_semantics" in identity
+    if summary["passed"]:
+        assert identity["located_via"] == "runner.parameter_shadow_box.box.state"
+        assert identity["is_runner_owned_lower_parameter_box"] is True
+        assert identity["is_shadow_candidate_only"] is False
+        assert identity["canonical_update_semantics"] == "confirmed"
