@@ -1,0 +1,87 @@
+name: Task22A Runner Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  task22a-runner-smoke:
+    name: Task22A existing runner smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task22A existing runner smoke validation
+        run: python validation/task22a_existing_runner_execution_environment_recovery_rc1.py
+
+      - name: Print Task22A result logs
+        if: always()
+        run: |
+          if [ -f results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_summary.md ]; then
+            cat results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_summary.md
+          fi
+          if [ -f results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_validation.md ]; then
+            cat results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_validation.md
+          fi
+          if [ -f results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_summary.json ]; then
+            cat results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_summary.json
+          fi
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Upload Task22A result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task22a-existing-runner-execution-environment-recovery-rc1
+          path: results/task22a_existing_runner_execution_environment_recovery_rc1/
+          if-no-files-found: warn
+
+      - name: Enforce Task22A pass criteria
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary_path = Path('results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_summary.json')
+          if not summary_path.exists():
+              raise SystemExit('Task22A summary JSON was not produced')
+
+          summary = json.loads(summary_path.read_text(encoding='utf-8'))
+          required_true = [
+              'pandas_importable',
+              'existing_runner_executed',
+              'passed',
+          ]
+          failures = [key for key in required_true if summary.get(key) is not True]
+          if failures:
+              print('Task22A failed pass criteria:')
+              for key in failures:
+                  print(f'- {key}={summary.get(key)!r}')
+              print(f"- blocker_stage={summary.get('blocker_stage')!r}")
+              print(f"- pip_install_exit_code={summary.get('pip_install_exit_code')!r}")
+              print(f"- runner_smoke_error={summary.get('runner_smoke_error')!r}")
+              raise SystemExit(1)
+
+          print('Task22A pass criteria satisfied.')
+          PY

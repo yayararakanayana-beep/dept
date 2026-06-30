@@ -73,6 +73,10 @@ This structure is only a planned direction. It should not be treated as a finali
 - Add or update tests when implementation behavior changes.
 - Use `pytest` for Python tests when tests are introduced.
 Run the Task20J gate contract freeze with `python validation/task20j_gate_contract_freeze.py`; it freezes the no-write parameter-adoption precheck contract and classifies lower-parameter update candidates into `blocked` / `watch_only` / `shadow_trial_candidate` / `commit_candidate` without allowing canonical ParameterBox writes.
+## Task22A CI Runner Smoke
+
+Task22A-CI is available through `.github/workflows/task22a_runner_smoke.yml` for manual, pull request, and `main` push validation on GitHub Actions. The workflow installs `requirements.txt` with Python 3.12, runs `python validation/task22a_existing_runner_execution_environment_recovery_rc1.py`, runs `pytest -q`, prints Task22A result logs, and uploads `results/task22a_existing_runner_execution_environment_recovery_rc1/` when available. It remains an environment-recovery smoke check only and does not advance to Task22B or connect any prohibited update/write paths. See `docs/task22a_ci_runner_smoke_validation.md` for the CI contract.
+
 ## Task22 Controlled Canonical Parameter Update RC1
 
 Run Task22 with `python validation/task22_controlled_canonical_parameter_update_rc1.py`. The current Task22 report attempts to execute the existing RC1 closed-loop runner from the frozen archive before any bounded canonical lower-ParameterBox update can be validated; `requirements.txt` declares `pandas` as the minimal dependency needed by that runner path. If runner execution is blocked by missing dependencies or import/runtime issues, Task22 records `task22_status: blocked_by_runner_execution` and `passed: false` instead of using synthetic metrics. G/K writeback, world direct writes, ActionModule internal DEPT access, and ActionFrame direct generation remain closed. Task22 is not a Parameter Shadow Box redesign or Task21 classifier rebuild, and Task21 real `watch_only` candidates are not canonically updated.
