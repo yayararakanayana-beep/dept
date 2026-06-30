@@ -6,6 +6,11 @@ import json
 from pathlib import Path
 import sys
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT_FOR_IMPORTS = SCRIPT_DIR.parent
+if str(REPO_ROOT_FOR_IMPORTS) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT_FOR_IMPORTS))
+
 from dept2_fullspec_runner_rc1.runner.fullspec_integrated_closed_loop_runner import run_fullspec_task16
 
 from scripts.profile_loader import (
