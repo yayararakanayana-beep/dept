@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
+import subprocess
 import sys
+from datetime import datetime, timezone
 import tempfile
 import traceback
 import zipfile
@@ -397,6 +400,21 @@ def _choose_controlled_commit_fixture(runner_mod: Any, contracts: Any, baseline_
         chosen["passed"] = False
     return chosen, preflight
 
+def _artifact_metadata() -> dict[str, Any]:
+    try:
+        commit_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    except Exception:
+        commit_sha = os.environ.get("GITHUB_SHA")
+    return {
+        "artifact_generated_by": "validation/task22b_controlled_canonical_parameter_update_hook_rc1.py",
+        "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "commit_sha": commit_sha,
+        "workflow_run_id": os.environ.get("GITHUB_RUN_ID"),
+        "heavy_validation_run_count": 1,
+        "case_ids": CASE_IDS,
+    }
+
+
 def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
     task21 = _read_json(TASK21_DECISIONS) if TASK21_DECISIONS.exists() else {"decisions": []}
     base = {
@@ -408,6 +426,8 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
         "parallel_runner_created": False,
         "frozen_runner_modified": False,
         "source_config_permanently_modified": False,
+        "synthetic_metrics_used_for_primary_validation": False,
+        **_artifact_metadata(),
     }
     try:
         if not ARCHIVE.exists():
@@ -481,6 +501,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
                 "runner_output_inventory": {c["case_id"]: c["runner_output_tables"] for c in cases},
                 "parameter_box_identity": {"located_via": "runner.parameter_shadow_box.box.state", "is_runner_owned_lower_parameter_box": True, "is_shadow_candidate_only": False, "canonical_update_semantics": "confirmed"},
                 "boundary_audit": audit,
+                "canonical_update_audit": {"canonical_write_count": audit["canonical_write_count"], "bounded_update_hook_connected": True, "safe_update_hook_found": True, "target_parameter_path": controlled.get("target_parameter_path")},
                 "boundary_audit_available": audit["audit_source"] != "fixed_zero_without_check",
                 "rollback_audit": {"rollback_count": forced["rollback_count"], "rollback_snapshot_id": forced["rollback_snapshot_id"], "rollback_restored_original": forced["rollback_restored_original"]},
                 "blocker_stage": None if passed else "real_runner_condition_failed",
@@ -490,7 +511,7 @@ def build_summary() -> tuple[dict[str, Any], dict[str, Any]]:
         blocker = "dependency_or_runner_execution_failed"
         if isinstance(exc, ModuleNotFoundError): blocker = f"missing_dependency:{exc.name}"
         cases = [{"case_id": cid, "runner_executed": False, "commit_enabled": cid != "update_off", "source_candidate": None, "target_parameter_path": TARGET_PATH, "canonical_write_count": 0, "rollback_count": 0, "parameter_before": None, "parameter_after": None, "parameter_hook_after": None, "parameter_runner_after": None, "runner_recomputed_or_overwrote_parameter": None, "parameter_delta": None, "bounded_delta_passed": False, "rollback_snapshot_id": None, "rollback_restored_original": None, "metrics_before": None, "metrics_after": None, "performance_delta": None, "performance_delta_source": "unavailable_real_output_insufficient", "boundary_flags": {}, "passed": False} for cid in CASE_IDS]
-        summary = {**base, "task22b_status": "blocked", "passed": False, "existing_runner_executed": False, "parameter_box_state_found": False, "safe_update_hook_found": False, "bounded_update_hook_connected": False, "cases": cases, "comparison": {}, "real_runner_effect_audit": {"selected_metric_changed": False, "immediate_improvement_required": False, "no_valid_metric_improved": True, "controlled_boundary_regression_detected": None}, "controlled_commit_fixture_preflight": [], "performance_delta": {"performance_delta_source": "unavailable_real_output_insufficient", "improvement_detected": False}, "runner_output_inventory": {}, "parameter_box_identity": {"located_via": None, "is_runner_owned_lower_parameter_box": False, "is_shadow_candidate_only": None, "canonical_update_semantics": "unconfirmed"}, "boundary_audit": {"audit_source": "not_available_runner_blocked", "canonical_write_count": 0, "gk_writeback_count": None, "world_direct_write_count": None, "action_module_internal_connection_count": None, "actionframe_direct_generation_count": None, "boundary_violation_count": None}, "boundary_audit_available": False, "rollback_audit": {}, "blocker_stage": blocker, "execution_blocker": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=8), "next_required_fix": "Run in GitHub Actions with requirements installed; if still blocked, fix the recorded blocker before Task22C."}
+        summary = {**base, "task22b_status": "blocked", "passed": False, "existing_runner_executed": False, "parameter_box_state_found": False, "safe_update_hook_found": False, "bounded_update_hook_connected": False, "cases": cases, "comparison": {}, "real_runner_effect_audit": {"selected_metric_changed": False, "immediate_improvement_required": False, "no_valid_metric_improved": True, "controlled_boundary_regression_detected": None}, "controlled_commit_fixture_preflight": [], "performance_delta": {"performance_delta_source": "unavailable_real_output_insufficient", "improvement_detected": False}, "runner_output_inventory": {}, "parameter_box_identity": {"located_via": None, "is_runner_owned_lower_parameter_box": False, "is_shadow_candidate_only": None, "canonical_update_semantics": "unconfirmed"}, "boundary_audit": {"audit_source": "not_available_runner_blocked", "canonical_write_count": 0, "gk_writeback_count": None, "world_direct_write_count": None, "action_module_internal_connection_count": None, "actionframe_direct_generation_count": None, "boundary_violation_count": None}, "canonical_update_audit": {"canonical_write_count": 0, "bounded_update_hook_connected": False, "safe_update_hook_found": False, "target_parameter_path": TARGET_PATH}, "boundary_audit_available": False, "rollback_audit": {}, "blocker_stage": blocker, "execution_blocker": f"{type(exc).__name__}: {exc}", "traceback": traceback.format_exc(limit=8), "next_required_fix": "Run in GitHub Actions with requirements installed; if still blocked, fix the recorded blocker before Task22C."}
     checks = {
         "passed": summary["passed"],
         "existing_runner_executed": summary["existing_runner_executed"],
