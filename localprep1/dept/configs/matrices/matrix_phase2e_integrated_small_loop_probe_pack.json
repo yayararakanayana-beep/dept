@@ -1,0 +1,258 @@
+{
+  "name": "phase2e_integrated_small_loop_probe_pack",
+  "description": "Phase 2E integrated small-loop probe pack for ActionFrame source, gate behavior, rollback/commit, and ActionModule boundary hole-finding across shock recovery, relation lock/unlock, high-noise gate risk, strong action boundary, and short K_t/window memory conditions. Adds matrix coverage only and does not change runner behavior, profiles, acceptance, or implementation code.",
+  "runs": [
+    {
+      "label": "shock_default_recovery_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 601,
+        "steps": 6,
+        "shock_time": 5,
+        "shock_strength": 0.26,
+        "noise_scale": 0.028
+      }
+    },
+    {
+      "label": "shock_buffered_recovery_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 602,
+        "steps": 6,
+        "shock_time": 5,
+        "shock_strength": 0.26,
+        "noise_scale": 0.028
+      }
+    },
+    {
+      "label": "shock_no_exploration_recovery_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 603,
+        "steps": 6,
+        "exploration_enabled": false,
+        "shock_time": 6,
+        "shock_strength": 0.22
+      }
+    },
+    {
+      "label": "shock_low_coupling_recovery_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 604,
+        "steps": 6,
+        "shock_time": 5,
+        "shock_strength": 0.22,
+        "action_coupling": 0.025
+      }
+    },
+    {
+      "label": "relation_lock_default_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 605,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_lock_buffered_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 606,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 607,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_lock_low_coupling_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 608,
+        "steps": 6,
+        "action_coupling": 0.025,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "high_noise_default_gate_probe",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 609,
+        "steps": 6,
+        "noise_scale": 0.04
+      }
+    },
+    {
+      "label": "high_noise_buffered_gate_probe",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 610,
+        "steps": 6,
+        "noise_scale": 0.04
+      }
+    },
+    {
+      "label": "high_noise_strong_gate_probe",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 611,
+        "steps": 6,
+        "noise_scale": 0.04,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "action_coupling": 0.05
+      }
+    },
+    {
+      "label": "high_noise_no_exploration_gate_probe",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 612,
+        "steps": 6,
+        "exploration_enabled": false,
+        "noise_scale": 0.038
+      }
+    },
+    {
+      "label": "strong_action_default_boundary_probe",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 613,
+        "steps": 6,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "action_coupling": 0.05
+      }
+    },
+    {
+      "label": "strong_action_buffered_boundary_probe",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 614,
+        "steps": 6,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "action_coupling": 0.05
+      }
+    },
+    {
+      "label": "strong_action_shock_boundary_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 615,
+        "steps": 6,
+        "shock_time": 5,
+        "shock_strength": 0.26,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "action_coupling": 0.05
+      }
+    },
+    {
+      "label": "strong_action_relation_lock_boundary_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 616,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "action_coupling": 0.05
+      }
+    },
+    {
+      "label": "kt_short_memory_default_probe",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 617,
+        "steps": 6,
+        "kt_window": 3
+      }
+    },
+    {
+      "label": "kt_short_memory_shock_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 618,
+        "steps": 6,
+        "kt_window": 3,
+        "shock_time": 5,
+        "shock_strength": 0.22
+      }
+    },
+    {
+      "label": "kt_short_memory_relation_lock_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 619,
+        "steps": 6,
+        "kt_window": 3
+      }
+    },
+    {
+      "label": "kt_short_memory_high_noise_probe",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 620,
+        "steps": 6,
+        "kt_window": 3,
+        "noise_scale": 0.038
+      }
+    }
+  ]
+}
