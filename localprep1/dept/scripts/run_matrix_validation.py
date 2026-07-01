@@ -46,6 +46,7 @@ PER_RUN_EXPORTS = [
     "coactivation_gate",
     "action_frame",
     "action_execution_audit",
+    "world_transition_audit",
     "entity_trace",
     "relation_trace",
     "v2_hidden_trace",
