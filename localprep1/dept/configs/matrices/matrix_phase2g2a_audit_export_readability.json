@@ -1,0 +1,62 @@
+{
+  "name": "phase2g2a_audit_export_readability",
+  "description": "Readability-only audit matrix for first-class per-run exports and module thinning summaries. This matrix does not change runner behavior, gate logic, action policy, acceptance, safety, write paths, defaults, or v2 integration.",
+  "runs": [
+    {
+      "label": "default_unspecified_relaxed_smoke_seed301_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 301, "steps": 3}
+    },
+    {
+      "label": "explicit_current_smoke_seed301_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 301, "steps": 3, "intermediate_conservatism_mode": "current"}
+    },
+    {
+      "label": "explicit_relaxed_smoke_seed302_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 302, "steps": 3, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "explicit_flat_smoke_seed303_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 303, "steps": 3, "intermediate_conservatism_mode": "flat"}
+    },
+    {
+      "label": "no_exploration_projection_zero_readability_seed304_steps3",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 304, "steps": 3, "exploration_enabled": false, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "relation_unlock_pressure_readability_seed305_steps4",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 305, "steps": 4, "noise_scale": 0.025, "drift_scale": 0.014, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "high_noise_readability_seed306_steps4",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 306, "steps": 4, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "shock_recovery_readability_seed307_steps4",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 307, "steps": 4, "intermediate_conservatism_mode": "relaxed"}
+    }
+  ]
+}
