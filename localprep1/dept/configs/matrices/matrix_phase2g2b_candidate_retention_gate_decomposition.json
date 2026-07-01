@@ -1,0 +1,90 @@
+{
+  "name": "phase2g2b_candidate_retention_gate_decomposition",
+  "description": "Audit-only candidate retention and gate decomposition probe. It does not change production behavior, gate/action/default/acceptance/safety/write/v2 behavior, or use diagnostic retention values as pass/fail conditions.",
+  "runs": [
+    {
+      "label": "relation_unlock_pressure_current_seed421_steps4",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 421, "steps": 4, "noise_scale": 0.025, "drift_scale": 0.014, "intermediate_conservatism_mode": "current"}
+    },
+    {
+      "label": "relation_unlock_pressure_relaxed_seed421_steps4",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 421, "steps": 4, "noise_scale": 0.025, "drift_scale": 0.014, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "relation_unlock_pressure_flat_seed421_steps4",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 421, "steps": 4, "noise_scale": 0.025, "drift_scale": 0.014, "intermediate_conservatism_mode": "flat"}
+    },
+    {
+      "label": "no_exploration_relaxed_seed422_steps3",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 422, "steps": 3, "exploration_enabled": false, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "high_noise_relaxed_seed423_steps4",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 423, "steps": 4, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "shock_recovery_relaxed_seed424_steps4",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 424, "steps": 4, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "default_relaxed_smoke_seed425_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 425, "steps": 3}
+    },
+    {
+      "label": "explicit_current_smoke_seed425_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 425, "steps": 3, "intermediate_conservatism_mode": "current"}
+    },
+    {
+      "label": "relation_unlock_no_exploration_relaxed_seed426_steps3",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 426, "steps": 3, "exploration_enabled": false, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "relation_unlock_high_noise_relaxed_seed427_steps4",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 427, "steps": 4, "noise_scale": 0.08, "drift_scale": 0.018, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "sparse_projection_relaxed_seed428_steps3",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 428, "steps": 3, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "high_uncertainty_relaxed_seed429_steps4",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_buffered",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 429, "steps": 4, "noise_scale": 0.07, "drift_scale": 0.025, "intermediate_conservatism_mode": "relaxed"}
+    }
+  ]
+}
