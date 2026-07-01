@@ -35,6 +35,47 @@ def _trace_t(trace: Dict[str, pd.DataFrame] | None) -> int:
     return int(trace["entity_trace"]["t"].iloc[0]) if "t" in trace["entity_trace"].columns else -1
 
 
+def _safe_row_bool(row: pd.Series, col: str) -> bool:
+    value = row.get(col, False)
+    if pd.isna(value):
+        return False
+    return bool(value)
+
+
+def _classify_action_source(row: pd.Series) -> str:
+    """Classify ActionFrame provenance using existing audit flags only.
+
+    This is an audit label, not behavior. It intentionally avoids inferring more
+    than the row already records.
+    """
+    exploration_used = _safe_row_bool(row, "exploration_projection_used")
+    pressure_used = _safe_row_bool(row, "pressure_intent_used")
+    binding_used = _safe_row_bool(row, "parameter_window_binding_used")
+    shadow_used = _safe_row_bool(row, "shadow_parameter_summary_used")
+    if exploration_used and (pressure_used or binding_used or shadow_used):
+        return "mixed_pressure_parameter_binding_and_exploration_projection"
+    if exploration_used:
+        return "exploration_projection_planned"
+    if pressure_used and (binding_used or shadow_used):
+        return "pressure_parameter_binding_planned"
+    if pressure_used:
+        return "pressure_planned"
+    if binding_used or shadow_used:
+        return "parameter_binding_planned"
+    return "unknown_source"
+
+
+def _exploration_channel_semantics(row: pd.Series, projection_rows_available: int) -> str:
+    channel = str(row.get("action_channel", ""))
+    if channel != "exploration_injection":
+        return "not_exploration_injection"
+    if _safe_row_bool(row, "exploration_projection_used"):
+        return "exploration_injection_projection_derived_or_mixed"
+    if projection_rows_available > 0:
+        return "exploration_injection_general_action_channel_projection_available_but_not_used"
+    return "exploration_injection_general_action_channel_not_projection_derived"
+
+
 class ActionExecutionModule:
     name = "action_execution_module"
 
@@ -60,6 +101,7 @@ class ActionExecutionModule:
             raise ValueError("Cannot build ActionFrame without coactivation gate decision")
 
         decision = str(gate_decision["coactivation_gate_decision"].iloc[0])
+        projection_rows_available = _rows(exploration_projection)
         frame = action_candidates.copy()
         frame["action_frame_id"] = [f"AF_{i:05d}" for i in range(len(frame))]
         frame["source_candidate_fingerprint"] = _fingerprint_df(action_candidates)
@@ -71,7 +113,32 @@ class ActionExecutionModule:
         frame["source_action_candidate_rows"] = int(len(action_candidates))
         frame["action_local_audit_rows_available"] = _rows(action_local_audit)
         frame["shadow_summary_rows_available"] = _rows(shadow_params)
-        frame["exploration_projection_rows_available"] = _rows(exploration_projection)
+        frame["exploration_projection_rows_available"] = projection_rows_available
+
+        # Phase 2E-1c source-audit columns. These columns do not change action
+        # behavior; they only make ActionFrame provenance explicit enough to
+        # audit projection-zero runs and exploration_injection semantics.
+        frame["action_source_category"] = frame.apply(_classify_action_source, axis=1)
+        frame["planning_source"] = "action_surface_planning_module"
+        frame["pressure_source"] = frame.get("pressure_intent_used", False).apply(
+            lambda used: "pressure_intent_bundle" if bool(used) else "none"
+        ) if "pressure_intent_used" in frame.columns else "none"
+        frame["binding_source"] = frame.get("parameter_window_binding_used", False).apply(
+            lambda used: "parameter_window_binding" if bool(used) else "none"
+        ) if "parameter_window_binding_used" in frame.columns else "none"
+        frame["gate_source"] = f"coactivation_gate:{decision}"
+        frame["exploration_projection_source"] = frame.apply(
+            lambda row: "used_by_planning" if _safe_row_bool(row, "exploration_projection_used")
+            else ("available_but_not_used_by_planning" if projection_rows_available > 0 else "none_available"),
+            axis=1,
+        )
+        frame["exploration_channel_semantics"] = frame.apply(
+            lambda row: _exploration_channel_semantics(row, projection_rows_available),
+            axis=1,
+        )
+        frame["action_source_audit_contract"] = (
+            "Phase2E1c_ActionFrame_source_audit_columns_only__no_behavior_change"
+        )
 
         # Boundary flags: these must remain false.  The ActionModule adapter is
         # only given this ActionFrame; direct lower/core objects are not passed.
@@ -157,6 +224,16 @@ class ActionExecutionModule:
             "coactivation_gate_decision": decision,
             "coactivation_gate_applied_before_actionframe": bool(decision != "missing"),
             "action_frame_contract_present": frame_has_contract or frame_rows == 0,
+            "action_source_audit_columns_present": bool(
+                action_frame is not None
+                and all(c in action_frame.columns for c in [
+                    "action_source_category", "planning_source", "pressure_source",
+                    "binding_source", "gate_source", "exploration_projection_source",
+                    "exploration_channel_semantics",
+                ])
+            ),
+            "action_source_category_values": ",".join(sorted(action_frame["action_source_category"].astype(str).unique())) if action_frame is not None and not action_frame.empty and "action_source_category" in action_frame.columns else "",
+            "exploration_channel_semantics_values": ",".join(sorted(action_frame["exploration_channel_semantics"].astype(str).unique())) if action_frame is not None and not action_frame.empty and "exploration_channel_semantics" in action_frame.columns else "",
             "actionmodule_called_by_adapter": True,
             "actionmodule_input_contract": "ActionFrame_only",
             "actionmodule_received_actionframe_only": True,
