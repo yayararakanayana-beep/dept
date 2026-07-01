@@ -1,0 +1,76 @@
+{
+  "name": "phase2g1_current_environment_readiness_audit",
+  "description": "Validation-readiness audit matrix for default-relaxed mode selection, explicit current/relaxed/flat mode paths, projection-zero handling, and audit output readability. This matrix is audit-only and does not change runner behavior.",
+  "runs": [
+    {
+      "label": "default_unspecified_smoke_seed101_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 101, "steps": 3}
+    },
+    {
+      "label": "default_unspecified_smoke_seed202_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 202, "steps": 3}
+    },
+    {
+      "label": "explicit_current_smoke_seed101_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 101, "steps": 3, "intermediate_conservatism_mode": "current"}
+    },
+    {
+      "label": "explicit_current_smoke_seed202_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 202, "steps": 3, "intermediate_conservatism_mode": "current"}
+    },
+    {
+      "label": "explicit_relaxed_smoke_seed101_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 101, "steps": 3, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "explicit_relaxed_smoke_seed202_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 202, "steps": 3, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "explicit_flat_smoke_seed101_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 101, "steps": 3, "intermediate_conservatism_mode": "flat"}
+    },
+    {
+      "label": "explicit_flat_smoke_seed202_steps3",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 202, "steps": 3, "intermediate_conservatism_mode": "flat"}
+    },
+    {
+      "label": "no_exploration_projection_zero_check_seed101_steps3",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 101, "steps": 3, "exploration_enabled": false, "intermediate_conservatism_mode": "relaxed"}
+    },
+    {
+      "label": "relation_unlock_pressure_smoke_seed202_steps4",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "smoke",
+      "overrides": {"seed": 202, "steps": 4, "noise_scale": 0.025, "drift_scale": 0.014, "intermediate_conservatism_mode": "relaxed"}
+    }
+  ]
+}
