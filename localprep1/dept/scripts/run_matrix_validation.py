@@ -25,6 +25,30 @@ from scripts.profile_loader import (
 )
 
 
+PER_RUN_EXPORTS = [
+    # boundary / write / rollback audits
+    "boundary_violation_report",
+    "canonical_write_audit",
+    "rollback_snapshot",
+    "commit_gate_audit",
+    "parameter_shadow_audit",
+    "parameter_window_binding_audit",
+    # exploration diagnostic chain
+    "exploration_candidates",
+    "exploration_sandbox",
+    "exploration_decision",
+    "exploration_local_audit",
+    "local_audit",
+    "exploration_sidecar",
+    "exploration_projection",
+    # planning / gate / action-side audits
+    "action_surface_planning_audit",
+    "coactivation_gate",
+    "action_frame",
+    "action_execution_audit",
+]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -56,17 +80,7 @@ def main() -> int:
         rd = per_run_dir / label
         rd.mkdir(parents=True, exist_ok=True)
         write_json(rd / "summary.json", metrics)
-        for name in [
-            "boundary_violation_report",
-            "canonical_write_audit",
-            "rollback_snapshot",
-            "commit_gate_audit",
-            "parameter_shadow_audit",
-            "parameter_window_binding_audit",
-            "exploration_projection",
-            "action_frame",
-            "action_execution_audit",
-        ]:
+        for name in PER_RUN_EXPORTS:
             df = out.get(name)
             if df is not None:
                 dataframe_to_csv(df, rd / f"{name}.csv")

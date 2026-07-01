@@ -1,0 +1,86 @@
+{
+  "name": "matrix_extended_probe",
+  "description": "Probe matrix for Task22C Rev1 full integrated closed-loop validation entry phase. Uses existing world/action/validation profiles only.",
+  "runs": [
+    {
+      "label": "default_world_default_action_stress",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12
+      }
+    },
+    {
+      "label": "shock_world_buffered_action_stress",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 102,
+        "steps": 12
+      }
+    },
+    {
+      "label": "relation_lock_default_action_stress",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 103,
+        "steps": 12
+      }
+    },
+    {
+      "label": "relation_lock_conservative_action_stress",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 104,
+        "steps": 12
+      }
+    },
+    {
+      "label": "exploration_loss_default_action_stress",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 105,
+        "steps": 12
+      }
+    },
+    {
+      "label": "exploration_loss_buffered_action_stress",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 106,
+        "steps": 12
+      }
+    },
+    {
+      "label": "high_noise_conservative_action_stress",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 107,
+        "steps": 12
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_action_stress",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 108,
+        "steps": 12
+      }
+    }
+  ]
+}
