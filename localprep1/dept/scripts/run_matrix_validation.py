@@ -49,6 +49,10 @@ PER_RUN_EXPORTS = [
     "entity_trace",
     "relation_trace",
     "v2_hidden_trace",
+    "v2_game_trace",
+    "v2_resource_trace",
+    "v2_information_trace",
+    "v2_action_effect_trace",
 ]
 
 

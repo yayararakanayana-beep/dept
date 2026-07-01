@@ -1,0 +1,17 @@
+{
+  "name": "pseudo_reality_v2_public_stability_hidden_decay",
+  "config": {
+    "world_engine": "asymmetric_game_v2",
+    "scenario": "v2_public_stability_hidden_decay",
+    "n_entities": 24,
+    "v2_world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+    "v2_world_config": {
+      "entity_mix": {"stabilizer": 0.4, "explorer": 0.1, "extractor": 0.15, "connector": 0.25, "amplifier": 0.1},
+      "information_settings": {"information_delay_steps": 3, "information_distortion_scale": 0.08, "hidden_state_visibility": 0.12, "private_information_rate": 0.38, "misread_probability": 0.16},
+      "resource_settings": {"initial_shared_resource": 0.74, "resource_recovery_rate": 0.014, "resource_depletion_rate": 0.032, "resource_inequality_growth": 0.045},
+      "relation_settings": {"initial_trust": 0.58, "trust_decay_rate": 0.035, "relation_lock_growth_rate": 0.045, "fragmentation_rate": 0.015},
+      "side_effect_settings": {"exploration_exploitation_risk": 0.22, "stabilization_lockin_side_effect": 0.34, "buffer_overprotection_effect": 0.28, "relation_unlock_fragmentation_risk": 0.18, "no_op_decay_rate": 0.05},
+      "active_dynamics": {"trust_decay": {"enabled": true, "intensity": 0.045}, "defensive_hoarding": {"enabled": true, "intensity": 0.065}, "hidden_damage_growth": {"enabled": true, "intensity": 0.08}, "delayed_reversibility_loss": {"enabled": true, "intensity": 0.06}, "no_op_decay": {"enabled": true, "intensity": 0.06}, "public_stability_mask": {"enabled": true, "intensity": 0.08}}
+    }
+  }
+}
