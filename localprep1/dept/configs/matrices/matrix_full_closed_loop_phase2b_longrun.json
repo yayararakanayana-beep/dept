@@ -1,0 +1,156 @@
+{
+  "name": "full_closed_loop_phase2b_longrun",
+  "description": "Phase 2B long-run matrix for full integrated closed-loop validation. Extends steps to 24/36 to check time-direction stability without changing acceptance, profiles, parameters, or runner code.",
+  "runs": [
+    {
+      "label": "default_world_default_action_phase2b_24",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 401,
+        "steps": 24
+      }
+    },
+    {
+      "label": "default_world_buffered_action_phase2b_36",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 402,
+        "steps": 36
+      }
+    },
+    {
+      "label": "shock_world_default_action_phase2b_24",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 403,
+        "steps": 24
+      }
+    },
+    {
+      "label": "shock_world_conservative_action_phase2b_36",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 404,
+        "steps": 36
+      }
+    },
+    {
+      "label": "shock_world_buffered_action_phase2b_36",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 405,
+        "steps": 36
+      }
+    },
+    {
+      "label": "relation_lock_default_action_phase2b_24",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 406,
+        "steps": 24
+      }
+    },
+    {
+      "label": "relation_lock_conservative_action_phase2b_36",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 407,
+        "steps": 36
+      }
+    },
+    {
+      "label": "relation_lock_buffered_action_phase2b_36",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 408,
+        "steps": 36
+      }
+    },
+    {
+      "label": "exploration_loss_default_action_phase2b_24",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 409,
+        "steps": 24
+      }
+    },
+    {
+      "label": "exploration_loss_buffered_action_phase2b_36",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 410,
+        "steps": 36
+      }
+    },
+    {
+      "label": "high_noise_conservative_action_phase2b_24",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 411,
+        "steps": 24
+      }
+    },
+    {
+      "label": "high_noise_buffered_action_phase2b_36",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 412,
+        "steps": 36
+      }
+    },
+    {
+      "label": "slow_drift_default_action_phase2b_24",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 413,
+        "steps": 24
+      }
+    },
+    {
+      "label": "slow_drift_buffered_action_phase2b_36",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 414,
+        "steps": 36
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_action_phase2b_36",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 415,
+        "steps": 36
+      }
+    }
+  ]
+}
