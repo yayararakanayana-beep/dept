@@ -1,0 +1,186 @@
+{
+  "name": "full_closed_loop_phase2a",
+  "description": "Phase 2A medium matrix for full integrated closed-loop validation. Broadens scenario/action_profile/seed coverage beyond Phase 1 without changing acceptance or tuning parameters.",
+  "runs": [
+    {
+      "label": "default_world_default_action_phase2a",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 301,
+        "steps": 18
+      }
+    },
+    {
+      "label": "default_world_conservative_action_phase2a",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 302,
+        "steps": 18
+      }
+    },
+    {
+      "label": "default_world_buffered_action_phase2a",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 303,
+        "steps": 18
+      }
+    },
+    {
+      "label": "shock_world_default_action_phase2a",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 304,
+        "steps": 18
+      }
+    },
+    {
+      "label": "shock_world_conservative_action_phase2a",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 305,
+        "steps": 18
+      }
+    },
+    {
+      "label": "shock_world_buffered_action_phase2a",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 306,
+        "steps": 18
+      }
+    },
+    {
+      "label": "relation_lock_default_action_phase2a",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 307,
+        "steps": 18
+      }
+    },
+    {
+      "label": "relation_lock_conservative_action_phase2a",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 308,
+        "steps": 18
+      }
+    },
+    {
+      "label": "relation_lock_buffered_action_phase2a",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 309,
+        "steps": 18
+      }
+    },
+    {
+      "label": "exploration_loss_default_action_phase2a",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 310,
+        "steps": 18
+      }
+    },
+    {
+      "label": "exploration_loss_conservative_action_phase2a",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 311,
+        "steps": 18
+      }
+    },
+    {
+      "label": "exploration_loss_buffered_action_phase2a",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 312,
+        "steps": 18
+      }
+    },
+    {
+      "label": "high_noise_default_action_phase2a",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 313,
+        "steps": 18
+      }
+    },
+    {
+      "label": "high_noise_conservative_action_phase2a",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 314,
+        "steps": 18
+      }
+    },
+    {
+      "label": "high_noise_buffered_action_phase2a",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 315,
+        "steps": 18
+      }
+    },
+    {
+      "label": "slow_drift_default_action_phase2a",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 316,
+        "steps": 18
+      }
+    },
+    {
+      "label": "slow_drift_buffered_action_phase2a",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 317,
+        "steps": 18
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_action_phase2a",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 318,
+        "steps": 18
+      }
+    }
+  ]
+}
