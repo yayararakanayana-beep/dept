@@ -1,0 +1,431 @@
+{
+  "name": "phase2f1d_relaxed_default_candidate_stress_validation",
+  "description": "Runtime-safe stress validation matrix comparing current and relaxed across all requested stress groups with flat retained as one-seed upper-bound comparison. A 24-step attempt was interrupted after exceeding local runtime expectations; committed runs use 12 steps across 30 runs. This matrix does not change defaults or acceptance criteria.",
+  "runs": [
+    {
+      "label": "relation_unlock_pressure_stress_seed101_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_stress_seed101_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_stress_seed202_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_stress_seed202_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_stress_seed101_steps12_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_stress_seed101_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_stress_seed101_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_stress_seed202_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_stress_seed202_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_stress_seed101_steps12_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_stress_seed101_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "exploration_enabled": false,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_stress_seed101_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "exploration_enabled": false,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_stress_seed202_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "exploration_enabled": false,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_stress_seed202_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "exploration_enabled": false,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_stress_seed101_steps12_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "exploration_enabled": false,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "high_noise_relation_unlock_stress_seed101_steps12_current",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.04,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "high_noise_relation_unlock_stress_seed101_steps12_relaxed",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.04,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "high_noise_relation_unlock_stress_seed202_steps12_current",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.04,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "high_noise_relation_unlock_stress_seed202_steps12_relaxed",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.04,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "high_noise_relation_unlock_stress_seed101_steps12_flat",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.04,
+        "drift_scale": 0.015,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "shock_recovery_relation_unlock_stress_seed101_steps12_current",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "shock_time": 8,
+        "shock_strength": 0.22,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "shock_recovery_relation_unlock_stress_seed101_steps12_relaxed",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "shock_time": 8,
+        "shock_strength": 0.22,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "shock_recovery_relation_unlock_stress_seed202_steps12_current",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "shock_time": 8,
+        "shock_strength": 0.22,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "shock_recovery_relation_unlock_stress_seed202_steps12_relaxed",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "shock_time": 8,
+        "shock_strength": 0.22,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "shock_recovery_relation_unlock_stress_seed101_steps12_flat",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.027,
+        "drift_scale": 0.015,
+        "shock_time": 8,
+        "shock_strength": 0.22,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_stress_seed101_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "max_action_strength": 0.03,
+        "strength_scale": 0.12,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_stress_seed101_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "max_action_strength": 0.03,
+        "strength_scale": 0.12,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_stress_seed202_steps12_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "max_action_strength": 0.03,
+        "strength_scale": 0.12,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_stress_seed202_steps12_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "max_action_strength": 0.03,
+        "strength_scale": 0.12,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_stress_seed101_steps12_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 101,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "max_action_strength": 0.03,
+        "strength_scale": 0.12,
+        "intermediate_conservatism_mode": "flat"
+      }
+    }
+  ]
+}

@@ -108,6 +108,7 @@ def main() -> int:
         "forbidden_write_count": sum(1 for r in rows if bool(r["forbidden_write_detected"])),
         "projection_min": min(int(r["projection_rows"]) for r in rows),
         "action_frame_min": min(int(r["action_frame_rows"]) for r in rows),
+        "action_source_audit_columns_present": all(bool(r.get("action_source_audit_columns_present", False)) for r in rows),
         "labels": [r["label"] for r in rows],
     }
     write_json(output_dir / "matrix_summary.json", overall)
