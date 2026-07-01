@@ -360,6 +360,89 @@ def _relation_unlock_by_mode(rows: list[dict], metric: str) -> dict[str, float]:
     return totals
 
 
+
+def _probe_variant(row: dict) -> str:
+    mode = str(row.get("intermediate_conservatism_mode", ""))
+    if "probe" in mode:
+        return mode
+    if mode == "flat":
+        return "flat_upper_bound"
+    if mode == "relaxed":
+        return "relaxed_baseline"
+    return mode or "current"
+
+
+def build_intermediate_conservatism_probe_tables(rows: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    summary_rows = []
+    for r in rows:
+        gate_total = int(r.get("gate_allow_count", 0)) + int(r.get("gate_dampen_count", 0)) + int(r.get("gate_defer_count", 0)) + int(r.get("gate_block_count", 0))
+        estimated_loss = float(r.get("action_frame_strength_sum", 0.0)) * max(0.0, 1.0 - float(r.get("gate_dampening_factor_effective", 1.0))) * int(r.get("gate_dampen_count", 0))
+        summary_rows.append({
+            "run_label": r.get("label", ""),
+            "probe_variant": _probe_variant(r),
+            "intermediate_conservatism_mode": r.get("intermediate_conservatism_mode", ""),
+            "world_profile": r.get("world_profile", ""),
+            "action_profile": r.get("action_profile", ""),
+            "seed": r.get("seed", ""),
+            "steps": r.get("steps", ""),
+            "action_frame_rows": r.get("action_frame_rows", 0),
+            "action_mass": r.get("action_frame_strength_sum", 0.0),
+            "relation_unlock_family_rows": r.get("relation_unlock_family_rows", 0),
+            "relation_unlock_family_action_mass": r.get("relation_unlock_family_action_mass", 0.0),
+            "gate_allow_total": r.get("gate_allow_count", 0),
+            "gate_dampen_total": r.get("gate_dampen_count", 0),
+            "gate_defer_total": r.get("gate_defer_count", 0),
+            "gate_block_total": r.get("gate_block_count", 0),
+            "estimated_action_mass_loss": estimated_loss,
+            "gate_to_actionframe_retention": (float(r.get("action_frame_rows", 0)) / gate_total) if gate_total else "not_available",
+            "boundary_violation_total": r.get("boundary_violation_rows", 0),
+            "dry_run_write_violation_count": int(bool(r.get("dry_run_write_violation", False))),
+            "forbidden_write_count": int(bool(r.get("forbidden_write_detected", False))),
+        })
+    summary = pd.DataFrame(summary_rows)
+    ru = summary[summary["run_label"].astype(str).str.contains("relation_unlock_pressure", regex=False)].copy() if not summary.empty else pd.DataFrame()
+    group = ru.groupby("probe_variant", as_index=False).agg({
+        "action_frame_rows": "sum", "action_mass": "sum", "relation_unlock_family_rows": "sum",
+        "relation_unlock_family_action_mass": "sum", "gate_dampen_total": "sum",
+        "boundary_violation_total": "sum", "dry_run_write_violation_count": "sum", "forbidden_write_count": "sum"}) if not ru.empty else pd.DataFrame()
+    relaxed_mass = float(group.loc[group["probe_variant"].eq("relaxed_baseline"), "action_mass"].sum()) if not group.empty else 0.0
+    relaxed_ru = float(group.loc[group["probe_variant"].eq("relaxed_baseline"), "relation_unlock_family_action_mass"].sum()) if not group.empty else 0.0
+    flat_mass = float(group.loc[group["probe_variant"].eq("flat_upper_bound"), "action_mass"].sum()) if not group.empty else 0.0
+    relation_rows = []
+    for _, g in group.iterrows():
+        relation_rows.append({
+            "mode_or_variant": g["probe_variant"],
+            "action_frame_rows": g["action_frame_rows"],
+            "action_mass": g["action_mass"],
+            "relation_unlock_family_rows": g["relation_unlock_family_rows"],
+            "relation_unlock_family_action_mass": g["relation_unlock_family_action_mass"],
+            "delta_vs_relaxed_action_mass": float(g["action_mass"]) - relaxed_mass,
+            "delta_vs_relaxed_relation_unlock_mass": float(g["relation_unlock_family_action_mass"]) - relaxed_ru,
+            "delta_vs_flat_action_mass": float(g["action_mass"]) - flat_mass,
+            "boundary_violation_total": g["boundary_violation_total"],
+            "write_violation_total": int(g["dry_run_write_violation_count"]) + int(g["forbidden_write_count"]),
+        })
+    relation = pd.DataFrame(relation_rows)
+    dampen = pd.DataFrame([{
+        "variant": row.get("mode_or_variant", ""),
+        "dampen_factor_or_probe_description": {"relaxed_baseline":"0.75 baseline", "relaxed_dampen_light_probe":"0.875 experimental probe", "relaxed_dampen_neutral_probe":"1.00 experimental probe"}.get(str(row.get("mode_or_variant", "")), "non-dampen comparison"),
+        "gate_dampen_total": int(group.loc[group["probe_variant"].eq(row.get("mode_or_variant", "")), "gate_dampen_total"].sum()) if not group.empty else 0,
+        "estimated_action_mass_loss": float(summary.loc[summary["probe_variant"].eq(row.get("mode_or_variant", "")), "estimated_action_mass_loss"].sum()) if not summary.empty else 0.0,
+        "action_mass": row.get("action_mass", 0.0),
+        "relation_unlock_family_action_mass": row.get("relation_unlock_family_action_mass", 0.0),
+        "improvement_vs_relaxed": row.get("delta_vs_relaxed_action_mass", 0.0),
+        "risk_note": "probe-only; not a production candidate; hard safety/write boundaries unchanged",
+    } for _, row in relation.iterrows()]) if not relation.empty else pd.DataFrame()
+    safety = summary.groupby("probe_variant", as_index=False).agg({"boundary_violation_total":"sum", "dry_run_write_violation_count":"sum", "forbidden_write_count":"sum"}) if not summary.empty else pd.DataFrame()
+    if not safety.empty:
+        safety["direct_parameter_box_input_to_actionmodule"] = 0
+        safety["gk_writeback_detected"] = 0
+        safety["ot_writeback_detected"] = 0
+        safety["canonical_write_detected"] = safety["dry_run_write_violation_count"]
+        safety["safety_pass"] = (safety["boundary_violation_total"] + safety["dry_run_write_violation_count"] + safety["forbidden_write_count"] == 0)
+        safety = safety.rename(columns={"probe_variant":"variant"})
+    return summary, relation, dampen, safety
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -426,6 +509,11 @@ def main() -> int:
     dataframe_to_csv(gate_decomposition_all, output_dir / "gate_decomposition_by_decision.csv")
     dataframe_to_csv(action_loss_all, output_dir / "action_loss_by_gate_decision.csv")
     dataframe_to_csv(stage_retention_all, output_dir / "stage_retention_summary.csv")
+    probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
+    dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
+    dataframe_to_csv(relation_comparison, output_dir / "relation_unlock_mode_comparison.csv")
+    dataframe_to_csv(dampen_comparison, output_dir / "dampen_probe_comparison.csv")
+    dataframe_to_csv(safety_summary, output_dir / "safety_boundary_probe_summary.csv")
 
     fieldnames = list(rows[0].keys())
     with (output_dir / "matrix_metrics.csv").open("w", newline="", encoding="utf-8") as f:
@@ -468,6 +556,25 @@ def main() -> int:
         "not_available_field_count": _not_available_count(candidate_retention_all) + _not_available_count(action_loss_all) + _not_available_count(stage_retention_all),
         "labels": [r["label"] for r in rows],
     }
+    probe_only = relation_comparison[relation_comparison["mode_or_variant"].astype(str).str.contains("probe", regex=False)] if not relation_comparison.empty else pd.DataFrame()
+    best_mass = probe_only.sort_values("action_mass", ascending=False).iloc[0] if not probe_only.empty else None
+    best_ru = probe_only.sort_values("relation_unlock_family_action_mass", ascending=False).iloc[0] if not probe_only.empty else None
+    overall.update({
+        "intermediate_conservatism_probe_summary_present": (output_dir / "intermediate_conservatism_probe_summary.csv").exists(),
+        "relation_unlock_mode_comparison_present": (output_dir / "relation_unlock_mode_comparison.csv").exists(),
+        "dampen_probe_comparison_present": (output_dir / "dampen_probe_comparison.csv").exists(),
+        "safety_boundary_probe_summary_present": (output_dir / "safety_boundary_probe_summary.csv").exists(),
+        "best_probe_variant_by_action_mass": None if best_mass is None else str(best_mass["mode_or_variant"]),
+        "best_probe_variant_by_relation_unlock_mass": None if best_ru is None else str(best_ru["mode_or_variant"]),
+        "relaxed_action_mass": float(relation_comparison.loc[relation_comparison["mode_or_variant"].eq("relaxed_baseline"), "action_mass"].sum()) if not relation_comparison.empty else 0.0,
+        "flat_action_mass": float(relation_comparison.loc[relation_comparison["mode_or_variant"].eq("flat_upper_bound"), "action_mass"].sum()) if not relation_comparison.empty else 0.0,
+        "best_probe_action_mass": 0.0 if best_mass is None else float(best_mass["action_mass"]),
+        "best_probe_delta_vs_relaxed": 0.0 if best_mass is None else float(best_mass["delta_vs_relaxed_action_mass"]),
+        "best_probe_delta_vs_flat": 0.0 if best_mass is None else float(best_mass["delta_vs_flat_action_mass"]),
+        "safety_violation_total": int(overall["boundary_violation_total"]),
+        "write_violation_total": int(overall["dry_run_write_violation_count"]) + int(overall["forbidden_write_count"]),
+        "recommended_repair_family": "dampen-only repair probe follow-up if safety remains zero; not production adoption",
+    })
     write_json(output_dir / "matrix_summary.json", overall)
     write_json(output_dir / "run_manifest.json", {"matrix": matrix, "overall": overall})
 

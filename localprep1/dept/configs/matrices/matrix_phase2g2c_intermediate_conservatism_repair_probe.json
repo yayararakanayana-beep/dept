@@ -1,0 +1,165 @@
+{
+  "name": "phase2g2c_intermediate_conservatism_repair_probe",
+  "description": "Probe-only comparison of current/relaxed/flat and experimental intermediate conservatism dampen variants. Does not change production defaults, existing mode meanings, hard safety, write paths, acceptance, ActionModule behavior, or v2 integration.",
+  "runs": [
+    {
+      "label": "relation_unlock_pressure_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "current",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "flat",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_relaxed_dampen_light_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_dampen_light_probe",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_relaxed_dampen_neutral_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_dampen_neutral_probe",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_guarded_unlock_strength_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_guarded_unlock_strength_probe",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_sparsity_light_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_sparsity_light_probe",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "no_exploration_relaxed_dampen_light_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_dampen_light_probe",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "exploration_enabled": false
+      }
+    },
+    {
+      "label": "high_noise_relaxed_dampen_light_probe",
+      "world_profile": "pseudo_reality_high_noise",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_dampen_light_probe",
+        "noise_scale": 0.055,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "shock_recovery_relaxed_dampen_light_probe",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 901,
+        "steps": 6,
+        "intermediate_conservatism_mode": "relaxed_dampen_light_probe",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "shock_time": 2,
+        "shock_strength": 0.16
+      }
+    },
+    {
+      "label": "default_relaxed_smoke",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 902,
+        "steps": 4,
+        "intermediate_conservatism_mode": "relaxed",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "explicit_current_smoke",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 903,
+        "steps": 4,
+        "intermediate_conservatism_mode": "current",
+        "noise_scale": 0.025,
+        "drift_scale": 0.014
+      }
+    }
+  ]
+}
