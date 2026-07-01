@@ -1,0 +1,276 @@
+{
+  "name": "matrix_v2_rc1_validation_pack",
+  "description": "Closed-loop observation validation pack for PseudoReality v2-RC1 across profiles, action profiles, and seeds.",
+  "runs": [
+    {
+      "label": "v2_rc1_shrinking_default_seed701",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_default_seed702",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_default_seed703",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_conservative_seed701",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_conservative_seed702",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_conservative_seed703",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_buffered_seed701",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_buffered_seed702",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_shrinking_buffered_seed703",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_default_seed701",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_default_seed702",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_default_seed703",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_conservative_seed701",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_conservative_seed702",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_conservative_seed703",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_buffered_seed701",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_buffered_seed702",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_trust_collapse_buffered_seed703",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_default_seed701",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_default_seed702",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_default_seed703",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_conservative_seed701",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_conservative_seed702",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_conservative_seed703",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_buffered_seed701",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 701
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_buffered_seed702",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 702
+      }
+    },
+    {
+      "label": "v2_rc1_public_hidden_buffered_seed703",
+      "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "steps": 24,
+        "seed": 703
+      }
+    }
+  ]
+}
