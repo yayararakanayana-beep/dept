@@ -246,6 +246,8 @@ class ActionSurfacePlanningModule:
             alignment_threshold=cfg.alignment_threshold,
             min_observed_abs=cfg.min_observed_abs,
             run_isolated_semantic_shadow=cfg.run_isolated_semantic_shadow,
+            guarded_unlock_strength_factor=float(parameter_windows.get("guarded_unlock_strength_factor", getattr(cfg, "guarded_unlock_strength_factor", 0.70))),
+            guarded_unlock_delay_steps=1,
         )
 
     def _apply_parameter_windows_to_candidates(self, action_candidates: pd.DataFrame, parameter_windows: dict[str, Any]) -> pd.DataFrame:
@@ -264,6 +266,10 @@ class ActionSurfacePlanningModule:
             denom = max(max_strength, 1e-12)
             out["candidate_relative_strength_after_window"] = (out["action_strength"] / denom).clip(lower=0.0, upper=1.0)
             out["candidate_sparsity_threshold"] = sparsity
+            out["candidate_sparsity_threshold_effective"] = sparsity
+            out["channel_gain_mode"] = str(parameter_windows.get("channel_gain_mode", "current"))
+            out["guarded_unlock_delay_mode"] = str(parameter_windows.get("guarded_unlock_delay_mode", "current_delayed"))
+            out["guarded_unlock_strength_factor"] = float(parameter_windows.get("guarded_unlock_strength_factor", 0.70))
             out["candidate_passes_parameter_window"] = out["candidate_relative_strength_after_window"] >= sparsity
             if not bool(out["candidate_passes_parameter_window"].any()) and len(out):
                 keep_idx = out["candidate_relative_strength_after_window"].idxmax()

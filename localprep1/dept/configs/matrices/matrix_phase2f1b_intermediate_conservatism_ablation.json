@@ -1,0 +1,333 @@
+{
+  "name": "phase2f1b_intermediate_conservatism_ablation",
+  "description": "Compare current, relaxed, and flat intermediate conservatism modes for Phase 2F-1 relation_unlock ActionFrame thinning without changing default behavior.",
+  "runs": [
+    {
+      "label": "relation_unlock_pressure_current_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 703,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_relaxed_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 703,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_flat_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 703,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_current_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 713,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current",
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_relaxed_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 713,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed",
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16
+      }
+    },
+    {
+      "label": "relation_unlock_pressure_dominant_flat_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 713,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat",
+        "max_action_strength": 0.04,
+        "strength_scale": 0.16
+      }
+    },
+    {
+      "label": "relation_unlock_gate_current_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 706,
+        "steps": 6,
+        "noise_scale": 0.03,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_gate_relaxed_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 706,
+        "steps": 6,
+        "noise_scale": 0.03,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_gate_flat_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 706,
+        "steps": 6,
+        "noise_scale": 0.03,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_current_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 710,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current",
+        "exploration_enabled": false
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_relaxed_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 710,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed",
+        "exploration_enabled": false
+      }
+    },
+    {
+      "label": "relation_unlock_no_exploration_flat_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 710,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat",
+        "exploration_enabled": false
+      }
+    },
+    {
+      "label": "relation_lock_default_control_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 701,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 701,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_lock_default_control_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 701,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_lock_binding_control_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 712,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current",
+        "max_action_strength": 0.02,
+        "strength_scale": 0.08
+      }
+    },
+    {
+      "label": "relation_lock_binding_control_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 712,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed",
+        "max_action_strength": 0.02,
+        "strength_scale": 0.08
+      }
+    },
+    {
+      "label": "relation_lock_binding_control_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 712,
+        "steps": 6,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat",
+        "max_action_strength": 0.02,
+        "strength_scale": 0.08
+      }
+    },
+    {
+      "label": "relation_unlock_longer_run_current_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 715,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_unlock_longer_run_relaxed_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 715,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_unlock_longer_run_flat_probe",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 715,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat"
+      }
+    },
+    {
+      "label": "relation_lock_longer_run_control_current",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 714,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "current"
+      }
+    },
+    {
+      "label": "relation_lock_longer_run_control_relaxed",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 714,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "relaxed"
+      }
+    },
+    {
+      "label": "relation_lock_longer_run_control_flat",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 714,
+        "steps": 12,
+        "noise_scale": 0.025,
+        "drift_scale": 0.014,
+        "intermediate_conservatism_mode": "flat"
+      }
+    }
+  ]
+}

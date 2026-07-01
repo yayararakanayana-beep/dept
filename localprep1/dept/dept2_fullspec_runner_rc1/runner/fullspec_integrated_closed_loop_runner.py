@@ -169,6 +169,7 @@ class FullSpecIntegratedClosedLoopRunner:
             binding_params,
             artifacts.shadow_parameter_state,
             loop_step=step,
+            intermediate_conservatism_mode=self.cfg.intermediate_conservatism_mode,
         )
         module_windows = binding_out["module_window_values"]
         artifacts.shadow_parameter_state = self._tag(binding_out["shadow_parameter_state"], step)

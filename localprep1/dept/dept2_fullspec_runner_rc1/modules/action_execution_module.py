@@ -101,6 +101,7 @@ class ActionExecutionModule:
             raise ValueError("Cannot build ActionFrame without coactivation gate decision")
 
         decision = str(gate_decision["coactivation_gate_decision"].iloc[0])
+        gate_factor = float(gate_decision["gate_dampening_factor"].iloc[0]) if "gate_dampening_factor" in gate_decision.columns else 0.50
         projection_rows_available = _rows(exploration_projection)
         frame = action_candidates.copy()
         frame["action_frame_id"] = [f"AF_{i:05d}" for i in range(len(frame))]
@@ -162,11 +163,13 @@ class ActionExecutionModule:
         frame["gate_defer_applied"] = False
         if decision == "dampen" and "action_strength" in frame.columns:
             frame["pre_gate_action_strength"] = frame["action_strength"].astype(float)
-            frame["action_strength"] = frame["action_strength"].astype(float) * 0.50
+            frame["action_strength"] = frame["action_strength"].astype(float) * gate_factor
             frame["gate_dampening_applied"] = True
+            frame["gate_dampening_factor_effective"] = gate_factor
         else:
             frame["pre_gate_action_strength"] = frame["action_strength"].astype(float) if "action_strength" in frame.columns else 0.0
             frame["gate_dampening_applied"] = False
+            frame["gate_dampening_factor_effective"] = gate_factor
         return frame
 
     def apply(self, world_adapter, action_frame: pd.DataFrame) -> Dict[str, pd.DataFrame]:
@@ -193,6 +196,7 @@ class ActionExecutionModule:
         decision = "missing"
         if gate_decision is not None and not gate_decision.empty and "coactivation_gate_decision" in gate_decision.columns:
             decision = str(gate_decision["coactivation_gate_decision"].iloc[0])
+        gate_factor = float(gate_decision["gate_dampening_factor"].iloc[0]) if "gate_dampening_factor" in gate_decision.columns else 0.50
         frame_rows = _rows(action_frame)
         candidate_rows = _rows(action_candidates)
         before_t = _trace_t(world_trace_before)

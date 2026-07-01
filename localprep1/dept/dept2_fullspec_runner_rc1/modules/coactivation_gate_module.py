@@ -82,6 +82,8 @@ class CoactivationGateModule:
         gate_dampen_threshold = float(parameter_windows.get("gate_dampen_threshold", 0.36))
         gate_defer_threshold = float(parameter_windows.get("gate_defer_threshold", 0.64))
         gate_block_threshold = float(parameter_windows.get("gate_block_threshold", 0.82))
+        gate_dampening_factor_effective = float(parameter_windows.get("gate_dampening_factor_effective", 0.50))
+        gate_threshold_mode = str(parameter_windows.get("gate_threshold_mode", "current"))
 
         pressure_rows = _rows(weak_pressure)
         projection_rows = _rows(exploration_projection)
@@ -160,7 +162,7 @@ class CoactivationGateModule:
             gate_reason = "high_same_step_coactivation__defer_to_next_cycle"
         elif coactivation_risk_score >= gate_dampen_threshold:
             decision = "dampen"
-            dampening_factor = 0.50
+            dampening_factor = gate_dampening_factor_effective
             gate_reason = "moderate_same_step_coactivation__dampen_action_frame_strength"
         else:
             decision = "allow"
@@ -206,6 +208,8 @@ class CoactivationGateModule:
             "gate_required_before_actionframe": True,
             "gate_applies_to_action_frame": True,
             "gate_dampening_factor": dampening_factor,
+            "gate_dampening_factor_effective": gate_dampening_factor_effective,
+            "gate_threshold_mode": gate_threshold_mode,
             "gate_prevents_actionframe_when_block_or_defer": bool(decision in {"block", "defer", "monitor_only"}),
             "allow_like_decision": bool(decision == "allow"),
             "dampen_like_decision": bool(decision == "dampen"),
