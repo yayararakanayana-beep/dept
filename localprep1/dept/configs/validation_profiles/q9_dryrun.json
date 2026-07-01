@@ -1,0 +1,12 @@
+{
+  "name": "q9_dryrun",
+  "description": "Q9 dry-run safety validation.",
+  "defaults": {
+    "steps": 8,
+    "seed": 1,
+    "canonical_commit_enabled": false,
+    "canonical_commit_dry_run": true,
+    "canonical_binding_source": "shadow",
+    "exploration_enabled": true
+  }
+}

@@ -47,6 +47,8 @@ jobs:
           fi
 
       - name: Run pytest
+        env:
+          PYTHONPATH: localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: pytest -q
 
       - name: Upload Task22A result artifact

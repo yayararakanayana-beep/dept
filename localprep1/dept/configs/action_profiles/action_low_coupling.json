@@ -1,0 +1,11 @@
+{
+  "name": "action_low_coupling",
+  "description": "Low pseudo-reality action coupling while leaving candidate generation close to default.",
+  "config": {
+    "action_coupling": 0.02,
+    "min_action_strength": 0.006,
+    "max_action_strength": 0.028,
+    "strength_scale": 0.11,
+    "alignment_threshold": 0.52
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "pseudo_reality_shock",
+  "description": "Shock pseudo-reality with standard shock time.",
+  "config": {
+    "scenario": "shock",
+    "n_entities": 18,
+    "noise_scale": 0.024,
+    "drift_scale": 0.006,
+    "action_coupling": 0.045,
+    "shock_time": 8,
+    "shock_strength": 0.18
+  }
+}

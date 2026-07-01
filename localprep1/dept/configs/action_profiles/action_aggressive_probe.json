@@ -1,0 +1,11 @@
+{
+  "name": "action_aggressive_probe",
+  "description": "Slightly stronger probing profile for stress comparison.",
+  "config": {
+    "action_coupling": 0.055,
+    "min_action_strength": 0.006,
+    "max_action_strength": 0.038,
+    "strength_scale": 0.15,
+    "alignment_threshold": 0.46
+  }
+}

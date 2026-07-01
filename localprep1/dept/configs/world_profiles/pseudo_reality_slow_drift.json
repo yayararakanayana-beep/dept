@@ -1,0 +1,13 @@
+{
+  "name": "pseudo_reality_slow_drift",
+  "description": "Slow but persistent relation-lock drift.",
+  "config": {
+    "scenario": "relation_lock",
+    "n_entities": 18,
+    "noise_scale": 0.018,
+    "drift_scale": 0.012,
+    "action_coupling": 0.035,
+    "shock_time": 18,
+    "shock_strength": 0.18
+  }
+}

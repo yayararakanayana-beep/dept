@@ -1,0 +1,12 @@
+{
+  "name": "q9_default",
+  "description": "Q9-style default integration validation for one run.",
+  "defaults": {
+    "steps": 8,
+    "seed": 1,
+    "canonical_commit_enabled": true,
+    "canonical_commit_dry_run": false,
+    "canonical_binding_source": "canonical",
+    "exploration_enabled": true
+  }
+}

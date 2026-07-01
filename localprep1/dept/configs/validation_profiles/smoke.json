@@ -1,0 +1,12 @@
+{
+  "name": "smoke",
+  "description": "Minimal 3-step sanity check.",
+  "defaults": {
+    "steps": 3,
+    "seed": 101,
+    "canonical_commit_enabled": false,
+    "canonical_commit_dry_run": true,
+    "canonical_binding_source": "shadow",
+    "exploration_enabled": true
+  }
+}

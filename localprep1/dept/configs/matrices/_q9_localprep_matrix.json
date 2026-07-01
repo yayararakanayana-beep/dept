@@ -1,0 +1,61 @@
+{
+  "name": "q9_localprep",
+  "description": "Q9-style local validation matrix for GitHub-ready package.",
+  "runs": [
+    {
+      "label": "dryrun_normal_shadow",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "q9_dryrun",
+      "overrides": {
+        "seed": 1
+      }
+    },
+    {
+      "label": "dryrun_shock_shadow",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "q9_dryrun",
+      "overrides": {
+        "seed": 2
+      }
+    },
+    {
+      "label": "enabled_canonbind_normal",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 1
+      }
+    },
+    {
+      "label": "enabled_canonbind_relation_lock",
+      "world_profile": "pseudo_reality_relation_lock",
+      "action_profile": "action_default",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 3
+      }
+    },
+    {
+      "label": "enabled_canonbind_exploration_loss",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_default",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 4
+      }
+    },
+    {
+      "label": "enabled_canonbind_shock",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_default",
+      "validation_profile": "q9_default",
+      "overrides": {
+        "seed": 5,
+        "steps": 10
+      }
+    }
+  ]
+}

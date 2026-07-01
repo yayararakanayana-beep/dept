@@ -1,0 +1,11 @@
+{
+  "name": "action_buffered",
+  "description": "Buffered profile; moderate coupling, lower strength, stricter alignment.",
+  "config": {
+    "action_coupling": 0.038,
+    "min_action_strength": 0.005,
+    "max_action_strength": 0.025,
+    "strength_scale": 0.1,
+    "alignment_threshold": 0.58
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "action_conservative",
+  "description": "Weaker action coupling and lower max strength.",
+  "config": {
+    "action_coupling": 0.03,
+    "min_action_strength": 0.004,
+    "max_action_strength": 0.022,
+    "strength_scale": 0.09,
+    "alignment_threshold": 0.55
+  }
+}
