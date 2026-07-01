@@ -139,6 +139,7 @@ class ParameterWindowBinder:
         if value not in {
             "current",
             "relaxed",
+            "relaxed_legacy_dampen_075",
             "flat",
             "relaxed_dampen_light_probe",
             "relaxed_dampen_neutral_probe",
@@ -160,6 +161,7 @@ class ParameterWindowBinder:
         gate = windows["gate"]
         if mode in {
             "relaxed",
+            "relaxed_legacy_dampen_075",
             "relaxed_dampen_light_probe",
             "relaxed_dampen_neutral_probe",
             "relaxed_guarded_unlock_strength_probe",
@@ -169,12 +171,15 @@ class ParameterWindowBinder:
             for channel in ["relation_unlock", "guarded_relation_unlock", "coupling_relief"]:
                 action["channel_gain_map"][channel] = max(1.0, float(action["channel_gain_map"].get(channel, 1.0)))
             gate["gate_dampen_threshold"] = min(float(gate["gate_defer_threshold"]) - 0.01, float(gate["gate_dampen_threshold"]) + 0.12)
-            gate["gate_dampening_factor_effective"] = 0.75
-            gate["gate_threshold_mode"] = "relaxed_dampen_less_often"
+            gate["gate_dampening_factor_effective"] = 0.875
+            gate["gate_threshold_mode"] = "relaxed_minimal_dampen_repair_0875"
             action["channel_gain_mode"] = "relaxed_relation_unlock_neutralized"
             action["guarded_unlock_delay_mode"] = "delay_preserved"
             action["guarded_unlock_strength_factor"] = 0.90
-            if mode == "relaxed_dampen_light_probe":
+            if mode == "relaxed_legacy_dampen_075":
+                gate["gate_dampening_factor_effective"] = 0.75
+                gate["gate_threshold_mode"] = "relaxed_legacy_dampen_075"
+            elif mode == "relaxed_dampen_light_probe":
                 gate["gate_dampening_factor_effective"] = 0.875
                 gate["gate_threshold_mode"] = "experimental_probe_relaxed_dampen_light"
             elif mode == "relaxed_dampen_neutral_probe":
