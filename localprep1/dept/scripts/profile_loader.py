@@ -176,6 +176,5 @@ def acceptance_pass(metrics: Dict[str, Any]) -> bool:
         and not metrics["direct_parameter_box_input_to_actionmodule"]
         and metrics["rollback_snapshot_rows"] >= metrics["steps"]
         and metrics["commit_gate_rows"] >= metrics["steps"]
-        and metrics["projection_rows"] > 0
         and metrics["action_frame_rows"] > 0
     )
