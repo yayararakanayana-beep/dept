@@ -136,7 +136,15 @@ class ParameterWindowBinder:
 
     def _normalize_conservatism_mode(self, mode: str | None) -> str:
         value = str(mode or "current").strip().lower()
-        if value not in {"current", "relaxed", "flat"}:
+        if value not in {
+            "current",
+            "relaxed",
+            "flat",
+            "relaxed_dampen_light_probe",
+            "relaxed_dampen_neutral_probe",
+            "relaxed_guarded_unlock_strength_probe",
+            "relaxed_sparsity_light_probe",
+        }:
             raise ValueError(f"Unsupported intermediate_conservatism_mode: {mode!r}")
         return value
 
@@ -150,7 +158,13 @@ class ParameterWindowBinder:
             return
         action = windows["action"]
         gate = windows["gate"]
-        if mode == "relaxed":
+        if mode in {
+            "relaxed",
+            "relaxed_dampen_light_probe",
+            "relaxed_dampen_neutral_probe",
+            "relaxed_guarded_unlock_strength_probe",
+            "relaxed_sparsity_light_probe",
+        }:
             action["candidate_sparsity_threshold"] = max(0.0, float(action["candidate_sparsity_threshold"]) * 0.50)
             for channel in ["relation_unlock", "guarded_relation_unlock", "coupling_relief"]:
                 action["channel_gain_map"][channel] = max(1.0, float(action["channel_gain_map"].get(channel, 1.0)))
@@ -160,6 +174,18 @@ class ParameterWindowBinder:
             action["channel_gain_mode"] = "relaxed_relation_unlock_neutralized"
             action["guarded_unlock_delay_mode"] = "delay_preserved"
             action["guarded_unlock_strength_factor"] = 0.90
+            if mode == "relaxed_dampen_light_probe":
+                gate["gate_dampening_factor_effective"] = 0.875
+                gate["gate_threshold_mode"] = "experimental_probe_relaxed_dampen_light"
+            elif mode == "relaxed_dampen_neutral_probe":
+                gate["gate_dampening_factor_effective"] = 1.00
+                gate["gate_threshold_mode"] = "experimental_probe_relaxed_dampen_neutral"
+            elif mode == "relaxed_guarded_unlock_strength_probe":
+                action["guarded_unlock_strength_factor"] = 1.00
+                action["guarded_unlock_delay_mode"] = "experimental_probe_strength_only_delay_preserved"
+            elif mode == "relaxed_sparsity_light_probe":
+                action["candidate_sparsity_threshold"] = max(0.0, float(action["candidate_sparsity_threshold"]) * 0.50)
+                action["channel_gain_mode"] = "experimental_probe_sparsity_light_relation_unlock_neutralized"
             return
         action["candidate_sparsity_threshold"] = 0.0
         action["channel_gain_map"] = {k: 1.0 for k in action.get("channel_gain_map", {})}
