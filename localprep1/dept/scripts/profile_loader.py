@@ -128,6 +128,23 @@ def collect_metrics(label: str, cfg: FullSpecRunnerConfig, out: Dict[str, Any]) 
             return 0
         return int(frame[col].astype(bool).sum())
 
+    def count_eq(frame, col, value):
+        if frame is None or frame.empty or col not in frame.columns:
+            return 0
+        return int(frame[col].astype(str).eq(value).sum())
+
+    def count_channel(frame, value):
+        return count_eq(frame, "action_channel", value)
+
+    def mean_delta(col):
+        return mean_col(world, f"mean_delta_{col}")
+
+    m_overall_proxy_delta_mean = (
+        mean_delta("exploration") + mean_delta("reversibility") + mean_delta("entropy")
+    ) - (
+        mean_delta("volatility") + mean_delta("uncertainty") + mean_delta("relation_lock") + mean_delta("coupling")
+    ) / 4.0
+
     forbidden = (
         bool_any(write, "world_write_performed")
         or bool_any(write, "gk_writeback_performed")
@@ -161,7 +178,25 @@ def collect_metrics(label: str, cfg: FullSpecRunnerConfig, out: Dict[str, Any]) 
         "action_frame_rows": 0 if action_frame is None else int(len(action_frame)),
         "action_frame_strength_sum": sum_col(action_frame, "action_strength"),
         "guarded_relation_unlock_action_mass": sum_col(action_frame[action_frame.get("action_channel", pd.Series([], dtype=str)).astype(str).eq("guarded_relation_unlock")] if action_frame is not None and not action_frame.empty and "action_channel" in action_frame.columns else pd.DataFrame(), "action_strength"),
+        "coupling_relief_action_mass": sum_col(action_frame[action_frame.get("action_channel", pd.Series([], dtype=str)).astype(str).eq("coupling_relief")] if action_frame is not None and not action_frame.empty and "action_channel" in action_frame.columns else pd.DataFrame(), "action_strength"),
         "relation_unlock_family_action_mass": sum_col(action_frame[action_frame.get("action_channel", pd.Series([], dtype=str)).astype(str).isin(["relation_unlock", "guarded_relation_unlock", "coupling_relief"])] if action_frame is not None and not action_frame.empty and "action_channel" in action_frame.columns else pd.DataFrame(), "action_strength"),
+        "guarded_relation_unlock_rows": count_channel(action_frame, "guarded_relation_unlock"),
+        "relation_unlock_rows": count_channel(action_frame, "relation_unlock"),
+        "coupling_relief_rows": count_channel(action_frame, "coupling_relief"),
+        "relation_unlock_family_rows": (count_channel(action_frame, "relation_unlock") + count_channel(action_frame, "guarded_relation_unlock") + count_channel(action_frame, "coupling_relief")),
+        "gate_allow_count": count_eq(gate, "coactivation_gate_decision", "allow"),
+        "gate_dampen_count": count_eq(gate, "coactivation_gate_decision", "dampen"),
+        "gate_defer_count": count_eq(gate, "coactivation_gate_decision", "defer"),
+        "gate_block_count": count_eq(gate, "coactivation_gate_decision", "block"),
+        "gate_monitor_only_count": count_eq(gate, "coactivation_gate_decision", "monitor_only"),
+        "world_delta_relation_lock_mean": mean_delta("relation_lock"),
+        "world_delta_coupling_mean": mean_delta("coupling"),
+        "world_delta_reversibility_mean": mean_delta("reversibility"),
+        "world_delta_uncertainty_mean": mean_delta("uncertainty"),
+        "world_delta_volatility_mean": mean_delta("volatility"),
+        "world_delta_entropy_mean": mean_delta("entropy"),
+        "world_delta_exploration_mean": mean_delta("exploration"),
+        "m_overall_proxy_delta_mean": m_overall_proxy_delta_mean,
         "gate_dampening_factor_effective": mean_col(gate, "gate_dampening_factor_effective"),
         "gate_threshold_mode": str(gate["gate_threshold_mode"].iloc[0]) if gate is not None and not gate.empty and "gate_threshold_mode" in gate.columns else "",
         "candidate_sparsity_threshold_effective": mean_col(binding, "candidate_sparsity_threshold_effective"),
@@ -176,6 +211,7 @@ def collect_metrics(label: str, cfg: FullSpecRunnerConfig, out: Dict[str, Any]) 
         "binding_used_in_gate": bool_all(gate, "parameter_window_binding_used"),
         "forbidden_write_detected": forbidden,
         "direct_parameter_box_input_to_actionmodule": bool_any(exec_audit, "direct_parameter_box_input_to_actionmodule"),
+        "action_source_audit_columns_present": bool_all(exec_audit, "action_source_audit_columns_present"),
     }
 
 
