@@ -1,0 +1,86 @@
+{
+  "name": "matrix_slow_drift_projection_diagnostic",
+  "description": "Diagnostic matrix for slow_drift projection collapse / valid no-projection classification.",
+  "runs": [
+    {
+      "label": "slow_drift_default_action_12",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 201,
+        "steps": 12
+      }
+    },
+    {
+      "label": "slow_drift_conservative_action_12",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 202,
+        "steps": 12
+      }
+    },
+    {
+      "label": "slow_drift_buffered_action_12",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 203,
+        "steps": 12
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_12",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 204,
+        "steps": 12
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_18",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 205,
+        "steps": 18
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_24",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 206,
+        "steps": 24
+      }
+    },
+    {
+      "label": "slow_drift_low_coupling_36",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 207,
+        "steps": 36
+      }
+    },
+    {
+      "label": "slow_drift_default_action_24",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 208,
+        "steps": 24
+      }
+    }
+  ]
+}
