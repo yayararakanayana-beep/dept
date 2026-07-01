@@ -1,0 +1,124 @@
+{
+  "name": "phase2e1_exploration_zero_no_op_probe",
+  "description": "Phase 2E-1 focused small-loop probe for projection_rows=0 / exploration-zero behavior. Reproduces Phase 2D zero-projection candidates and compares exploration-disabled runs against exploration-enabled controls without changing runner code, profiles, matrices, or acceptance criteria.",
+  "runs": [
+    {
+      "label": "repro_slow_drift_default_phase2b_zero_projection",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 413,
+        "steps": 24
+      }
+    },
+    {
+      "label": "repro_exploration_loss_no_exploration_default",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 507,
+        "steps": 24,
+        "exploration_enabled": false
+      }
+    },
+    {
+      "label": "control_exploration_loss_exploration_enabled_default",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 507,
+        "steps": 24,
+        "exploration_enabled": true
+      }
+    },
+    {
+      "label": "repro_exploration_loss_no_exploration_buffered",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 508,
+        "steps": 36,
+        "exploration_enabled": false
+      }
+    },
+    {
+      "label": "control_exploration_loss_exploration_enabled_buffered",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 508,
+        "steps": 36,
+        "exploration_enabled": true
+      }
+    },
+    {
+      "label": "repro_slow_drift_low_coupling_no_exploration",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 512,
+        "steps": 36,
+        "exploration_enabled": false,
+        "action_coupling": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "control_slow_drift_low_coupling_exploration_enabled",
+      "world_profile": "pseudo_reality_slow_drift",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 512,
+        "steps": 36,
+        "exploration_enabled": true,
+        "action_coupling": 0.025,
+        "drift_scale": 0.014
+      }
+    },
+    {
+      "label": "repro_shock_no_exploration_buffered",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 516,
+        "steps": 36,
+        "exploration_enabled": false,
+        "shock_time": 6,
+        "shock_strength": 0.22
+      }
+    },
+    {
+      "label": "control_shock_exploration_enabled_buffered",
+      "world_profile": "pseudo_reality_shock",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 516,
+        "steps": 36,
+        "exploration_enabled": true,
+        "shock_time": 6,
+        "shock_strength": 0.22
+      }
+    },
+    {
+      "label": "probe_exploration_loss_no_exploration_low_coupling",
+      "world_profile": "pseudo_reality_exploration_loss",
+      "action_profile": "action_low_coupling",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 519,
+        "steps": 24,
+        "exploration_enabled": false,
+        "action_coupling": 0.025
+      }
+    }
+  ]
+}
