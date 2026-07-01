@@ -1,0 +1,15 @@
+{
+  "name": "matrix_v2_probe",
+  "description": "Probe matrix for PseudoReality v2 diagnostic traces across three v2 profiles and three action profiles.",
+  "runs": [
+    {"label": "v2_shrinking_equilibrium_default_probe", "world_profile": "pseudo_reality_v2_shrinking_equilibrium", "action_profile": "action_default", "validation_profile": "stress_medium", "overrides": {"seed": 601, "steps": 18}},
+    {"label": "v2_shrinking_equilibrium_conservative_probe", "world_profile": "pseudo_reality_v2_shrinking_equilibrium", "action_profile": "action_conservative", "validation_profile": "stress_medium", "overrides": {"seed": 602, "steps": 18}},
+    {"label": "v2_shrinking_equilibrium_buffered_probe", "world_profile": "pseudo_reality_v2_shrinking_equilibrium", "action_profile": "action_buffered", "validation_profile": "stress_medium", "overrides": {"seed": 603, "steps": 18}},
+    {"label": "v2_trust_collapse_default_probe", "world_profile": "pseudo_reality_v2_trust_collapse", "action_profile": "action_default", "validation_profile": "stress_medium", "overrides": {"seed": 611, "steps": 18}},
+    {"label": "v2_trust_collapse_conservative_probe", "world_profile": "pseudo_reality_v2_trust_collapse", "action_profile": "action_conservative", "validation_profile": "stress_medium", "overrides": {"seed": 612, "steps": 18}},
+    {"label": "v2_trust_collapse_buffered_probe", "world_profile": "pseudo_reality_v2_trust_collapse", "action_profile": "action_buffered", "validation_profile": "stress_medium", "overrides": {"seed": 613, "steps": 18}},
+    {"label": "v2_public_stability_hidden_decay_default_probe", "world_profile": "pseudo_reality_v2_public_stability_hidden_decay", "action_profile": "action_default", "validation_profile": "stress_medium", "overrides": {"seed": 621, "steps": 18}},
+    {"label": "v2_public_stability_hidden_decay_conservative_probe", "world_profile": "pseudo_reality_v2_public_stability_hidden_decay", "action_profile": "action_conservative", "validation_profile": "stress_medium", "overrides": {"seed": 622, "steps": 18}},
+    {"label": "v2_public_stability_hidden_decay_buffered_probe", "world_profile": "pseudo_reality_v2_public_stability_hidden_decay", "action_profile": "action_buffered", "validation_profile": "stress_medium", "overrides": {"seed": 623, "steps": 18}}
+  ]
+}
