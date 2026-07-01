@@ -65,6 +65,8 @@ class IntegratedDiagnosticConfig:
     alignment_threshold: float = 0.50
     min_observed_abs: float = 1e-12
     run_isolated_semantic_shadow: bool = True
+    guarded_unlock_strength_factor: float = 0.70
+    guarded_unlock_delay_steps: int = 1
 
 
 EXPECTED_CONTRACTS: Dict[str, Dict[str, int]] = {
@@ -288,16 +290,16 @@ class RepairedDiagnosticActionPolicy:
                     "source_semantic_effect": semantic,
                     "intent_family": str(intent.get("intent_family", "")),
                     "scheduled_step": step,
-                    "execute_step": step + 1,
-                    "action_strength": strength * 0.70,
+                    "execute_step": step + int(self.cfg.guarded_unlock_delay_steps),
+                    "action_strength": strength * float(self.cfg.guarded_unlock_strength_factor),
                 })
                 event_rows.append({
                     "sequence_id": sequence_id,
                     "source_semantic_effect": semantic,
                     "event_type": "schedule_guarded_relation_unlock",
                     "scheduled_step": step,
-                    "execute_step": step + 1,
-                    "action_strength": strength * 0.70,
+                    "execute_step": step + int(self.cfg.guarded_unlock_delay_steps),
+                    "action_strength": strength * float(self.cfg.guarded_unlock_strength_factor),
                     "sequence_contract": TASK + "__guarded_delayed_unlock_event",
                 })
 

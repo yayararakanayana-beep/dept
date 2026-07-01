@@ -108,6 +108,7 @@ class ParameterWindowBinder:
         shadow_parameter_state: pd.DataFrame,
         *,
         loop_step: int | None = None,
+        intermediate_conservatism_mode: str = "current",
     ) -> dict[str, Any]:
         """Return module window values and an audit row.
 
@@ -117,6 +118,7 @@ class ParameterWindowBinder:
         """
         params = {k: theta(current_params, k) for k in REGISTRY}
         shadow_state = self._normalize_shadow_state(shadow_parameter_state)
+        mode = self._normalize_conservatism_mode(intermediate_conservatism_mode)
         module_window_values = {
             "exploration": asdict(self._exploration_windows(params)),
             "local_audit": self._local_audit_params(params),
@@ -124,12 +126,49 @@ class ParameterWindowBinder:
             "bridge": self._bridge_params(params),
             "gate": asdict(self._gate_windows(params)),
         }
-        audit = self._audit(params, shadow_state, module_window_values, loop_step)
+        self._apply_intermediate_conservatism_ablation(module_window_values, mode)
+        audit = self._audit(params, shadow_state, module_window_values, loop_step, mode)
         return {
             "module_window_values": module_window_values,
             "shadow_parameter_state": shadow_state,
             "parameter_window_binding_audit": audit,
         }
+
+    def _normalize_conservatism_mode(self, mode: str | None) -> str:
+        value = str(mode or "current").strip().lower()
+        if value not in {"current", "relaxed", "flat"}:
+            raise ValueError(f"Unsupported intermediate_conservatism_mode: {mode!r}")
+        return value
+
+    def _apply_intermediate_conservatism_ablation(self, windows: dict[str, Any], mode: str) -> None:
+        if mode == "current":
+            windows["gate"]["gate_dampening_factor_effective"] = 0.50
+            windows["gate"]["gate_threshold_mode"] = "current"
+            windows["action"]["channel_gain_mode"] = "current"
+            windows["action"]["guarded_unlock_delay_mode"] = "current_delayed"
+            windows["action"]["guarded_unlock_strength_factor"] = 0.70
+            return
+        action = windows["action"]
+        gate = windows["gate"]
+        if mode == "relaxed":
+            action["candidate_sparsity_threshold"] = max(0.0, float(action["candidate_sparsity_threshold"]) * 0.50)
+            for channel in ["relation_unlock", "guarded_relation_unlock", "coupling_relief"]:
+                action["channel_gain_map"][channel] = max(1.0, float(action["channel_gain_map"].get(channel, 1.0)))
+            gate["gate_dampen_threshold"] = min(float(gate["gate_defer_threshold"]) - 0.01, float(gate["gate_dampen_threshold"]) + 0.12)
+            gate["gate_dampening_factor_effective"] = 0.75
+            gate["gate_threshold_mode"] = "relaxed_dampen_less_often"
+            action["channel_gain_mode"] = "relaxed_relation_unlock_neutralized"
+            action["guarded_unlock_delay_mode"] = "delay_preserved"
+            action["guarded_unlock_strength_factor"] = 0.90
+            return
+        action["candidate_sparsity_threshold"] = 0.0
+        action["channel_gain_map"] = {k: 1.0 for k in action.get("channel_gain_map", {})}
+        gate["gate_dampen_threshold"] = 1.01
+        gate["gate_dampening_factor_effective"] = 1.00
+        gate["gate_threshold_mode"] = "flat_dampen_as_allow_hard_defer_block_preserved"
+        action["channel_gain_mode"] = "flat_all_one"
+        action["guarded_unlock_delay_mode"] = "flat-delay-preserved"
+        action["guarded_unlock_strength_factor"] = 1.00
 
     def _normalize_shadow_state(self, shadow_state: pd.DataFrame | None) -> pd.DataFrame:
         if shadow_state is None:
@@ -251,6 +290,7 @@ class ParameterWindowBinder:
         shadow_state: pd.DataFrame,
         windows: Mapping[str, Any],
         loop_step: int | None,
+        intermediate_conservatism_mode: str,
     ) -> pd.DataFrame:
         flat = {
             "exploration_candidate_budget": windows["exploration"]["candidate_budget"],
@@ -287,6 +327,15 @@ class ParameterWindowBinder:
             "world_write_performed": False,
             "gk_writeback_performed": False,
             "ot_writeback_performed": False,
+            "intermediate_conservatism_mode": intermediate_conservatism_mode,
+            "gate_dampening_factor_effective": float(windows["gate"].get("gate_dampening_factor_effective", 0.50)),
+            "gate_threshold_mode": str(windows["gate"].get("gate_threshold_mode", "current")),
+            "candidate_sparsity_threshold_effective": float(windows["action"].get("candidate_sparsity_threshold", 0.0)),
+            "channel_gain_mode": str(windows["action"].get("channel_gain_mode", "current")),
+            "guarded_unlock_delay_mode": str(windows["action"].get("guarded_unlock_delay_mode", "current_delayed")),
+            "guarded_unlock_strength_factor": float(windows["action"].get("guarded_unlock_strength_factor", 0.70)),
+            "boundary_safety_preserved": True,
+            "discretionary_conservatism_adjusted": bool(intermediate_conservatism_mode != "current"),
             "audit_status": "pass",
             **flat,
         }])
