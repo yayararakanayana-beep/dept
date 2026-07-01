@@ -258,6 +258,10 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_frame(artifacts.action_frame, artifacts.coactivation_gate))
 
         artifacts.world_trace_after = self.action_execution_module.apply(self.world_adapter, artifacts.action_frame)
+        if isinstance(artifacts.world_trace_after, dict):
+            artifacts.entity_trace = self._tag(artifacts.world_trace_after.get("entity_trace", pd.DataFrame()), step)
+            artifacts.relation_trace = self._tag(artifacts.world_trace_after.get("relation_trace", pd.DataFrame()), step)
+            artifacts.v2_hidden_trace = self._tag(artifacts.world_trace_after.get("v2_hidden_trace", pd.DataFrame()), step)
         artifacts.action_execution_audit = self._tag(
             self.action_execution_module.audit_execution_boundary(
                 action_candidates=artifacts.action_candidates,

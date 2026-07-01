@@ -360,7 +360,7 @@ class AuditLedgerModule:
 
     def collect_outputs(self, cycles: List[CycleArtifacts]) -> Dict[str, pd.DataFrame]:
         table_names = [
-            "world_trace_audit", "world_transition_audit", "gt", "kt", "formal_packet", "gk_build_audit",
+            "world_trace_audit", "world_transition_audit", "entity_trace", "relation_trace", "v2_hidden_trace", "gt", "kt", "formal_packet", "gk_build_audit",
             "ot_native", "ot_action_view", "ot_exploration_view", "ot_observation_audit",
             "residual_noise_log", "residual_noise_ledger_audit",
             "m_observation", "weak_pressure", "upper_pressure_audit", "h11_local_pressure_field", "pressure_intent_bundle",
