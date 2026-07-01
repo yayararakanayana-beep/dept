@@ -443,6 +443,105 @@ def build_intermediate_conservatism_probe_tables(rows: list[dict]) -> tuple[pd.D
         safety = safety.rename(columns={"probe_variant":"variant"})
     return summary, relation, dampen, safety
 
+
+def _repair_variant(row: dict) -> str:
+    mode = str(row.get("intermediate_conservatism_mode", ""))
+    if mode == "relaxed_legacy_dampen_075":
+        return "relaxed_legacy_dampen_075"
+    if mode == "relaxed":
+        return "relaxed_minimal_dampen_repair"
+    if mode == "flat":
+        return "flat_upper_bound"
+    return mode or "current"
+
+
+def build_dampen_only_repair_tables(rows: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    summary_rows = []
+    for r in rows:
+        gate_total = int(r.get("gate_allow_count", 0)) + int(r.get("gate_dampen_count", 0)) + int(r.get("gate_defer_count", 0)) + int(r.get("gate_block_count", 0))
+        estimated_loss = float(r.get("action_frame_strength_sum", 0.0)) * max(0.0, 1.0 - float(r.get("gate_dampening_factor_effective", 1.0))) * int(r.get("gate_dampen_count", 0))
+        mode = str(r.get("intermediate_conservatism_mode", ""))
+        summary_rows.append({
+            "run_label": r.get("label", ""),
+            "mode": mode,
+            "is_legacy_relaxed": mode == "relaxed_legacy_dampen_075",
+            "is_repaired_relaxed": mode == "relaxed",
+            "world_profile": r.get("world_profile", ""),
+            "action_profile": r.get("action_profile", ""),
+            "seed": r.get("seed", ""),
+            "steps": r.get("steps", ""),
+            "action_frame_rows": r.get("action_frame_rows", 0),
+            "action_mass": r.get("action_frame_strength_sum", 0.0),
+            "relation_unlock_family_rows": r.get("relation_unlock_family_rows", 0),
+            "relation_unlock_family_action_mass": r.get("relation_unlock_family_action_mass", 0.0),
+            "gate_allow_total": r.get("gate_allow_count", 0),
+            "gate_dampen_total": r.get("gate_dampen_count", 0),
+            "gate_defer_total": r.get("gate_defer_count", 0),
+            "gate_block_total": r.get("gate_block_count", 0),
+            "estimated_action_mass_loss": estimated_loss,
+            "boundary_violation_total": r.get("boundary_violation_rows", 0),
+            "dry_run_write_violation_count": int(bool(r.get("dry_run_write_violation", False))),
+            "forbidden_write_count": int(bool(r.get("forbidden_write_detected", False))),
+            "safety_pass": bool(r.get("overall_pass", False)),
+        })
+    summary = pd.DataFrame(summary_rows)
+    ru = summary[summary["run_label"].astype(str).str.startswith("relation_unlock_pressure_")].copy() if not summary.empty else pd.DataFrame()
+    group = ru.groupby("mode", as_index=False).agg({
+        "action_frame_rows": "sum", "action_mass": "sum", "relation_unlock_family_rows": "sum",
+        "relation_unlock_family_action_mass": "sum", "gate_dampen_total": "sum", "gate_defer_total": "sum",
+        "gate_block_total": "sum", "boundary_violation_total": "sum", "dry_run_write_violation_count": "sum",
+        "forbidden_write_count": "sum"}) if not ru.empty else pd.DataFrame()
+    def val(mode: str, col: str) -> float:
+        return float(group.loc[group["mode"].eq(mode), col].sum()) if not group.empty and col in group.columns else 0.0
+    legacy_action = val("relaxed_legacy_dampen_075", "action_mass")
+    repaired_action = val("relaxed", "action_mass")
+    flat_action = val("flat", "action_mass")
+    legacy_ru = val("relaxed_legacy_dampen_075", "relation_unlock_family_action_mass")
+    repaired_ru = val("relaxed", "relation_unlock_family_action_mass")
+    flat_ru = val("flat", "relation_unlock_family_action_mass")
+    comparison = pd.DataFrame([{
+        "comparison_group": "relation_unlock_pressure",
+        "legacy_action_mass": legacy_action,
+        "repaired_action_mass": repaired_action,
+        "flat_action_mass": flat_action,
+        "repaired_delta_vs_legacy": repaired_action - legacy_action,
+        "repaired_delta_vs_flat": repaired_action - flat_action,
+        "legacy_relation_unlock_mass": legacy_ru,
+        "repaired_relation_unlock_mass": repaired_ru,
+        "repaired_relation_unlock_delta_vs_legacy": repaired_ru - legacy_ru,
+        "repaired_relation_unlock_delta_vs_flat": repaired_ru - flat_ru,
+        "boundary_violation_total": int(group["boundary_violation_total"].sum()) if not group.empty else 0,
+        "write_violation_total": int(group["dry_run_write_violation_count"].sum() + group["forbidden_write_count"].sum()) if not group.empty else 0,
+    }])
+    relation_rows = []
+    for _, g in group.iterrows():
+        mode = str(g["mode"])
+        relation_rows.append({
+            "mode": mode,
+            "action_frame_rows": g["action_frame_rows"],
+            "action_mass": g["action_mass"],
+            "relation_unlock_family_rows": g["relation_unlock_family_rows"],
+            "relation_unlock_family_action_mass": g["relation_unlock_family_action_mass"],
+            "gate_dampen_total": g["gate_dampen_total"],
+            "gate_defer_total": g["gate_defer_total"],
+            "gate_block_total": g["gate_block_total"],
+            "note": {"relaxed_legacy_dampen_075":"old relaxed explicit rollback baseline", "relaxed":"relaxed minimal dampen repair", "flat":"upper-bound comparator only", "current":"unchanged baseline"}.get(mode, "additional comparison"),
+        })
+    relation = pd.DataFrame(relation_rows)
+    safety = pd.DataFrame([{
+        "mode": r.get("intermediate_conservatism_mode", ""),
+        "world_profile": r.get("world_profile", ""),
+        "boundary_violation_total": r.get("boundary_violation_rows", 0),
+        "dry_run_write_violation_count": int(bool(r.get("dry_run_write_violation", False))),
+        "forbidden_write_count": int(bool(r.get("forbidden_write_detected", False))),
+        "direct_parameter_box_input_to_actionmodule": int(bool(r.get("direct_parameter_box_input_to_actionmodule", False))),
+        "gk_writeback_detected": int(bool(r.get("forbidden_write_detected", False))),
+        "ot_writeback_detected": int(bool(r.get("forbidden_write_detected", False))),
+        "canonical_write_detected": int(bool(r.get("dry_run_write_violation", False))),
+        "safety_pass": bool(r.get("overall_pass", False)),
+    } for r in rows if str(r.get("label", "")) in {"no_exploration_relaxed", "high_noise_relaxed", "shock_recovery_relaxed"} or str(r.get("world_profile", "")) in {"pseudo_reality_high_noise", "pseudo_reality_shock"}])
+    return summary, comparison, relation, safety
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -514,6 +613,11 @@ def main() -> int:
     dataframe_to_csv(relation_comparison, output_dir / "relation_unlock_mode_comparison.csv")
     dataframe_to_csv(dampen_comparison, output_dir / "dampen_probe_comparison.csv")
     dataframe_to_csv(safety_summary, output_dir / "safety_boundary_probe_summary.csv")
+    repair_summary, repair_comparison, repair_relation, repair_safety = build_dampen_only_repair_tables(rows)
+    dataframe_to_csv(repair_summary, output_dir / "dampen_only_repair_summary.csv")
+    dataframe_to_csv(repair_comparison, output_dir / "relaxed_legacy_vs_repaired_comparison.csv")
+    dataframe_to_csv(repair_relation, output_dir / "relation_unlock_repair_comparison.csv")
+    dataframe_to_csv(repair_safety, output_dir / "dampen_repair_safety_summary.csv")
 
     fieldnames = list(rows[0].keys())
     with (output_dir / "matrix_metrics.csv").open("w", newline="", encoding="utf-8") as f:
@@ -555,6 +659,19 @@ def main() -> int:
         "relation_unlock_action_frame_rows_by_mode": _relation_unlock_by_mode(rows, "relation_unlock_family_rows"),
         "not_available_field_count": _not_available_count(candidate_retention_all) + _not_available_count(action_loss_all) + _not_available_count(stage_retention_all),
         "labels": [r["label"] for r in rows],
+        "dampen_only_repair_summary_present": (output_dir / "dampen_only_repair_summary.csv").exists(),
+        "relaxed_legacy_vs_repaired_comparison_present": (output_dir / "relaxed_legacy_vs_repaired_comparison.csv").exists(),
+        "relation_unlock_repair_comparison_present": (output_dir / "relation_unlock_repair_comparison.csv").exists(),
+        "dampen_repair_safety_summary_present": (output_dir / "dampen_repair_safety_summary.csv").exists(),
+        "legacy_relaxed_action_mass": float(repair_comparison["legacy_action_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "repaired_relaxed_action_mass": float(repair_comparison["repaired_action_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "repaired_delta_vs_legacy": float(repair_comparison["repaired_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "repaired_delta_vs_flat": float(repair_comparison["repaired_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "legacy_relation_unlock_mass": float(repair_comparison["legacy_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
+        "recommended_next_task": "Phase 2G-2e post-repair confirmation stress before v2 metric premise freeze",
     }
     probe_only = relation_comparison[relation_comparison["mode_or_variant"].astype(str).str.contains("probe", regex=False)] if not relation_comparison.empty else pd.DataFrame()
     best_mass = probe_only.sort_values("action_mass", ascending=False).iloc[0] if not probe_only.empty else None
@@ -573,7 +690,7 @@ def main() -> int:
         "best_probe_delta_vs_flat": 0.0 if best_mass is None else float(best_mass["delta_vs_flat_action_mass"]),
         "safety_violation_total": int(overall["boundary_violation_total"]),
         "write_violation_total": int(overall["dry_run_write_violation_count"]) + int(overall["forbidden_write_count"]),
-        "recommended_repair_family": "dampen-only repair probe follow-up if safety remains zero; not production adoption",
+        "recommended_repair_family": "dampen-only minimal repair adopted for relaxed; keep flat validation-only and run post-repair confirmation stress",
     })
     write_json(output_dir / "matrix_summary.json", overall)
     write_json(output_dir / "run_manifest.json", {"matrix": matrix, "overall": overall})
