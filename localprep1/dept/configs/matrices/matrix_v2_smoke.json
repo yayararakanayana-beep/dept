@@ -1,0 +1,36 @@
+{
+  "name": "matrix_v2_smoke",
+  "description": "Minimal smoke matrix for PseudoReality v2 asymmetric shrinking equilibrium world.",
+  "runs": [
+    {
+      "label": "v2_shrinking_equilibrium_default_smoke",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_default",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 501,
+        "steps": 12
+      }
+    },
+    {
+      "label": "v2_shrinking_equilibrium_conservative_smoke",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_conservative",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 502,
+        "steps": 12
+      }
+    },
+    {
+      "label": "v2_shrinking_equilibrium_buffered_smoke",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_buffered",
+      "validation_profile": "stress_medium",
+      "overrides": {
+        "seed": 503,
+        "steps": 12
+      }
+    }
+  ]
+}

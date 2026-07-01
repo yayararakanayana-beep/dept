@@ -21,6 +21,9 @@ from DEPT2_ActionModule_ActuationPrimitives_RC1.pseudo_reality.system import (
 from DEPT2_ActionModule_ActuationPrimitives_RC1.action_module.integrated_diagnostic_closed_loop import (
     step_with_repaired_actions,
 )
+from DEPT2_ActionModule_ActuationPrimitives_RC1.pseudo_reality.asymmetric_game_v2 import (
+    AsymmetricGamePseudoRealitySystem,
+)
 from dept2_fullspec_runner_rc1.contracts import FullSpecRunnerConfig
 
 ENTITY_REQUIRED_COLUMNS = {"entity_id", "t", "scenario", "seed", *STATE_FEATURES}
@@ -45,18 +48,33 @@ class WorldAdapter:
     name = "world_adapter"
 
     def __init__(self, cfg: FullSpecRunnerConfig):
-        world_cfg = PseudoRealityConfig(
-            seed=cfg.seed,
-            scenario=cfg.scenario,
-            n_entities=cfg.n_entities,
-            action_coupling=cfg.action_coupling,
-            noise_scale=cfg.noise_scale,
-            drift_scale=cfg.drift_scale,
-            shock_time=cfg.shock_time,
-            shock_strength=cfg.shock_strength,
-        )
-        self.world = PseudoRealitySystem(world_cfg)
-        self.baseline_world = PseudoRealitySystem(world_cfg)
+        self.world_engine = str(getattr(cfg, "world_engine", "pseudo_reality_v1"))
+        if self.world_engine == "asymmetric_game_v2":
+            kwargs = dict(
+                seed=cfg.seed,
+                scenario=cfg.scenario,
+                n_entities=cfg.n_entities,
+                action_coupling=cfg.action_coupling,
+                noise_scale=cfg.noise_scale,
+                drift_scale=cfg.drift_scale,
+                profile_name=getattr(cfg, "v2_world_profile", ""),
+                profile_config=getattr(cfg, "v2_world_config", {}),
+            )
+            self.world = AsymmetricGamePseudoRealitySystem(**kwargs)
+            self.baseline_world = AsymmetricGamePseudoRealitySystem(**kwargs)
+        else:
+            world_cfg = PseudoRealityConfig(
+                seed=cfg.seed,
+                scenario=cfg.scenario,
+                n_entities=cfg.n_entities,
+                action_coupling=cfg.action_coupling,
+                noise_scale=cfg.noise_scale,
+                drift_scale=cfg.drift_scale,
+                shock_time=cfg.shock_time,
+                shock_strength=cfg.shock_strength,
+            )
+            self.world = PseudoRealitySystem(world_cfg)
+            self.baseline_world = PseudoRealitySystem(world_cfg)
         self.trace_contract = "pseudo_reality_trace__world_owned__dept_read_only__Task3_RC1"
 
     def snapshot(self) -> Dict[str, pd.DataFrame]:
@@ -76,7 +94,10 @@ class WorldAdapter:
         The world only sees the ActionFrame-like table. It does not see G/K,
         O_t, v8, exploration sidecars, parameter boxes, or upper-pressure internals.
         """
-        trace = step_with_repaired_actions(self.world, action_frame if action_frame is not None else pd.DataFrame())
+        if self.world_engine == "asymmetric_game_v2":
+            trace = self.world.step(action_frame if action_frame is not None else pd.DataFrame())
+        else:
+            trace = step_with_repaired_actions(self.world, action_frame if action_frame is not None else pd.DataFrame())
         trace = self._copy_trace(trace)
         self.validate_trace_schema(trace)
         return trace

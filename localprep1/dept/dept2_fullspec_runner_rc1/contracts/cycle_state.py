@@ -39,6 +39,9 @@ class FullSpecRunnerConfig:
     canonical_commit_enabled: bool = False
     canonical_commit_dry_run: bool = True
     canonical_binding_source: str = "shadow"  # shadow | canonical
+    world_engine: str = "pseudo_reality_v1"
+    v2_world_profile: str = ""
+    v2_world_config: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -63,6 +66,9 @@ class CycleArtifacts:
     world_trace_before: Optional[Dict[str, pd.DataFrame]] = None
     world_trace_after: Optional[Dict[str, pd.DataFrame]] = None
     baseline_trace_after: Optional[Dict[str, pd.DataFrame]] = None
+    entity_trace: pd.DataFrame = field(default_factory=pd.DataFrame)
+    relation_trace: pd.DataFrame = field(default_factory=pd.DataFrame)
+    v2_hidden_trace: pd.DataFrame = field(default_factory=pd.DataFrame)
     world_trace_audit: pd.DataFrame = field(default_factory=pd.DataFrame)
     world_transition_audit: pd.DataFrame = field(default_factory=pd.DataFrame)
     gt: pd.DataFrame = field(default_factory=pd.DataFrame)
