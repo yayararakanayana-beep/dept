@@ -42,7 +42,7 @@ class FullSpecRunnerConfig:
     world_engine: str = "pseudo_reality_v1"
     v2_world_profile: str = ""
     v2_world_config: Dict[str, Any] = field(default_factory=dict)
-    intermediate_conservatism_mode: str = "current"
+    intermediate_conservatism_mode: str = "relaxed"
 
 
 @dataclass
