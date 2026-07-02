@@ -1045,6 +1045,210 @@ def build_v2_extended_tables(rows: list[dict]):
     ])
     return summary, comparison, pd.DataFrame(stability), longer, pd.DataFrame(adequacy), pd.DataFrame(deltas), action, safety, pd.DataFrame(miss), next_df
 
+
+V2_CAUSE_METRIC_SPECS = {
+    "hidden_damage": ("v2_hidden_trace", ["hidden_damage", "hidden_damage_mean", "mean_hidden_damage"], "exact_available", "exact"),
+    "fatigue": ("v2_hidden_trace", ["fatigue", "fatigue_mean", "mean_fatigue"], "exact_available", "exact"),
+    "information_quality": ("v2_information_trace", ["information_quality", "information_quality_mean", "mean_information_quality"], "exact_available", "exact"),
+    "cooperation_intent": ("v2_hidden_trace", ["cooperation_intent", "cooperate_tendency", "cooperation_intent_mean"], "exact_available", "exact"),
+    "defensiveness": ("v2_hidden_trace", ["defensiveness", "defend_tendency", "defensiveness_mean"], "exact_available", "exact"),
+    "private_resource": ("v2_resource_trace", ["private_resource", "private_resource_mean", "mean_private_resource"], "exact_available", "exact"),
+    "latent_pressure": ("v2_hidden_trace", ["latent_pressure", "latent_pressure_mean", "mean_latent_pressure"], "exact_available", "exact"),
+}
+
+
+def _source_frame(out: dict, source: str) -> pd.DataFrame:
+    return _df(out, source)
+
+
+def _source_columns(frame: pd.DataFrame, columns: list[str]) -> list[str]:
+    return [c for c in columns if c in frame.columns]
+
+
+def _metric_values(frame: pd.DataFrame, columns: list[str], lower_is_worse: bool = False) -> tuple:
+    if frame.empty:
+        return ("not_available",) * 4
+    present = _source_columns(frame, columns)
+    if not present:
+        return ("not_available",) * 4
+    return (
+        _metric_mean(frame, present),
+        _metric_final(frame, present),
+        _metric_delta(frame, present),
+        _metric_worst(frame, present, lower_is_worse=lower_is_worse),
+    )
+
+
+def _step_series(frame: pd.DataFrame, columns: list[str]) -> pd.Series | None:
+    if frame.empty:
+        return None
+    present = _source_columns(frame, columns)
+    if not present:
+        return None
+    value_col = present[0]
+    values = pd.to_numeric(frame[value_col], errors="coerce")
+    if "loop_step" in frame.columns:
+        return values.groupby(frame["loop_step"]).mean().dropna().sort_index()
+    return pd.Series(values.dropna().to_list())
+
+
+def _collapse_delay_proxy(hidden: pd.DataFrame) -> tuple:
+    series = _step_series(hidden, ["hidden_damage", "hidden_damage_mean", "mean_hidden_damage"])
+    threshold = "hidden_damage>=0.70"
+    if series is None or series.empty:
+        return False, "not_available", threshold
+    crossed = series[series >= 0.70]
+    return True, (int(crossed.index[0]) if not crossed.empty else "not_crossed"), threshold
+
+
+def _recovery_after_shock_proxy(cfg, hidden: pd.DataFrame) -> tuple:
+    shock_time = getattr(cfg, "shock_time", None)
+    shock_strength = float(getattr(cfg, "shock_strength", 0.0) or 0.0)
+    if shock_time is None or shock_strength <= 0:
+        return False, False, "not_available"
+    hd = _step_series(hidden, ["hidden_damage", "hidden_damage_mean", "mean_hidden_damage"])
+    coop = _step_series(hidden, ["cooperation_intent", "cooperate_tendency", "cooperation_intent_mean"])
+    if hd is None or coop is None or hd.empty or coop.empty:
+        return True, False, "not_available"
+    post_hd = hd[hd.index >= shock_time]
+    post_coop = coop[coop.index >= shock_time]
+    if post_hd.empty or post_coop.empty:
+        return True, False, "not_available"
+    proxy = float((post_hd.iloc[0] - post_hd.iloc[-1]) + (post_coop.iloc[-1] - post_coop.iloc[0]))
+    return True, True, proxy
+
+
+def build_v2_metric_export_repair_rows(label: str, cfg, out: dict, metrics: dict) -> dict[str, pd.DataFrame]:
+    hidden, game, resource, info, effect = (_df(out, n) for n in ["v2_hidden_trace", "v2_game_trace", "v2_resource_trace", "v2_information_trace", "v2_action_effect_trace"])
+    entity, relation, action_frame, action_result = (_df(out, n) for n in ["entity_trace", "relation_trace", "action_frame", "action_result"])
+    mode = str(cfg.intermediate_conservatism_mode)
+    baseline = _baseline_name(label, mode, str(cfg.action_profile_name), bool(cfg.exploration_enabled), cfg)
+    common = {"run_label": label, "world_profile": cfg.world_profile_name, "profile_family": _profile_family(cfg.world_profile_name), "baseline_name": baseline, "mode": mode, "action_profile": cfg.action_profile_name, "seed": cfg.seed, "steps": cfg.steps}
+    trace_available = any(not f.empty for f in [hidden, game, resource, info, effect])
+    availability = []
+    counts = {"exact_available": 0, "proxy_available": 0, "row_count_only": 0, "export_repaired": 0, "not_available": 0, "deferred_requires_semantic_design": 0}
+    for name, (source, cols, klass, exact) in V2_CAUSE_METRIC_SPECS.items():
+        frame = _source_frame(out, source)
+        present = _source_columns(frame, cols)
+        klass2 = klass if present else ("row_count_only" if not frame.empty else "not_available")
+        exact2 = exact if present else ("row_count" if not frame.empty else "not_available")
+        mean, final, delta, worst = _metric_values(frame, cols, lower_is_worse=name in {"information_quality", "cooperation_intent", "private_resource"})
+        counts[klass2] += 1
+        availability.append({**common, "metric_name": name, "source_trace": source, "source_columns": ";".join(present), "availability_class": klass2, "exact_or_proxy": exact2, "value_mean": mean, "value_final": final, "value_delta": delta, "value_worst": worst, "missing_reason": "" if present else "source rows available without required value column" if not frame.empty else "source trace unavailable", "recommended_future_task": "" if present else "Phase 2G-9 Additional Metric Export Repair"})
+
+    rel_mass = 0.0
+    rel_rows = 0
+    if not action_frame.empty and "action_channel" in action_frame.columns:
+        rel = action_frame[action_frame["action_channel"].astype(str).eq("relation_unlock")]
+        rel_rows = int(len(rel))
+        rel_mass = _sum_numeric(rel, "action_strength")
+    rel_value = _metric_mean(entity, ["relation_lock", "mean_relation_lock"])
+    rel_available = rel_value != "not_available" or rel_rows > 0
+    counts["proxy_available" if rel_available else "not_available"] += 1
+    availability.append({**common, "metric_name": "relation_lock_proxy", "source_trace": "entity_trace/action_frame", "source_columns": "relation_lock;action_channel;action_strength", "availability_class": "proxy_available" if rel_available else "not_available", "exact_or_proxy": "proxy", "value_mean": rel_value, "value_final": _metric_final(entity, ["relation_lock"]), "value_delta": _metric_delta(entity, ["relation_lock"]), "value_worst": _metric_worst(entity, ["relation_lock"]), "missing_reason": "" if rel_available else "relation_lock and relation_unlock action evidence unavailable", "recommended_future_task": "Phase 2G-9 Cause-side Matrix Skeleton Pack"})
+
+    shock_marker, rec_avail, recovery = _recovery_after_shock_proxy(cfg, hidden)
+    collapse_avail, collapse, threshold = _collapse_delay_proxy(hidden)
+    for metric_name, avail, val, source in [("recovery_after_shock_proxy", rec_avail, recovery, "cfg.shock_time/v2_hidden_trace"), ("collapse_delay_proxy", collapse_avail, collapse, "v2_hidden_trace")]:
+        counts["proxy_available" if avail else ("row_count_only" if source.startswith("cfg") and shock_marker else "not_available")] += 1
+        availability.append({**common, "metric_name": metric_name, "source_trace": source, "source_columns": "hidden_damage;cooperation_intent", "availability_class": "proxy_available" if avail else ("row_count_only" if shock_marker else "not_available"), "exact_or_proxy": "proxy" if avail else "not_available", "value_mean": val, "value_final": val, "value_delta": "not_available", "value_worst": "not_available", "missing_reason": "" if avail else "shock marker absent or insufficient post-shock value columns" if metric_name.startswith("recovery") else "hidden_damage threshold crossing source unavailable", "recommended_future_task": "Phase 2G-9 Additional Metric Export Repair"})
+
+    visible = _step_series(info, ["information_quality", "information_quality_mean", "mean_information_quality"])
+    if visible is None:
+        visible = _step_series(game, ["long_term_health_proxy", "local_payoff"])
+    hd = _step_series(hidden, ["hidden_damage", "hidden_damage_mean", "mean_hidden_damage"])
+    fat = _step_series(hidden, ["fatigue", "fatigue_mean", "mean_fatigue"])
+    gap_avail = visible is not None and hd is not None and not visible.empty and not hd.empty
+    gap = float(visible.iloc[-1] - hd.iloc[-1]) if gap_avail else "not_available"
+    public_gap = float(visible.iloc[-1] - ((hd.iloc[-1] + fat.iloc[-1]) / 2.0)) if gap_avail and fat is not None and not fat.empty else "not_available"
+    for metric_name, val, avail, deferred in [("hidden_decay_gap", gap, gap_avail, False), ("public_stability_hidden_decay_gap", public_gap, public_gap != "not_available", visible is None)]:
+        klass = "proxy_available" if avail else ("deferred_requires_semantic_design" if deferred else "not_available")
+        counts[klass] += 1
+        availability.append({**common, "metric_name": metric_name, "source_trace": "v2_information_trace/v2_game_trace + v2_hidden_trace", "source_columns": "information_quality_mean|long_term_health_proxy;hidden_damage;fatigue", "availability_class": klass, "exact_or_proxy": "proxy" if avail else klass, "value_mean": val, "value_final": val, "value_delta": "not_available", "value_worst": "not_available", "missing_reason": "" if avail else "public/visible metric or hidden deterioration metric unavailable", "recommended_future_task": "Phase 2G-9 Additional Metric Export Repair"})
+
+    # Channel, action-cost, and fatigue proxies are aggregated separately but registered here.
+    for name in ["action_effect_by_channel", "action_cost_effect", "intervention_fatigue", "action_timing_lag_proxy", "misread_proxy", "observed_vs_hidden_gap", "commons_health_proxy"]:
+        if name == "action_effect_by_channel":
+            avail = not effect.empty or not action_frame.empty
+            klass = "proxy_available" if avail else "not_available"
+        elif name in {"commons_health_proxy", "misread_proxy"}:
+            frame = resource if name == "commons_health_proxy" else info
+            cols = ["commons_health"] if name == "commons_health_proxy" else ["misread_probability_mean"]
+            avail = bool(_source_columns(frame, cols))
+            klass = "proxy_available" if avail else "not_available"
+        elif name == "observed_vs_hidden_gap":
+            avail = gap_avail
+            klass = "proxy_available" if avail else "not_available"
+        else:
+            avail = not action_frame.empty
+            klass = "proxy_available" if avail else "deferred_requires_semantic_design"
+        counts[klass] += 1
+        availability.append({**common, "metric_name": name, "source_trace": "existing trace aggregation", "source_columns": "", "availability_class": klass, "exact_or_proxy": "proxy" if avail else klass, "value_mean": "see dedicated CSV", "value_final": "see dedicated CSV", "value_delta": "not_available", "value_worst": "not_available", "missing_reason": "" if avail else "semantic design or action trace unavailable", "recommended_future_task": "Phase 2G-9 Cause-side Matrix Skeleton Pack"})
+
+    private_mean, private_final, private_delta, private_worst = _metric_values(resource, ["private_resource", "private_resource_mean", "mean_private_resource"], lower_is_worse=True)
+    latent_mean, latent_final, latent_delta, latent_worst = _metric_values(hidden, ["latent_pressure", "latent_pressure_mean", "mean_latent_pressure"])
+    recovery_row = {**common, "shock_marker_available": bool(shock_marker), "recovery_after_shock_proxy_available": bool(rec_avail), "recovery_after_shock_proxy": recovery, "collapse_delay_proxy_available": bool(collapse_avail), "collapse_delay_proxy": collapse, "threshold_used": threshold, "proxy_note": "proxy only; exact recovery/collapse claim prohibited", "exact_claim_allowed": False}
+    hidden_gap_row = {**common, "visible_metric_available": visible is not None, "hidden_metric_available": hd is not None, "hidden_decay_gap_available": bool(gap_avail), "hidden_decay_gap_proxy": gap, "public_stability_hidden_decay_gap_available": public_gap != "not_available", "public_stability_hidden_decay_gap_proxy": public_gap, "proxy_note": "visible/public minus hidden deterioration proxy; not exact", "exact_claim_allowed": False}
+    relation_row = {**common, "relation_trace_available": not relation.empty or not entity.empty, "relation_lock_proxy_available": bool(rel_available), "relation_lock_proxy": rel_value, "relation_unlock_action_mass": rel_mass, "relation_unlock_action_rows": rel_rows, "proxy_note": "entity relation_lock plus relation_unlock action mass proxy; not exact"}
+    cost_row = {**common, "total_action_mass": _sum_numeric(action_frame, "action_strength"), "action_step_count": int(action_frame["loop_step"].nunique()) if "loop_step" in action_frame.columns and not action_frame.empty else int(len(action_frame)), "repeated_intervention_proxy": int(action_frame["loop_step"].nunique()) if "loop_step" in action_frame.columns and not action_frame.empty else int(len(action_frame)), "fatigue_delta": _metric_delta(hidden, ["fatigue", "fatigue_mean", "mean_fatigue"]), "defensiveness_delta": _metric_delta(hidden, ["defensiveness", "defend_tendency", "defensiveness_mean"]), "latent_pressure_delta": latent_delta, "action_cost_effect_proxy": "correlate_action_mass_with_state_delta", "intervention_fatigue_proxy": "repeated_intervention_count_with_fatigue_delta", "proxy_note": "correlation/proxy only; no causal claim", "exact_claim_allowed": False}
+    channel_rows = []
+    channels = ["exploration_injection", "coupling_relief", "volatility_damping", "uncertainty_probe", "relation_unlock", "buffer_increase"]
+    for ch in channels:
+        af = action_frame[action_frame["action_channel"].astype(str).eq(ch)] if not action_frame.empty and "action_channel" in action_frame.columns else pd.DataFrame()
+        ef = effect[effect["action_channel"].astype(str).eq(ch)] if not effect.empty and "action_channel" in effect.columns else pd.DataFrame()
+        channel_rows.append({**common, "action_channel": ch, "action_rows": int(len(af)), "action_mass_total": _sum_numeric(af, "action_strength"), "action_mass_mean": float(_sum_numeric(af, "action_strength") / len(af)) if len(af) else 0.0, "action_result_rows": int(len(action_result)), "effect_rows": int(len(ef)), "hidden_damage_delta_after_channel_proxy": _sum_numeric(ef, "hidden_damage_delta"), "fatigue_delta_after_channel_proxy": _sum_numeric(ef, "fatigue_delta"), "information_quality_delta_after_channel_proxy": "not_available", "cooperation_delta_after_channel_proxy": "not_available", "defensiveness_delta_after_channel_proxy": "not_available", "proxy_note": "channel effect proxy from existing v2_action_effect_trace/action_frame; not causal exact"})
+    missing = [r["metric_name"] for r in availability if r["availability_class"] in {"not_available", "deferred_requires_semantic_design"}]
+    is_v2_profile = str(cfg.world_profile_name).startswith("pseudo_reality_v2_")
+    repair_pass = bool(((not is_v2_profile) or trace_available) and int(metrics.get("boundary_violation_rows", 0)) == 0 and not bool(metrics.get("dry_run_write_violation", False)) and not bool(metrics.get("forbidden_write_detected", False)))
+    summary_row = {**common, "v2_trace_available": trace_available, "metric_export_repair_pass": repair_pass, **{f"{k}_count": v for k, v in counts.items()}, "boundary_violation_total": int(metrics.get("boundary_violation_rows", 0)), "dry_run_write_violation_count": int(bool(metrics.get("dry_run_write_violation", False))), "forbidden_write_count": int(bool(metrics.get("forbidden_write_detected", False))), "missing_evidence": ";".join(missing)}
+    prlp_row = {**common, "private_resource_available": private_mean != "not_available", "private_resource_mean": private_mean, "private_resource_final": private_final, "private_resource_delta": private_delta, "private_resource_worst": private_worst, "latent_pressure_available": latent_mean != "not_available", "latent_pressure_mean": latent_mean, "latent_pressure_final": latent_final, "latent_pressure_delta": latent_delta, "latent_pressure_worst": latent_worst}
+    return {"summary": pd.DataFrame([summary_row]), "availability": pd.DataFrame(availability), "private_latent": pd.DataFrame([prlp_row]), "recovery": pd.DataFrame([recovery_row]), "hidden_gap": pd.DataFrame([hidden_gap_row]), "relation": pd.DataFrame([relation_row]), "channel": pd.DataFrame(channel_rows), "cost": pd.DataFrame([cost_row])}
+
+
+def build_v2_metric_export_repair_tables(parts: list[dict[str, pd.DataFrame]]):
+    names = ["summary", "availability", "private_latent", "recovery", "hidden_gap", "relation", "channel", "cost"]
+    tables = {n: pd.concat([p[n] for p in parts], ignore_index=True) if parts else pd.DataFrame() for n in names}
+    availability = tables["availability"]
+    if availability.empty:
+        classification = missing = readiness = next_task = pd.DataFrame()
+    else:
+        classification = availability.groupby("metric_name", as_index=False).agg(source_trace=("source_trace", "first"), availability_class=("availability_class", lambda s: "exact_available" if (s == "exact_available").any() else "proxy_available" if (s == "proxy_available").any() else s.iloc[0]), exact_or_proxy=("exact_or_proxy", "first"), available_run_count=("availability_class", lambda s: int(s.isin(["exact_available", "proxy_available", "row_count_only"]).sum())), missing_run_count=("availability_class", lambda s: int(s.isin(["not_available", "deferred_requires_semantic_design"]).sum())))
+        support = {"hidden_damage": "hidden_damage_rate,recovery_delay", "fatigue": "fatigue_accumulation_rate,action_cost", "information_quality": "information_asymmetry,information_distortion", "private_resource": "resource_inequality,commons_dependency,short_term_gain_pressure", "latent_pressure": "latent_pressure,defensive_reactivity", "relation_lock_proxy": "relation_lock_strength"}
+        classification["cause_side_parameters_supported"] = classification["metric_name"].map(support).fillna("secondary/supporting")
+        classification["use_as_primary"] = classification["availability_class"].isin(["exact_available", "proxy_available"])
+        classification["use_as_secondary"] = True
+        classification["needs_further_repair"] = classification["missing_run_count"].gt(0) | classification["availability_class"].isin(["not_available", "deferred_requires_semantic_design"])
+        classification["note"] = "proxy metrics are explicitly non-exact; result-named profiles are readiness references only"
+        missing = availability[availability["availability_class"].isin(["not_available", "deferred_requires_semantic_design"])][["run_label", "metric_name", "source_trace", "missing_reason", "recommended_future_task"]].copy()
+        params = [
+            ("information_asymmetry", ["information_quality", "observed_vs_hidden_gap"]),
+            ("hidden_state_visibility", ["hidden_decay_gap", "public_stability_hidden_decay_gap"]),
+            ("resource_inequality", ["private_resource", "commons_health_proxy"]),
+            ("relation_lock_strength", ["relation_lock_proxy", "action_effect_by_channel"]),
+            ("recovery_delay", ["recovery_after_shock_proxy", "hidden_damage", "fatigue", "cooperation_intent"]),
+            ("action_cost", ["action_cost_effect", "intervention_fatigue", "fatigue", "defensiveness", "latent_pressure"]),
+        ]
+        ready_rows = []
+        cmap = classification.set_index("metric_name")["availability_class"].to_dict()
+        for param, req in params:
+            exact = [m for m in req if cmap.get(m) == "exact_available"]
+            proxy = [m for m in req if cmap.get(m) == "proxy_available"]
+            miss = [m for m in req if cmap.get(m) not in {"exact_available", "proxy_available"}]
+            if any(cmap.get(m) == "deferred_requires_semantic_design" for m in req):
+                klass = "deferred_requires_semantic_design"
+            elif miss:
+                klass = "blocked_by_missing_export"
+            elif proxy and not exact:
+                klass = "ready_with_proxy_only"
+            elif proxy:
+                klass = "ready_with_proxy_only"
+            else:
+                klass = "ready_for_one_axis_probe"
+            ready_rows.append({"cause_side_parameter": param, "required_metrics": ";".join(req), "exact_available_metrics": ";".join(exact), "proxy_available_metrics": ";".join(proxy), "missing_metrics": ";".join(miss), "readiness_class": klass, "blocker": ";".join(miss), "recommended_next_task": "Phase 2G-9 Cause-side Matrix Skeleton Pack" if klass != "blocked_by_missing_export" else "Phase 2G-9 Additional Metric Export Repair"})
+        readiness = pd.DataFrame(ready_rows)
+        next_task = pd.DataFrame([{"recommendation": "Phase 2G-9 Cause-side Matrix Skeleton Pack", "reason": "core exact metrics and several proxies are exported; use proxy-only cautions", "priority": "high"}, {"recommendation": "Phase 2G-9 Additional Metric Export Repair", "reason": "shock recovery and channel-specific state effects remain proxy/missing for exact secondary claims", "priority": "medium"}])
+    return tables["summary"], availability, classification, tables["private_latent"], tables["recovery"], tables["hidden_gap"], tables["relation"], tables["channel"], tables["cost"], readiness, missing, next_task
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -1073,6 +1277,7 @@ def main() -> int:
     v2_metric_rows = []
     v2_preliminary_rows = []
     v2_extended_rows = []
+    v2_metric_export_repair_parts = []
     per_run_dir = output_dir / "runs"
     per_run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1142,6 +1347,10 @@ def main() -> int:
         v2_extended_row = build_v2_extended_row(label, cfg, out, metrics)
         v2_extended_rows.append(v2_extended_row)
         dataframe_to_csv(pd.DataFrame([v2_extended_row]), rd / "v2_extended_validation_summary.csv")
+        v2_metric_export_repair_part = build_v2_metric_export_repair_rows(label, cfg, out, metrics)
+        v2_metric_export_repair_parts.append(v2_metric_export_repair_part)
+        for export_name, frame in v2_metric_export_repair_part.items():
+            dataframe_to_csv(frame, rd / f"v2_metric_export_repair_{export_name}.csv")
 
     candidate_retention_all = pd.concat(candidate_retention_rows, ignore_index=True) if candidate_retention_rows else pd.DataFrame()
     gate_decomposition_all = pd.concat(gate_decomposition_rows, ignore_index=True) if gate_decomposition_rows else pd.DataFrame()
@@ -1204,6 +1413,21 @@ def main() -> int:
     dataframe_to_csv(v2_ext_safety, output_dir / "v2_extended_safety_boundary_summary.csv")
     dataframe_to_csv(v2_ext_missing, output_dir / "v2_extended_missing_metric_evidence.csv")
     dataframe_to_csv(v2_ext_next, output_dir / "v2_extended_next_task_recommendation.csv")
+    (v2_mer_summary, v2_mer_availability, v2_mer_classification, v2_mer_private_latent,
+     v2_mer_recovery, v2_mer_hidden_gap, v2_mer_relation, v2_mer_channel, v2_mer_cost,
+     v2_mer_readiness, v2_mer_missing, v2_mer_next) = build_v2_metric_export_repair_tables(v2_metric_export_repair_parts)
+    dataframe_to_csv(v2_mer_summary, output_dir / "v2_metric_export_repair_summary.csv")
+    dataframe_to_csv(v2_mer_availability, output_dir / "v2_metric_availability_by_run.csv")
+    dataframe_to_csv(v2_mer_classification, output_dir / "v2_metric_classification_summary.csv")
+    dataframe_to_csv(v2_mer_private_latent, output_dir / "v2_private_resource_latent_pressure_summary.csv")
+    dataframe_to_csv(v2_mer_recovery, output_dir / "v2_recovery_collapse_proxy_summary.csv")
+    dataframe_to_csv(v2_mer_hidden_gap, output_dir / "v2_hidden_decay_gap_summary.csv")
+    dataframe_to_csv(v2_mer_relation, output_dir / "v2_relation_lock_proxy_summary.csv")
+    dataframe_to_csv(v2_mer_channel, output_dir / "v2_action_effect_by_channel_summary.csv")
+    dataframe_to_csv(v2_mer_cost, output_dir / "v2_action_cost_intervention_fatigue_proxy_summary.csv")
+    dataframe_to_csv(v2_mer_readiness, output_dir / "v2_cause_side_metric_readiness_summary.csv")
+    dataframe_to_csv(v2_mer_missing, output_dir / "v2_metric_export_missing_evidence.csv")
+    dataframe_to_csv(v2_mer_next, output_dir / "v2_metric_export_next_task_recommendation.csv")
 
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
@@ -1268,7 +1492,7 @@ def main() -> int:
         "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
-        "recommended_next_task": "Phase 2G-7 Cause-side Parameterization Design Pack plus Phase 2G-7 v2 Metric Export Repair before stronger/final v2 claims.",
+        "recommended_next_task": "Phase 2G-9 Cause-side Matrix Skeleton Pack, with Additional Metric Export Repair for exact secondary claims as needed.",
         "v2_extended_validation_summary_present": (output_dir / "v2_extended_validation_summary.csv").exists(),
         "v2_extended_profile_mode_comparison_present": (output_dir / "v2_extended_profile_mode_comparison.csv").exists(),
         "v2_extended_seed_stability_summary_present": (output_dir / "v2_extended_seed_stability_summary.csv").exists(),
@@ -1289,6 +1513,29 @@ def main() -> int:
         "flat_comparator_extended_available": bool((not v2_ext_summary.empty) and v2_ext_summary["baseline_name"].astype(str).eq("flat").any()) if "v2_ext_summary" in locals() else False,
         "v2_metric_adequacy_pass": bool(not v2_ext_adequacy.empty) if "v2_ext_adequacy" in locals() else False,
         "v2_metric_export_repair_recommended": bool((not v2_ext_adequacy.empty) and v2_ext_adequacy["needs_metric_export_repair"].astype(bool).any()) if "v2_ext_adequacy" in locals() else False,
+        "v2_metric_export_repair_summary_present": (output_dir / "v2_metric_export_repair_summary.csv").exists(),
+        "v2_metric_availability_by_run_present": (output_dir / "v2_metric_availability_by_run.csv").exists(),
+        "v2_metric_classification_summary_present": (output_dir / "v2_metric_classification_summary.csv").exists(),
+        "v2_private_resource_latent_pressure_summary_present": (output_dir / "v2_private_resource_latent_pressure_summary.csv").exists(),
+        "v2_recovery_collapse_proxy_summary_present": (output_dir / "v2_recovery_collapse_proxy_summary.csv").exists(),
+        "v2_hidden_decay_gap_summary_present": (output_dir / "v2_hidden_decay_gap_summary.csv").exists(),
+        "v2_relation_lock_proxy_summary_present": (output_dir / "v2_relation_lock_proxy_summary.csv").exists(),
+        "v2_action_effect_by_channel_summary_present": (output_dir / "v2_action_effect_by_channel_summary.csv").exists(),
+        "v2_action_cost_intervention_fatigue_proxy_summary_present": (output_dir / "v2_action_cost_intervention_fatigue_proxy_summary.csv").exists(),
+        "v2_cause_side_metric_readiness_summary_present": (output_dir / "v2_cause_side_metric_readiness_summary.csv").exists(),
+        "v2_metric_export_missing_evidence_present": (output_dir / "v2_metric_export_missing_evidence.csv").exists(),
+        "v2_metric_export_next_task_recommendation_present": (output_dir / "v2_metric_export_next_task_recommendation.csv").exists(),
+        "v2_metric_export_run_count": int(len(v2_mer_summary)) if "v2_mer_summary" in locals() else 0,
+        "v2_metric_export_repair_pass": bool(not v2_mer_summary.empty and v2_mer_summary["metric_export_repair_pass"].astype(bool).all()) if "v2_mer_summary" in locals() else False,
+        "exact_available_metric_count": int((v2_mer_classification["availability_class"] == "exact_available").sum()) if "v2_mer_classification" in locals() and not v2_mer_classification.empty else 0,
+        "proxy_available_metric_count": int((v2_mer_classification["availability_class"] == "proxy_available").sum()) if "v2_mer_classification" in locals() and not v2_mer_classification.empty else 0,
+        "row_count_only_metric_count": int((v2_mer_classification["availability_class"] == "row_count_only").sum()) if "v2_mer_classification" in locals() and not v2_mer_classification.empty else 0,
+        "export_repaired_metric_count": int((v2_mer_classification["availability_class"] == "export_repaired").sum()) if "v2_mer_classification" in locals() and not v2_mer_classification.empty else 0,
+        "not_available_metric_count": int((v2_mer_classification["availability_class"] == "not_available").sum()) if "v2_mer_classification" in locals() and not v2_mer_classification.empty else 0,
+        "deferred_requires_semantic_design_metric_count": int((v2_mer_classification["availability_class"] == "deferred_requires_semantic_design").sum()) if "v2_mer_classification" in locals() and not v2_mer_classification.empty else 0,
+        "ready_for_one_axis_probe_count": int((v2_mer_readiness["readiness_class"] == "ready_for_one_axis_probe").sum()) if "v2_mer_readiness" in locals() and not v2_mer_readiness.empty else 0,
+        "ready_with_proxy_only_count": int((v2_mer_readiness["readiness_class"] == "ready_with_proxy_only").sum()) if "v2_mer_readiness" in locals() and not v2_mer_readiness.empty else 0,
+        "blocked_by_missing_export_count": int((v2_mer_readiness["readiness_class"] == "blocked_by_missing_export").sum()) if "v2_mer_readiness" in locals() and not v2_mer_readiness.empty else 0,
         "v2_preliminary_validation_summary_present": (output_dir / "v2_preliminary_validation_summary.csv").exists(),
         "v2_profile_mode_comparison_present": (output_dir / "v2_profile_mode_comparison.csv").exists(),
         "v2_metric_by_run_summary_present": (output_dir / "v2_metric_by_run_summary.csv").exists(),

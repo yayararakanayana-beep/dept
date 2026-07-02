@@ -1,0 +1,263 @@
+{
+  "name": "phase2g8_v2_metric_export_repair_cause_side_validation",
+  "description": "Phase 2G-8 metric export repair readiness matrix for cause-side validation. This is export/summary readiness only, not v2 dynamics repair, ActionModule tuning, or cause-side v2.1 implementation.",
+  "runs": [
+
+    {
+        "label": "v2_trust_collapse_repaired_metric_readiness",
+        "world_profile": "pseudo_reality_v2_trust_collapse",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_trust_collapse_legacy_metric_readiness",
+        "world_profile": "pseudo_reality_v2_trust_collapse",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed_legacy_dampen_075",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_trust_collapse_near_zero_metric_readiness",
+        "world_profile": "pseudo_reality_v2_trust_collapse",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10,
+            "exploration_enabled": false,
+            "min_action_strength": 1e-06,
+            "max_action_strength": 0.0001,
+            "strength_scale": 0.0001,
+            "action_coupling": 0.0001
+        }
+    },
+    {
+        "label": "v2_trust_collapse_flat_metric_readiness",
+        "world_profile": "pseudo_reality_v2_trust_collapse",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "flat",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_shrinking_equilibrium_repaired_metric_readiness",
+        "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_shrinking_equilibrium_legacy_metric_readiness",
+        "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed_legacy_dampen_075",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_shrinking_equilibrium_near_zero_metric_readiness",
+        "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10,
+            "exploration_enabled": false,
+            "min_action_strength": 1e-06,
+            "max_action_strength": 0.0001,
+            "strength_scale": 0.0001,
+            "action_coupling": 0.0001
+        }
+    },
+    {
+        "label": "v2_shrinking_equilibrium_flat_metric_readiness",
+        "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "flat",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_public_stability_hidden_decay_repaired_metric_readiness",
+        "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_public_stability_hidden_decay_legacy_metric_readiness",
+        "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed_legacy_dampen_075",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_public_stability_hidden_decay_near_zero_metric_readiness",
+        "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10,
+            "exploration_enabled": false,
+            "min_action_strength": 1e-06,
+            "max_action_strength": 0.0001,
+            "strength_scale": 0.0001,
+            "action_coupling": 0.0001
+        }
+    },
+    {
+        "label": "v2_public_stability_hidden_decay_flat_metric_readiness",
+        "world_profile": "pseudo_reality_v2_public_stability_hidden_decay",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2801,
+            "steps": 8,
+            "intermediate_conservatism_mode": "flat",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "v2_trust_collapse_repaired_shock_recovery_metric_readiness",
+        "world_profile": "pseudo_reality_v2_trust_collapse",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2813,
+            "steps": 10,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10,
+            "shock_time": 4,
+            "shock_strength": 0.35
+        }
+    },
+    {
+        "label": "v2_trust_collapse_repaired_high_noise_metric_readiness",
+        "world_profile": "pseudo_reality_v2_trust_collapse",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2814,
+            "steps": 10,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.08,
+            "drift_scale": 0.02,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "default_relaxed_smoke",
+        "world_profile": "pseudo_reality_default",
+        "action_profile": "action_conservative",
+        "validation_profile": "smoke",
+        "overrides": {
+            "seed": 2815,
+            "steps": 5,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "relation_unlock_pressure_relaxed",
+        "world_profile": "pseudo_reality_default",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2816,
+            "steps": 5,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.045,
+            "drift_scale": 0.014,
+            "n_entities": 10
+        }
+    },
+    {
+        "label": "high_noise_relaxed",
+        "world_profile": "pseudo_reality_default",
+        "action_profile": "action_conservative",
+        "validation_profile": "stress_medium",
+        "overrides": {
+            "seed": 2817,
+            "steps": 5,
+            "intermediate_conservatism_mode": "relaxed",
+            "noise_scale": 0.08,
+            "drift_scale": 0.02,
+            "n_entities": 10
+        }
+    }
+
+  ]
+}
