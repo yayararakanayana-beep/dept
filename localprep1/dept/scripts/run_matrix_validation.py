@@ -1014,7 +1014,7 @@ def build_v2_1_cause_side_preliminary_tables(
         return (pd.DataFrame(),) * 10
     wanted = [
         "run_label", "world_profile", "profile_family", "axis", "axis_value_label", "axis_value", "baseline_name", "seed", "steps",
-        "v2_1_profile_loaded", "action_mass_total", "hidden_damage_mean", "hidden_damage_final", "hidden_damage_delta",
+        "v2_1_profile_loaded", "action_mass_total", "action_mass_by_channel", "hidden_damage_mean", "hidden_damage_final", "hidden_damage_delta",
         "fatigue_mean", "fatigue_final", "fatigue_delta", "information_quality_mean", "information_quality_final",
         "information_quality_delta", "cooperation_intent_mean", "cooperation_intent_final", "cooperation_intent_delta",
         "defensiveness_mean", "defensiveness_final", "defensiveness_delta", "latent_pressure_mean", "latent_pressure_final",
@@ -1087,6 +1087,77 @@ def build_v2_1_cause_side_preliminary_tables(
     ])
     return summary, pd.DataFrame(comparisons), pd.DataFrame(stability), pd.DataFrame(delta_rows), action_cost, info, combined, compatibility, missing, next_df
 
+
+
+def build_v2_1_additional_metric_export_repair_tables(summary: pd.DataFrame):
+    if summary.empty:
+        return (pd.DataFrame(),) * 11
+    df = summary.copy()
+    for c in ["action_mass_total", "hidden_damage_delta", "fatigue_delta", "information_quality_delta", "cooperation_intent_delta", "defensiveness_delta", "latent_pressure_delta", "hidden_damage_mean", "information_quality_mean"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    observed = []
+    cost = []
+    fatigue = []
+    channels = []
+    repair = []
+    for _, r in df.iterrows():
+        hidden_pressure = r.get("hidden_damage_mean")
+        observed_proxy = r.get("information_quality_mean")
+        gap = hidden_pressure - observed_proxy if pd.notna(hidden_pressure) and pd.notna(observed_proxy) else "not_available"
+        gap_class = "derived_proxy" if gap != "not_available" else "not_available"
+        action_mass = r.get("action_mass_total")
+        fatigue_delta = r.get("fatigue_delta")
+        defensiveness_delta = r.get("defensiveness_delta")
+        latent_delta = r.get("latent_pressure_delta")
+        cost_effect = action_mass * fatigue_delta if pd.notna(action_mass) and pd.notna(fatigue_delta) else "not_available"
+        action_steps = int(r.get("action_frame_rows", 0)) if str(r.get("action_frame_rows", "")).isdigit() else 0
+        repeated = max(action_steps - 1, 0)
+        intervention = (fatigue_delta * repeated) if pd.notna(fatigue_delta) else "not_available"
+        common = {"run_label": r.get("run_label"), "axis": r.get("axis"), "baseline_name": r.get("baseline_name")}
+        observed.append({**common, "observed_state_proxy": observed_proxy if pd.notna(observed_proxy) else "not_available", "hidden_state_pressure_proxy": hidden_pressure if pd.notna(hidden_pressure) else "not_available", "observed_vs_hidden_gap": gap, "observed_vs_hidden_gap_classification": gap_class, "exact_or_proxy": "derived_proxy" if gap != "not_available" else "not_available", "note": "derived from exact exported information_quality and hidden_damage means; no public/visible semantic exact claim"})
+        cost.append({**common, "action_mass_total": action_mass if pd.notna(action_mass) else "not_available", "fatigue_delta": fatigue_delta if pd.notna(fatigue_delta) else "not_available", "defensiveness_delta": defensiveness_delta if pd.notna(defensiveness_delta) else "not_available", "latent_pressure_delta": latent_delta if pd.notna(latent_delta) else "not_available", "action_cost_effect": cost_effect, "action_cost_effect_classification": "derived_proxy" if cost_effect != "not_available" else "not_available", "exact_or_proxy": "derived_proxy" if cost_effect != "not_available" else "not_available", "note": "short-run association of action mass with fatigue delta; not causal proof"})
+        fatigue.append({"run_label": r.get("run_label"), "baseline_name": r.get("baseline_name"), "action_step_count": action_steps, "repeated_action_count": repeated, "cumulative_action_mass": action_mass if pd.notna(action_mass) else "not_available", "fatigue_delta": fatigue_delta if pd.notna(fatigue_delta) else "not_available", "defensiveness_delta": defensiveness_delta if pd.notna(defensiveness_delta) else "not_available", "latent_pressure_delta": latent_delta if pd.notna(latent_delta) else "not_available", "intervention_fatigue_proxy": intervention, "exact_or_proxy": "derived_proxy" if intervention != "not_available" else "not_available", "note": "repeated action count paired with fatigue/defensiveness/latent-pressure deltas; proxy only"})
+        by = r.get("action_mass_by_channel", "not_available")
+        parsed = {}
+        if isinstance(by, str) and by not in {"", "not_available"}:
+            try:
+                parsed = json.loads(by)
+            except Exception:
+                parsed = {}
+        if not parsed:
+            channels.append({"run_label": r.get("run_label"), "action_channel": "not_available", "action_rows": 0, "action_mass_total": 0.0, "action_mass_mean": "not_available", "hidden_damage_delta": r.get("hidden_damage_delta", "not_available"), "fatigue_delta": fatigue_delta if pd.notna(fatigue_delta) else "not_available", "information_quality_delta": r.get("information_quality_delta", "not_available"), "cooperation_intent_delta": r.get("cooperation_intent_delta", "not_available"), "defensiveness_delta": defensiveness_delta if pd.notna(defensiveness_delta) else "not_available", "latent_pressure_delta": latent_delta if pd.notna(latent_delta) else "not_available", "channel_effect_classification": "not_available", "exact_or_proxy": "not_available", "note": "action_channel/action_strength unavailable"})
+        else:
+            total_mass = sum(float(v) for v in parsed.values()) or 1.0
+            for ch, mass in parsed.items():
+                share = float(mass) / total_mass
+                channels.append({"run_label": r.get("run_label"), "action_channel": ch, "action_rows": "not_available", "action_mass_total": float(mass), "action_mass_mean": "not_available", "hidden_damage_delta": r.get("hidden_damage_delta", "not_available"), "fatigue_delta": fatigue_delta * share if pd.notna(fatigue_delta) else "not_available", "information_quality_delta": r.get("information_quality_delta", "not_available"), "cooperation_intent_delta": r.get("cooperation_intent_delta", "not_available"), "defensiveness_delta": defensiveness_delta * share if pd.notna(defensiveness_delta) else "not_available", "latent_pressure_delta": latent_delta * share if pd.notna(latent_delta) else "not_available", "channel_effect_classification": "derived_proxy", "exact_or_proxy": "derived_proxy", "note": "channel mass exact from action_frame; state deltas are run-level associations apportioned by mass share, not causal proof"})
+        repair.append({"run_label": r.get("run_label"), "world_profile": r.get("world_profile"), "axis": r.get("axis"), "axis_value_label": r.get("axis_value_label"), "baseline_name": r.get("baseline_name"), "seed": r.get("seed"), "steps": r.get("steps"), "action_mass_total": action_mass if pd.notna(action_mass) else "not_available", "observed_vs_hidden_gap_available": gap != "not_available", "observed_vs_hidden_gap_value": gap, "action_cost_effect_available": cost_effect != "not_available", "action_cost_effect_value": cost_effect, "intervention_fatigue_available": intervention != "not_available", "intervention_fatigue_value": intervention, "action_effect_by_channel_available": bool(parsed), "metric_repair_pass": bool(gap != "not_available" and cost_effect != "not_available" and intervention != "not_available" and parsed), "boundary_violation_total": r.get("boundary_violation_total", 0), "dry_run_write_violation_count": r.get("dry_run_write_violation_count", 0), "forbidden_write_count": r.get("forbidden_write_count", 0)})
+    repair_df, observed_df, cost_df, fatigue_df, channel_df = map(pd.DataFrame, [repair, observed, cost, fatigue, channels])
+    run_count=len(df)
+    metric_names = [("hidden_damage","exact_exported","v2_hidden_trace","hidden_damage/hidden_damage_mean",True),("fatigue","exact_exported","v2_hidden_trace","fatigue/fatigue_mean",True),("information_quality","exact_exported","v2_information_trace","information_quality/information_quality_mean",True),("cooperation_intent","exact_exported","v2_hidden_trace","cooperation_intent/cooperate_tendency",True),("defensiveness","exact_exported","v2_hidden_trace","defensiveness/defend_tendency",True),("latent_pressure","exact_exported","v2_hidden_trace","latent_pressure",True),("private_resource","exact_exported","v2_resource_trace","private_resource",True),("cumulative_action_mass","derived_from_exact","action_frame","action_strength",True),("observed_vs_hidden_gap","derived_proxy","v2_information_trace;v2_hidden_trace","information_quality_mean;hidden_damage_mean",True),("action_cost_effect","derived_proxy","action_frame;v2_hidden_trace","action_strength;fatigue_delta",True),("intervention_fatigue","derived_proxy","action_frame;v2_hidden_trace","action_frame_rows;fatigue_delta",True),("action_effect_by_channel","derived_proxy","action_frame;v2_hidden_trace","action_channel;action_strength;state_deltas",True),("visible_public_metric_exact","not_available","not_exported","public_visible_state",False),("hidden_state_visibility","deferred_requires_semantic_design","not_implemented","not_implemented",False)]
+    class_rows=[]
+    for name, klass, source, cols, allowed in metric_names:
+        available = run_count if klass not in {"not_available", "deferred_requires_semantic_design"} else 0
+        class_rows.append({"metric_name": name, "classification": klass, "source_trace": source, "source_columns": cols, "available_run_count": available, "missing_run_count": run_count - available, "exact_claim_allowed": klass in {"exact_exported", "derived_from_exact"}, "tuning_decision_allowed": bool(allowed and klass != "not_available"), "note": "proxy/derived_proxy values do not support exact causal claims" if "proxy" in klass else "direct or deferred classification"})
+    classification = pd.DataFrame(class_rows)
+    def high_low(axis, metrics):
+        rows=[]; part=df[df["axis"].eq(axis)]
+        for base, grp in part.groupby("baseline_name"):
+            low=grp[grp["axis_value_label"].eq("low")]; high=grp[grp["axis_value_label"].eq("high")]
+            for m in metrics:
+                lv=pd.to_numeric(low[m], errors="coerce").mean() if m in low else float("nan")
+                hv=pd.to_numeric(high[m], errors="coerce").mean() if m in high else float("nan")
+                rows.append({"axis": axis, "baseline_name": base, "metric_name": m, "low_value": lv if pd.notna(lv) else "not_available", "high_value": hv if pd.notna(hv) else "not_available", "high_minus_low": hv-lv if pd.notna(lv) and pd.notna(hv) else "not_available", "classification": "derived_proxy" if m in {"observed_vs_hidden_gap_proxy","action_cost_effect","intervention_fatigue_proxy"} else "derived_from_exact", "note": "high-low summary only; no superiority claim"})
+        return pd.DataFrame(rows)
+    info_effect = high_low("information_asymmetry", ["information_quality_delta", "hidden_damage_delta", "cooperation_intent_delta", "defensiveness_delta", "observed_vs_hidden_gap_proxy"])
+    cost_response = high_low("action_cost", ["fatigue_delta", "defensiveness_delta", "latent_pressure_delta", "action_cost_effect", "intervention_fatigue_proxy"])
+    boundary_zero = int(pd.to_numeric(repair_df["boundary_violation_total"], errors="coerce").fillna(0).sum()) == 0 and int(pd.to_numeric(repair_df["dry_run_write_violation_count"], errors="coerce").fillna(0).sum()) == 0 and int(pd.to_numeric(repair_df["forbidden_write_count"], errors="coerce").fillna(0).sum()) == 0
+    readiness_status = "tuning_metric_proxy_only" if bool(repair_df["metric_repair_pass"].all()) and boundary_zero else "tuning_metric_blocked"
+    readiness = pd.DataFrame([{"readiness_item": "tuning_decision_metric_readiness", "status": readiness_status, "required_metrics": "action_effect_by_channel;action_cost_effect;intervention_fatigue;boundary_write_zero;existing_v2_compatibility", "available_metrics": "action_effect_by_channel;action_cost_effect;intervention_fatigue", "proxy_only_metrics": "observed_vs_hidden_gap;action_cost_effect;intervention_fatigue;action_effect_by_channel", "missing_metrics": "visible_public_metric_exact", "decision": "ActionModule tuning decision may be discussed but not executed" if readiness_status == "tuning_metric_proxy_only" else "do not proceed", "blocker": "proxy_only_metrics;visible_public_metric_exact missing", "recommended_next_task": "Phase 2G-13 ActionModule v2 Tuning Decision Pack discussion-only or Additional Metric Repair"}])
+    missing = classification[classification["classification"].isin(["not_available", "deferred_requires_semantic_design"])].rename(columns={"metric_name":"missing_metric"})
+    next_df = pd.DataFrame([{"recommended_next_task":"Phase 2G-13 ActionModule v2 Tuning Decision Pack","priority":"medium","condition":"discussion-only because repaired metrics remain derived_proxy/proxy","alternative":"Phase 2G-13 Additional Metric Repair if exact visible/public metrics are required"}])
+    return repair_df, observed_df, cost_df, fatigue_df, channel_df, info_effect, cost_response, classification, readiness, missing, next_df
 
 
 def _metric_worst(frame: pd.DataFrame, columns: list[str], lower_is_worse: bool = False):
@@ -1676,6 +1747,20 @@ def main() -> int:
     dataframe_to_csv(v2_1_existing, output_dir / "v2_1_cause_side_existing_v2_compatibility_summary.csv")
     dataframe_to_csv(v2_1_missing, output_dir / "v2_1_cause_side_missing_evidence.csv")
     dataframe_to_csv(v2_1_next_prelim, output_dir / "v2_1_cause_side_next_task_recommendation.csv")
+    (v2_1_additional_repair, v2_1_observed_gap, v2_1_action_cost_repair, v2_1_intervention_fatigue_repair,
+     v2_1_action_effect_channel_repair, v2_1_info_effect, v2_1_cost_response, v2_1_metric_classification,
+     v2_1_tuning_readiness, v2_1_additional_missing, v2_1_additional_next) = build_v2_1_additional_metric_export_repair_tables(v2_1_prelim)
+    dataframe_to_csv(v2_1_additional_repair, output_dir / "v2_1_additional_metric_export_repair_summary.csv")
+    dataframe_to_csv(v2_1_observed_gap, output_dir / "v2_1_observed_vs_hidden_gap_repair_summary.csv")
+    dataframe_to_csv(v2_1_action_cost_repair, output_dir / "v2_1_action_cost_effect_repair_summary.csv")
+    dataframe_to_csv(v2_1_intervention_fatigue_repair, output_dir / "v2_1_intervention_fatigue_repair_summary.csv")
+    dataframe_to_csv(v2_1_action_effect_channel_repair, output_dir / "v2_1_action_effect_by_channel_repair_summary.csv")
+    dataframe_to_csv(v2_1_info_effect, output_dir / "v2_1_information_asymmetry_effect_summary.csv")
+    dataframe_to_csv(v2_1_cost_response, output_dir / "v2_1_action_cost_state_response_summary.csv")
+    dataframe_to_csv(v2_1_metric_classification, output_dir / "v2_1_metric_classification_summary.csv")
+    dataframe_to_csv(v2_1_tuning_readiness, output_dir / "v2_1_tuning_decision_metric_readiness_summary.csv")
+    dataframe_to_csv(v2_1_additional_missing, output_dir / "v2_1_additional_metric_export_missing_evidence.csv")
+    dataframe_to_csv(v2_1_additional_next, output_dir / "v2_1_additional_metric_export_next_task_recommendation.csv")
 
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
@@ -1740,7 +1825,7 @@ def main() -> int:
         "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
-        "recommended_next_task": "Phase 2G-12 Additional Metric Export Repair before any ActionModule v2 tuning decision, with additional v2.1 axis implementation as a parallel option.",
+        "recommended_next_task": "Phase 2G-13 ActionModule v2 Tuning Decision Pack discussion-only, or Phase 2G-13 Additional Metric Repair if exact visible/public metrics are required.",
         "v2_1_cause_side_minimal_implementation_summary_present": (output_dir / "v2_1_cause_side_minimal_implementation_summary.csv").exists(),
         "v2_1_cause_side_axis_readiness_summary_present": (output_dir / "v2_1_cause_side_axis_readiness_summary.csv").exists(),
         "v2_1_cause_side_compatibility_summary_present": (output_dir / "v2_1_cause_side_compatibility_summary.csv").exists(),
@@ -1766,6 +1851,25 @@ def main() -> int:
         "v2_1_cause_side_baseline_count": int(v2_1_prelim["baseline_name"].nunique()) if "v2_1_prelim" in locals() and not v2_1_prelim.empty else 0,
         "v2_1_cause_side_seed_count": int(v2_1_prelim["seed"].nunique()) if "v2_1_prelim" in locals() and not v2_1_prelim.empty else 0,
         "v2_1_cause_side_preliminary_validation_pass": bool("v2_1_prelim" in locals() and not v2_1_prelim.empty and v2_1_prelim["preliminary_validation_pass"].astype(bool).all()),
+        "v2_1_additional_metric_export_repair_summary_present": (output_dir / "v2_1_additional_metric_export_repair_summary.csv").exists(),
+        "v2_1_observed_vs_hidden_gap_repair_summary_present": (output_dir / "v2_1_observed_vs_hidden_gap_repair_summary.csv").exists(),
+        "v2_1_action_cost_effect_repair_summary_present": (output_dir / "v2_1_action_cost_effect_repair_summary.csv").exists(),
+        "v2_1_intervention_fatigue_repair_summary_present": (output_dir / "v2_1_intervention_fatigue_repair_summary.csv").exists(),
+        "v2_1_action_effect_by_channel_repair_summary_present": (output_dir / "v2_1_action_effect_by_channel_repair_summary.csv").exists(),
+        "v2_1_information_asymmetry_effect_summary_present": (output_dir / "v2_1_information_asymmetry_effect_summary.csv").exists(),
+        "v2_1_action_cost_state_response_summary_present": (output_dir / "v2_1_action_cost_state_response_summary.csv").exists(),
+        "v2_1_metric_classification_summary_present": (output_dir / "v2_1_metric_classification_summary.csv").exists(),
+        "v2_1_tuning_decision_metric_readiness_summary_present": (output_dir / "v2_1_tuning_decision_metric_readiness_summary.csv").exists(),
+        "v2_1_additional_metric_export_missing_evidence_present": (output_dir / "v2_1_additional_metric_export_missing_evidence.csv").exists(),
+        "v2_1_additional_metric_export_next_task_recommendation_present": (output_dir / "v2_1_additional_metric_export_next_task_recommendation.csv").exists(),
+        "v2_1_additional_metric_export_run_count": int(len(v2_1_additional_repair)) if "v2_1_additional_repair" in locals() else 0,
+        "v2_1_additional_metric_export_repair_pass": bool("v2_1_additional_repair" in locals() and not v2_1_additional_repair.empty and v2_1_additional_repair["metric_repair_pass"].astype(bool).all()),
+        "observed_vs_hidden_gap_readiness": "derived_proxy_available" if "v2_1_observed_gap" in locals() and not v2_1_observed_gap.empty else "not_available",
+        "action_cost_effect_readiness": "derived_proxy_available" if "v2_1_action_cost_repair" in locals() and not v2_1_action_cost_repair.empty else "not_available",
+        "intervention_fatigue_readiness": "derived_proxy_available" if "v2_1_intervention_fatigue_repair" in locals() and not v2_1_intervention_fatigue_repair.empty else "not_available",
+        "action_effect_by_channel_readiness": "derived_proxy_available" if "v2_1_action_effect_channel_repair" in locals() and not v2_1_action_effect_channel_repair.empty else "not_available",
+        "tuning_decision_metric_readiness": str(v2_1_tuning_readiness["status"].iloc[0]) if "v2_1_tuning_readiness" in locals() and not v2_1_tuning_readiness.empty else "not_available",
+
         "v2_extended_validation_summary_present": (output_dir / "v2_extended_validation_summary.csv").exists(),
         "v2_extended_profile_mode_comparison_present": (output_dir / "v2_extended_profile_mode_comparison.csv").exists(),
         "v2_extended_seed_stability_summary_present": (output_dir / "v2_extended_seed_stability_summary.csv").exists(),
