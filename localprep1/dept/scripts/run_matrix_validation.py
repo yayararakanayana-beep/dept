@@ -865,6 +865,7 @@ def build_v2_preliminary_row(label: str, cfg, out: dict, metrics: dict) -> dict:
         "private_resource_final": _metric_final(resource, ["private_resource", "private_resource_mean", "mean_private_resource"]),
         "latent_pressure_mean": _metric_mean(hidden, ["latent_pressure", "latent_pressure_mean", "mean_latent_pressure"]),
         "latent_pressure_final": _metric_final(hidden, ["latent_pressure", "latent_pressure_mean", "mean_latent_pressure"]),
+        "latent_pressure_delta": _metric_delta(hidden, ["latent_pressure", "latent_pressure_mean", "mean_latent_pressure"]),
         "action_mass_total": _sum_numeric(action_frame, "action_strength"), "action_mass_by_channel": _action_mass_by_channel(action_frame),
         "action_frame_rows": int(len(action_frame)), "action_result_rows": int(len(action_result)),
         "boundary_violation_total": boundary, "dry_run_write_violation_count": dry, "forbidden_write_count": forbidden,
@@ -928,6 +929,163 @@ def build_v2_preliminary_tables(rows: list[dict]):
                 miss.append({"metric_name":m,"profile_family":fam,"missing_for_runs":";".join(missing_runs),"why_missing":"source trace or exact proxy column not exported by current runner","affects_preliminary_reading":"yes for exact claims; no for cautious availability report","recommended_future_task":"Phase 2G-6 v2 Metric Export Repair"})
     next_df=pd.DataFrame([{"recommendation":"Phase 2G-6 v2 Multi-seed / Longer-horizon Validation Pack","reason":"preliminary matrix is short and result-named; stronger evidence requires more seeds and longer horizon","priority":"high","condition":"if boundary/write counts remain zero and core v2 metrics remain readable"},{"recommendation":"Phase 2G-6 v2 Metric Export Repair","reason":"some secondary proxies are not exact/exported","priority":"medium","condition":"needed before exact claims on proxy-only metrics"}])
     return summary, comparison, summary.copy(), delta_df, pd.DataFrame(channels), safety, pd.DataFrame(read), pd.DataFrame(miss), next_df
+
+
+def _axis_from_cause_profile(world_profile: str, params: dict) -> tuple[str, str, float | str]:
+    if "combined_probe" in world_profile:
+        return "combined_probe", "combined", json.dumps(params, sort_keys=True)
+    if "minimal_action_cost" in world_profile:
+        value = params.get("action_cost", "")
+        label = "high" if "high" in world_profile else "low" if "low" in world_profile else str(value)
+        return "action_cost", label, value
+    if "minimal_information_asymmetry" in world_profile:
+        value = params.get("information_asymmetry", "")
+        label = "high" if "high" in world_profile else "low" if "low" in world_profile else str(value)
+        return "information_asymmetry", label, value
+    if "action_cost" in params:
+        value = params.get("action_cost", "")
+        label = "high" if "high" in world_profile else "low" if "low" in world_profile else str(value)
+        return "action_cost", label, value
+    if "information_asymmetry" in params:
+        value = params.get("information_asymmetry", "")
+        label = "high" if "high" in world_profile else "low" if "low" in world_profile else str(value)
+        return "information_asymmetry", label, value
+    return "not_applicable", "not_applicable", ""
+
+
+def build_v2_1_cause_side_preliminary_tables(
+    rows: list[dict],
+    cause_profiles: dict[str, dict],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    cause_rows = []
+    compatibility_rows = []
+    for r in rows:
+        wp = str(r.get("world_profile", ""))
+        if wp in cause_profiles:
+            profile = cause_profiles.get(wp, {})
+            config = profile.get("config", {}).get("v2_world_config", {}) if isinstance(profile, dict) else {}
+            params = config.get("cause_side_parameters", profile.get("cause_side_parameters", {})) if isinstance(config, dict) else {}
+            axis, axis_label, axis_value = _axis_from_cause_profile(wp, params if isinstance(params, dict) else {})
+            run = dict(r)
+            run.update({
+                "axis": axis,
+                "axis_value_label": axis_label,
+                "axis_value": axis_value,
+                "v2_1_profile_loaded": bool(profile),
+                "observed_vs_hidden_gap_proxy": (
+                    pd.to_numeric(pd.Series([r.get("hidden_damage_mean")]), errors="coerce").iloc[0]
+                    - pd.to_numeric(pd.Series([r.get("information_quality_mean")]), errors="coerce").iloc[0]
+                    if pd.notna(pd.to_numeric(pd.Series([r.get("hidden_damage_mean")]), errors="coerce").iloc[0])
+                    and pd.notna(pd.to_numeric(pd.Series([r.get("information_quality_mean")]), errors="coerce").iloc[0])
+                    else "not_available"
+                ),
+                "action_cost_effect": (
+                    pd.to_numeric(pd.Series([r.get("fatigue_delta")]), errors="coerce").iloc[0]
+                    * pd.to_numeric(pd.Series([r.get("action_mass_total")]), errors="coerce").iloc[0]
+                    if pd.notna(pd.to_numeric(pd.Series([r.get("fatigue_delta")]), errors="coerce").iloc[0])
+                    and pd.notna(pd.to_numeric(pd.Series([r.get("action_mass_total")]), errors="coerce").iloc[0])
+                    else "not_available"
+                ),
+                "intervention_fatigue_proxy": (
+                    pd.to_numeric(pd.Series([r.get("fatigue_delta")]), errors="coerce").iloc[0]
+                    / max(pd.to_numeric(pd.Series([r.get("action_mass_total")]), errors="coerce").iloc[0], 1e-12)
+                    if pd.notna(pd.to_numeric(pd.Series([r.get("fatigue_delta")]), errors="coerce").iloc[0])
+                    and pd.notna(pd.to_numeric(pd.Series([r.get("action_mass_total")]), errors="coerce").iloc[0])
+                    else "not_available"
+                ),
+                "preliminary_validation_pass": bool(r.get("preliminary_pass", False)) and bool(profile),
+            })
+            cause_rows.append(run)
+        elif wp.startswith("pseudo_reality_v2_") or wp == "pseudo_reality_default":
+            compatibility_rows.append({
+                "run_label": r.get("run_label", ""),
+                "world_profile": wp,
+                "baseline_name": r.get("baseline_name", ""),
+                "seed": r.get("seed", ""),
+                "steps": r.get("steps", ""),
+                "existing_v2_compatibility_pass": bool(r.get("preliminary_pass", False)),
+                "boundary_violation_total": r.get("boundary_violation_total", 0),
+                "dry_run_write_violation_count": r.get("dry_run_write_violation_count", 0),
+                "forbidden_write_count": r.get("forbidden_write_count", 0),
+                "note": "existing v2 compatibility smoke; not a final validation claim",
+            })
+    summary = pd.DataFrame(cause_rows)
+    if summary.empty:
+        return (pd.DataFrame(),) * 10
+    wanted = [
+        "run_label", "world_profile", "profile_family", "axis", "axis_value_label", "axis_value", "baseline_name", "seed", "steps",
+        "v2_1_profile_loaded", "action_mass_total", "hidden_damage_mean", "hidden_damage_final", "hidden_damage_delta",
+        "fatigue_mean", "fatigue_final", "fatigue_delta", "information_quality_mean", "information_quality_final",
+        "information_quality_delta", "cooperation_intent_mean", "cooperation_intent_final", "cooperation_intent_delta",
+        "defensiveness_mean", "defensiveness_final", "defensiveness_delta", "latent_pressure_mean", "latent_pressure_final",
+        "latent_pressure_delta", "private_resource_mean", "observed_vs_hidden_gap_proxy", "action_cost_effect",
+        "intervention_fatigue_proxy", "boundary_violation_total", "dry_run_write_violation_count", "forbidden_write_count",
+        "action_frame_rows", "action_result_rows", "v2_hidden_trace_rows", "v2_information_trace_rows", "v2_action_effect_trace_rows",
+        "preliminary_validation_pass",
+    ]
+    for c in wanted:
+        if c not in summary.columns:
+            summary[c] = "not_available"
+    summary = summary[wanted]
+    metric_cols = ["action_mass_total", "hidden_damage_delta", "fatigue_delta", "information_quality_delta", "cooperation_intent_delta", "defensiveness_delta", "latent_pressure_delta", "observed_vs_hidden_gap_proxy", "action_cost_effect"]
+    for c in metric_cols:
+        summary[c] = pd.to_numeric(summary[c], errors="coerce")
+    comparisons = []
+    for (axis, label, seed), grp in summary.groupby(["axis", "axis_value_label", "seed"], dropna=False):
+        repaired = grp[grp["baseline_name"].eq("repaired_relaxed")]
+        if repaired.empty:
+            continue
+        for metric in metric_cols:
+            rv = pd.to_numeric(repaired[metric], errors="coerce").mean()
+            vals = {}
+            for base, col in [("relaxed_legacy_dampen_075", "legacy_value"), ("current", "current_value"), ("near_zero_action", "near_zero_value"), ("flat", "flat_value")]:
+                ref = grp[grp["baseline_name"].eq(base)]
+                vals[col] = pd.to_numeric(ref[metric], errors="coerce").mean() if not ref.empty else "not_available"
+            comparisons.append({
+                "axis": axis, "axis_value_label": label, "seed": seed, "metric_name": metric, "repaired_value": rv,
+                **vals,
+                "repaired_delta_vs_legacy": rv - vals["legacy_value"] if not isinstance(vals["legacy_value"], str) and pd.notna(rv) else "not_available",
+                "repaired_delta_vs_current": rv - vals["current_value"] if not isinstance(vals["current_value"], str) and pd.notna(rv) else "not_available",
+                "repaired_delta_vs_near_zero": rv - vals["near_zero_value"] if not isinstance(vals["near_zero_value"], str) and pd.notna(rv) else "not_available",
+                "repaired_delta_vs_flat": rv - vals["flat_value"] if not isinstance(vals["flat_value"], str) and pd.notna(rv) else "not_available",
+                "comparison_note": "preliminary baseline comparison only; flat is an upper-bound comparator and near-zero-action is not no_action",
+            })
+    stability = []
+    for (axis, label, base), grp in summary.groupby(["axis", "axis_value_label", "baseline_name"], dropna=False):
+        for metric in metric_cols:
+            vals = pd.to_numeric(grp[metric], errors="coerce").dropna()
+            mean = float(vals.mean()) if len(vals) else "not_available"
+            minv = float(vals.min()) if len(vals) else "not_available"
+            maxv = float(vals.max()) if len(vals) else "not_available"
+            stability.append({"axis": axis, "axis_value_label": label, "baseline_name": base, "seed_count": int(grp["seed"].nunique()), "metric_name": metric, "mean_value": mean, "min_value": minv, "max_value": maxv, "seed_variation_proxy": (maxv - minv if not isinstance(maxv, str) else "not_available"), "stability_note": "multi_seed_proxy" if int(grp["seed"].nunique()) > 1 else "single_seed_limited"})
+    delta_rows = []
+    for axis in ["information_asymmetry", "action_cost"]:
+        part = summary[summary["axis"].eq(axis)]
+        for base, grp in part.groupby("baseline_name"):
+            low = grp[grp["axis_value_label"].eq("low")]
+            high = grp[grp["axis_value_label"].eq("high")]
+            for metric in metric_cols:
+                lv = pd.to_numeric(low[metric], errors="coerce").mean() if not low.empty else "not_available"
+                hv = pd.to_numeric(high[metric], errors="coerce").mean() if not high.empty else "not_available"
+                delta = hv - lv if not isinstance(lv, str) and not isinstance(hv, str) else "not_available"
+                delta_rows.append({"axis": axis, "axis_value_label": "high_minus_low", "baseline_name": base, "metric_name": metric, "low_value": lv, "high_value": hv, "high_minus_low": delta, "direction": "positive" if not isinstance(delta, str) and delta > 0 else "negative_or_zero" if not isinstance(delta, str) else "not_available", "proxy_or_exact": "proxy" if metric.endswith("_proxy") or metric == "action_cost_effect" else "exact_exported_or_delta", "interpretation_note": "preliminary tendency only"})
+    action_cost = summary[summary["axis"].eq("action_cost")][["run_label", "baseline_name", "axis_value", "action_mass_total", "fatigue_delta", "defensiveness_delta", "latent_pressure_delta", "action_cost_effect", "intervention_fatigue_proxy"]].rename(columns={"axis_value": "action_cost"})
+    action_cost["proxy_note"] = "action_cost_effect and intervention_fatigue_proxy are proxy-only"
+    info = summary[summary["axis"].eq("information_asymmetry")][["run_label", "baseline_name", "axis_value", "information_quality_delta", "hidden_damage_delta", "cooperation_intent_delta", "defensiveness_delta", "observed_vs_hidden_gap_proxy"]].rename(columns={"axis_value": "information_asymmetry"})
+    info["proxy_note"] = "observed_vs_hidden_gap_proxy is proxy-only"
+    combined = summary[summary["axis"].eq("combined_probe")].copy()
+    compatibility = pd.DataFrame(compatibility_rows)
+    missing = pd.DataFrame([
+        {"metric_name": "observed_vs_hidden_gap_proxy", "exact_or_proxy": "proxy", "missing_or_limit": "proxy_only", "affected_claim": "no exact observed-hidden causal proof", "recommended_next_task": "Phase 2G-12 Additional Metric Export Repair"},
+        {"metric_name": "action_cost_effect", "exact_or_proxy": "proxy", "missing_or_limit": "proxy_only", "affected_claim": "no exact action-cost causal proof", "recommended_next_task": "Phase 2G-12 Additional Metric Export Repair"},
+        {"metric_name": "secondary_axes", "exact_or_proxy": "not_implemented", "missing_or_limit": "out_of_scope", "affected_claim": "no hidden_state_visibility/short_term_gain_pressure/relation_lock_strength/recovery_delay claim", "recommended_next_task": "Phase 2G-12 Additional v2.1 Axis Implementation Probe"},
+    ])
+    next_df = pd.DataFrame([
+        {"recommendation": "Phase 2G-12 Additional Metric Export Repair", "reason": "proxy-only fields should not support exact claims; metric deltas are readable but limited", "priority": "high", "condition": "choose if exact observed-hidden/action-cost evidence is needed before tuning"},
+        {"recommendation": "Phase 2G-12 ActionModule v2 Tuning Decision Pack", "reason": "only as a decision pack if preliminary tendencies remain comparable and boundary/write counts stay zero", "priority": "medium", "condition": "do not start tuning in Phase 2G-11"},
+        {"recommendation": "Phase 2G-12 Additional v2.1 Axis Implementation Probe", "reason": "remaining primary axes are still deferred", "priority": "medium", "condition": "choose if broader cause-side coverage is needed before extended validation"},
+    ])
+    return summary, pd.DataFrame(comparisons), pd.DataFrame(stability), pd.DataFrame(delta_rows), action_cost, info, combined, compatibility, missing, next_df
 
 
 
@@ -1500,12 +1658,24 @@ def main() -> int:
     ])
     v2_1_deferred = pd.DataFrame([{"axis": axis, "implemented": False, "reason": "deferred_by_phase2g10_minimal_scope", "recommended_next_task": "Phase 2G-11 Additional v2.1 Axis Implementation Probe"} for axis in deferred_axes])
     v2_1_next = pd.DataFrame([{"recommended_next_task": "Phase 2G-11 Cause-side Preliminary Validation Pack", "reason": "minimal two-axis v2.1 profile namespace loads and compatibility/safety smoke checks are present", "priority": "high"}])
+    (v2_1_prelim, v2_1_baseline, v2_1_seed, v2_1_delta, v2_1_cost, v2_1_info,
+     v2_1_combined, v2_1_existing, v2_1_missing, v2_1_next_prelim) = build_v2_1_cause_side_preliminary_tables(v2_preliminary_rows, cause_profiles)
     dataframe_to_csv(v2_1_summary, output_dir / "v2_1_cause_side_minimal_implementation_summary.csv")
     dataframe_to_csv(v2_1_axis, output_dir / "v2_1_cause_side_axis_readiness_summary.csv")
     dataframe_to_csv(v2_1_compat, output_dir / "v2_1_cause_side_compatibility_summary.csv")
     dataframe_to_csv(v2_1_metric, output_dir / "v2_1_cause_side_metric_readiness_summary.csv")
     dataframe_to_csv(v2_1_deferred, output_dir / "v2_1_cause_side_deferred_axes_summary.csv")
     dataframe_to_csv(v2_1_next, output_dir / "v2_1_cause_side_next_task_recommendation.csv")
+    dataframe_to_csv(v2_1_prelim, output_dir / "v2_1_cause_side_preliminary_validation_summary.csv")
+    dataframe_to_csv(v2_1_baseline, output_dir / "v2_1_cause_side_axis_baseline_comparison.csv")
+    dataframe_to_csv(v2_1_seed, output_dir / "v2_1_cause_side_seed_stability_summary.csv")
+    dataframe_to_csv(v2_1_delta, output_dir / "v2_1_cause_side_metric_delta_summary.csv")
+    dataframe_to_csv(v2_1_cost, output_dir / "v2_1_cause_side_action_cost_summary.csv")
+    dataframe_to_csv(v2_1_info, output_dir / "v2_1_cause_side_information_asymmetry_summary.csv")
+    dataframe_to_csv(v2_1_combined, output_dir / "v2_1_cause_side_combined_probe_summary.csv")
+    dataframe_to_csv(v2_1_existing, output_dir / "v2_1_cause_side_existing_v2_compatibility_summary.csv")
+    dataframe_to_csv(v2_1_missing, output_dir / "v2_1_cause_side_missing_evidence.csv")
+    dataframe_to_csv(v2_1_next_prelim, output_dir / "v2_1_cause_side_next_task_recommendation.csv")
 
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
@@ -1570,7 +1740,7 @@ def main() -> int:
         "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
-        "recommended_next_task": "Phase 2G-9 Cause-side Matrix Skeleton Pack, with Additional Metric Export Repair for exact secondary claims as needed.",
+        "recommended_next_task": "Phase 2G-12 Additional Metric Export Repair before any ActionModule v2 tuning decision, with additional v2.1 axis implementation as a parallel option.",
         "v2_1_cause_side_minimal_implementation_summary_present": (output_dir / "v2_1_cause_side_minimal_implementation_summary.csv").exists(),
         "v2_1_cause_side_axis_readiness_summary_present": (output_dir / "v2_1_cause_side_axis_readiness_summary.csv").exists(),
         "v2_1_cause_side_compatibility_summary_present": (output_dir / "v2_1_cause_side_compatibility_summary.csv").exists(),
@@ -1581,7 +1751,21 @@ def main() -> int:
         "v2_1_implemented_axis_count": 2,
         "v2_1_deferred_axis_count": int(len(deferred_axes)) if "deferred_axes" in locals() else 0,
         "v2_1_minimal_implementation_probe_pass": bool("v2_1_summary" in locals() and not v2_1_summary.empty and v2_1_summary["minimal_implementation_probe_pass"].astype(bool).all()),
-        "existing_v2_compatibility_pass": bool("v2_1_compat" in locals() and not v2_1_compat.empty and v2_1_compat["overall_pass"].astype(bool).all()),
+        "existing_v2_compatibility_pass": bool("v2_1_existing" in locals() and not v2_1_existing.empty and v2_1_existing["existing_v2_compatibility_pass"].astype(bool).all()),
+        "v2_1_cause_side_preliminary_validation_summary_present": (output_dir / "v2_1_cause_side_preliminary_validation_summary.csv").exists(),
+        "v2_1_cause_side_axis_baseline_comparison_present": (output_dir / "v2_1_cause_side_axis_baseline_comparison.csv").exists(),
+        "v2_1_cause_side_seed_stability_summary_present": (output_dir / "v2_1_cause_side_seed_stability_summary.csv").exists(),
+        "v2_1_cause_side_metric_delta_summary_present": (output_dir / "v2_1_cause_side_metric_delta_summary.csv").exists(),
+        "v2_1_cause_side_action_cost_summary_present": (output_dir / "v2_1_cause_side_action_cost_summary.csv").exists(),
+        "v2_1_cause_side_information_asymmetry_summary_present": (output_dir / "v2_1_cause_side_information_asymmetry_summary.csv").exists(),
+        "v2_1_cause_side_combined_probe_summary_present": (output_dir / "v2_1_cause_side_combined_probe_summary.csv").exists(),
+        "v2_1_cause_side_existing_v2_compatibility_summary_present": (output_dir / "v2_1_cause_side_existing_v2_compatibility_summary.csv").exists(),
+        "v2_1_cause_side_missing_evidence_present": (output_dir / "v2_1_cause_side_missing_evidence.csv").exists(),
+        "v2_1_cause_side_preliminary_run_count": int(len(v2_1_prelim)) if "v2_1_prelim" in locals() else 0,
+        "v2_1_cause_side_axis_count": int(v2_1_prelim[v2_1_prelim["axis"].isin(["information_asymmetry", "action_cost"])]["axis"].nunique()) if "v2_1_prelim" in locals() and not v2_1_prelim.empty else 0,
+        "v2_1_cause_side_baseline_count": int(v2_1_prelim["baseline_name"].nunique()) if "v2_1_prelim" in locals() and not v2_1_prelim.empty else 0,
+        "v2_1_cause_side_seed_count": int(v2_1_prelim["seed"].nunique()) if "v2_1_prelim" in locals() and not v2_1_prelim.empty else 0,
+        "v2_1_cause_side_preliminary_validation_pass": bool("v2_1_prelim" in locals() and not v2_1_prelim.empty and v2_1_prelim["preliminary_validation_pass"].astype(bool).all()),
         "v2_extended_validation_summary_present": (output_dir / "v2_extended_validation_summary.csv").exists(),
         "v2_extended_profile_mode_comparison_present": (output_dir / "v2_extended_profile_mode_comparison.csv").exists(),
         "v2_extended_seed_stability_summary_present": (output_dir / "v2_extended_seed_stability_summary.csv").exists(),
