@@ -1,0 +1,117 @@
+{
+  "name": "pseudo_reality_v2_1_cause_side_minimal_action_cost_low",
+  "world_engine": "asymmetric_game_v2",
+  "profile_family": "pseudo_reality_v2_1_cause_side",
+  "profile_role": "minimal_implementation_probe",
+  "cause_side_parameters": {
+    "information_asymmetry": 0.3,
+    "action_cost": 0.0
+  },
+  "implemented_axes": [
+    "information_asymmetry",
+    "action_cost"
+  ],
+  "deferred_axes": [
+    "hidden_state_visibility",
+    "short_term_gain_pressure",
+    "relation_lock_strength",
+    "recovery_delay",
+    "misread_probability",
+    "information_delay",
+    "information_distortion",
+    "resource_inequality",
+    "commons_dependency",
+    "private_information_rate",
+    "fatigue_accumulation_rate",
+    "intervention_fatigue",
+    "exploration_cost",
+    "repair_friction",
+    "trust_decay_rate",
+    "cooperation_decay_rate",
+    "public_metric_bias"
+  ],
+  "compatibility_note": "Existing v2 result-named profiles remain unchanged.",
+  "config": {
+    "world_engine": "asymmetric_game_v2",
+    "scenario": "v2_1_cause_side_minimal_probe",
+    "n_entities": 6,
+    "v2_world_profile": "pseudo_reality_v2_1_cause_side_minimal_action_cost_low",
+    "v2_world_config": {
+      "entity_mix": {
+        "stabilizer": 0.2,
+        "explorer": 0.2,
+        "extractor": 0.2,
+        "connector": 0.25,
+        "amplifier": 0.15
+      },
+      "information_settings": {
+        "information_delay_steps": 3,
+        "information_distortion_scale": 0.08,
+        "hidden_state_visibility": 0.22,
+        "private_information_rate": 0.34,
+        "misread_probability": 0.14
+      },
+      "resource_settings": {
+        "initial_shared_resource": 0.7,
+        "resource_recovery_rate": 0.014,
+        "resource_depletion_rate": 0.036
+      },
+      "side_effect_settings": {
+        "exploration_exploitation_risk": 0.26,
+        "stabilization_lockin_side_effect": 0.24
+      },
+      "active_dynamics": {
+        "trust_decay": {
+          "enabled": true,
+          "intensity": 0.06
+        },
+        "defensive_hoarding": {
+          "enabled": true,
+          "intensity": 0.052
+        },
+        "hidden_damage_growth": {
+          "enabled": true,
+          "intensity": 0.05
+        },
+        "no_op_decay": {
+          "enabled": true,
+          "intensity": 0.038
+        },
+        "public_stability_mask": {
+          "enabled": true,
+          "intensity": 0.04
+        }
+      },
+      "profile_family": "pseudo_reality_v2_1_cause_side",
+      "profile_role": "minimal_implementation_probe",
+      "cause_side_parameters": {
+        "information_asymmetry": 0.3,
+        "action_cost": 0.0
+      },
+      "implemented_axes": [
+        "information_asymmetry",
+        "action_cost"
+      ],
+      "deferred_axes": [
+        "hidden_state_visibility",
+        "short_term_gain_pressure",
+        "relation_lock_strength",
+        "recovery_delay",
+        "misread_probability",
+        "information_delay",
+        "information_distortion",
+        "resource_inequality",
+        "commons_dependency",
+        "private_information_rate",
+        "fatigue_accumulation_rate",
+        "intervention_fatigue",
+        "exploration_cost",
+        "repair_friction",
+        "trust_decay_rate",
+        "cooperation_decay_rate",
+        "public_metric_bias"
+      ],
+      "compatibility_note": "Existing v2 result-named profiles remain unchanged."
+    }
+  }
+}

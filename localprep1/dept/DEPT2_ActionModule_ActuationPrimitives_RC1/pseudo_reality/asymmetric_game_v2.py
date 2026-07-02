@@ -46,6 +46,10 @@ class AsymmetricGamePseudoRealitySystem:
         self.drift_scale = float(drift_scale)
         self.profile_name = str(profile_name or "pseudo_reality_v2_shrinking_equilibrium")
         self.profile_config = dict(profile_config or {})
+        cause = self.profile_config.get("cause_side_parameters", {})
+        self.cause_side_parameters = cause if isinstance(cause, dict) else {}
+        implemented = self.profile_config.get("implemented_axes", [])
+        self.implemented_axes = set(implemented if isinstance(implemented, list) else [])
         self.rng = np.random.default_rng(self.seed)
         self.shared_resource = float(self._cfg("resource_settings", "initial_shared_resource", 0.72))
         self.commons_health = float(self._cfg("resource_settings", "initial_commons_health", 0.70))
@@ -79,6 +83,14 @@ class AsymmetricGamePseudoRealitySystem:
         if not isinstance(item, dict):
             return float(default)
         return float(item.get("intensity", default))
+
+    def _cause_axis(self, name: str, default: float = 0.0) -> float:
+        if name not in self.implemented_axes:
+            return float(default)
+        try:
+            return float(np.clip(self.cause_side_parameters.get(name, default), 0.0, 1.0))
+        except (TypeError, ValueError):
+            return float(default)
 
     def _init_entities(self) -> pd.DataFrame:
         n = self.n_entities
@@ -170,19 +182,21 @@ class AsymmetricGamePseudoRealitySystem:
     def _build_information_trace(self, h: pd.DataFrame, r: pd.DataFrame) -> pd.DataFrame:
         quality = pd.to_numeric(h["information_quality"], errors="coerce").fillna(0.0)
         flow = float(r["flow"].mean()) if r is not None and not r.empty and "flow" in r.columns else 0.0
+        information_asymmetry = self._cause_axis("information_asymmetry", 0.0)
+        action_cost = self._cause_axis("action_cost", 0.0)
         distortion = float(self._cfg("information_settings", "information_distortion_scale", 0.06)) + float((1.0 - quality.mean()) * 0.35)
         delay = float(self._cfg("information_settings", "information_delay_steps", 2)) / 10.0 + float(h["latent_pressure"].mean() * 0.15)
-        return pd.DataFrame([{**self._base_row(), "information_delay_mean": float(self._clip(delay)), "information_distortion_mean": float(self._clip(distortion)), "hidden_state_visibility": float(self._clip(self._cfg("information_settings", "hidden_state_visibility", 0.22))), "private_information_rate": float(self._clip(self._cfg("information_settings", "private_information_rate", 0.30))), "misread_probability_mean": float(self._clip(self._cfg("information_settings", "misread_probability", 0.10) + distortion * 0.5)), "information_quality_mean": float(self._clip(quality.mean())), "information_flow_mean": float(self._clip(flow * quality.mean())), "coordination_lag_mean": float(self._clip(delay + distortion * 0.3))}])
+        return pd.DataFrame([{**self._base_row(), "information_delay_mean": float(self._clip(delay)), "information_distortion_mean": float(self._clip(distortion)), "hidden_state_visibility": float(self._clip(self._cfg("information_settings", "hidden_state_visibility", 0.22))), "private_information_rate": float(self._clip(self._cfg("information_settings", "private_information_rate", 0.30))), "misread_probability_mean": float(self._clip(self._cfg("information_settings", "misread_probability", 0.10) + distortion * 0.5)), "information_quality_mean": float(self._clip(quality.mean())), "information_flow_mean": float(self._clip(flow * quality.mean())), "coordination_lag_mean": float(self._clip(delay + distortion * 0.3)), "cause_side_information_asymmetry": information_asymmetry, "cause_side_action_cost": action_cost, "observed_vs_hidden_gap_proxy": float(self._clip(information_asymmetry * (1.0 - quality.mean()) + h["hidden_damage"].mean() * 0.25))}])
 
     def _build_action_effect_trace(self) -> pd.DataFrame:
         if self._last_action_effect is None or self._last_action_effect.empty:
-            row = {**self._base_row(), "action_channel": "no_action", "action_intensity": 0.0, "target_count": 0, "direct_effect_score": 0.0, "side_effect_score": 0.0, "net_public_effect_score": 0.0, "net_hidden_effect_score": 0.0, "exploitation_risk_delta": 0.0, "trust_delta": 0.0, "fatigue_delta": 0.0, "hidden_damage_delta": 0.0, "resource_inequality_delta": 0.0, "reversibility_delta": 0.0, "exploration_delta": 0.0}
+            row = {**self._base_row(), "action_channel": "no_action", "action_intensity": 0.0, "target_count": 0, "direct_effect_score": 0.0, "side_effect_score": 0.0, "net_public_effect_score": 0.0, "net_hidden_effect_score": 0.0, "exploitation_risk_delta": 0.0, "trust_delta": 0.0, "fatigue_delta": 0.0, "hidden_damage_delta": 0.0, "resource_inequality_delta": 0.0, "reversibility_delta": 0.0, "exploration_delta": 0.0, "action_cost_effect": 0.0}
             return pd.DataFrame([row])
         out = self._last_action_effect.copy()
         out["t"] = self.t
         out["scenario"] = self.scenario
         out["seed"] = self.seed
-        cols = ["t", "scenario", "seed", "action_channel", "action_intensity", "target_count", "direct_effect_score", "side_effect_score", "net_public_effect_score", "net_hidden_effect_score", "exploitation_risk_delta", "trust_delta", "fatigue_delta", "hidden_damage_delta", "resource_inequality_delta", "reversibility_delta", "exploration_delta"]
+        cols = ["t", "scenario", "seed", "action_channel", "action_intensity", "target_count", "direct_effect_score", "side_effect_score", "net_public_effect_score", "net_hidden_effect_score", "exploitation_risk_delta", "trust_delta", "fatigue_delta", "hidden_damage_delta", "resource_inequality_delta", "reversibility_delta", "exploration_delta", "action_cost_effect"]
         return out[cols]
 
     def step(self, action_frame: Optional[pd.DataFrame] = None) -> Dict[str, pd.DataFrame]:
@@ -197,14 +211,16 @@ class AsymmetricGamePseudoRealitySystem:
         info_distortion = float(self._cfg("information_settings", "information_distortion_scale", 0.06))
         resource_depletion = float(self._cfg("resource_settings", "resource_depletion_rate", 0.035))
         no_op_decay = self._dynamic_intensity("no_op_decay", 0.03)
+        information_asymmetry = self._cause_axis("information_asymmetry", 0.0)
+        action_cost = self._cause_axis("action_cost", 0.0)
 
         h["latent_pressure"] += 0.010 + 0.50 * hoarding * h["defensiveness"] + self.rng.normal(0, self.noise_scale, n)
         h["fatigue"] += 0.010 + 0.35 * no_op_decay + 0.018 * h["latent_pressure"] + self.rng.normal(0, self.noise_scale, n)
-        h["hidden_damage"] += 0.006 + 0.40 * hidden_growth + 0.020 * h["fatigue"] + 0.012 * (1.0 - h["information_quality"])
+        h["hidden_damage"] += 0.006 + 0.40 * hidden_growth + 0.020 * h["fatigue"] + 0.012 * (1.0 - h["information_quality"]) + 0.006 * information_asymmetry
         h["private_resource"] += -0.004 - resource_depletion * h["opportunism"] + self.rng.normal(0, self.noise_scale * 0.5, n)
-        h["defensiveness"] += 0.006 + 0.35 * hoarding + 0.018 * h["latent_pressure"]
-        h["cooperation_intent"] += -0.004 - 0.25 * trust_decay - 0.020 * h["defensiveness"]
-        h["information_quality"] += -0.004 - info_distortion - 0.012 * h["opportunism"]
+        h["defensiveness"] += 0.006 + 0.35 * hoarding + 0.018 * h["latent_pressure"] + 0.005 * information_asymmetry
+        h["cooperation_intent"] += -0.004 - 0.25 * trust_decay - 0.020 * h["defensiveness"] - 0.004 * information_asymmetry
+        h["information_quality"] += -0.004 - info_distortion - 0.012 * h["opportunism"] - 0.010 * information_asymmetry
         h["opportunism"] += 0.004 + 0.010 * (1.0 - h["private_resource"])
         self.shared_resource = float(self._clip(self.shared_resource + float(self._cfg("resource_settings", "resource_recovery_rate", 0.018)) * self.commons_health - resource_depletion * float(h["opportunism"].mean())))
         self.commons_health = float(self._clip(self.commons_health - 0.25 * hidden_growth * float(h["hidden_damage"].mean()) - 0.10 * resource_depletion))
@@ -239,8 +255,12 @@ class AsymmetricGamePseudoRealitySystem:
                 elif ch == "buffer_increase":
                     e.loc[idx, "reversibility"] += strength
                     h.loc[idx, "private_resource"] += strength * 0.20
+                if action_cost:
+                    h.loc[idx, "fatigue"] += strength * action_cost
+                    h.loc[idx, "defensiveness"] += strength * action_cost * 0.50
+                    h.loc[idx, "latent_pressure"] += strength * action_cost * 0.50
                 side = float(self._cfg("side_effect_settings", "exploration_exploitation_risk", 0.24)) if ch == "exploration_injection" else float(self._cfg("side_effect_settings", "stabilization_lockin_side_effect", 0.22))
-                effect_rows.append({"action_channel": ch, "action_intensity": float(strength / max(self.action_coupling, 1e-9)), "target_count": int(idx.sum()), "direct_effect_score": float(self._clip(strength * 8.0)), "side_effect_score": float(self._clip(side * strength * 8.0)), "exploitation_risk_delta": float(self._clip(side * strength)), "trust_delta": float(self._clip(strength * (1.0 if ch in {"uncertainty_probe", "coupling_relief"} else 0.0))), "fatigue_delta": float(self._clip(abs(h.loc[idx, "fatigue"].mean() - before_h.loc[idx, "fatigue"].mean()))), "hidden_damage_delta": 0.0, "resource_inequality_delta": 0.0, "reversibility_delta": float(self._clip(abs(e.loc[idx, "reversibility"].mean() - before_e.loc[idx, "reversibility"].mean()))), "exploration_delta": float(self._clip(abs(e.loc[idx, "exploration"].mean() - before_e.loc[idx, "exploration"].mean())))})
+                effect_rows.append({"action_channel": ch, "action_intensity": float(strength / max(self.action_coupling, 1e-9)), "target_count": int(idx.sum()), "direct_effect_score": float(self._clip(strength * 8.0)), "side_effect_score": float(self._clip(side * strength * 8.0)), "exploitation_risk_delta": float(self._clip(side * strength)), "trust_delta": float(self._clip(strength * (1.0 if ch in {"uncertainty_probe", "coupling_relief"} else 0.0))), "fatigue_delta": float(self._clip(abs(h.loc[idx, "fatigue"].mean() - before_h.loc[idx, "fatigue"].mean()))), "hidden_damage_delta": 0.0, "resource_inequality_delta": 0.0, "reversibility_delta": float(self._clip(abs(e.loc[idx, "reversibility"].mean() - before_e.loc[idx, "reversibility"].mean()))), "exploration_delta": float(self._clip(abs(e.loc[idx, "exploration"].mean() - before_e.loc[idx, "exploration"].mean()))), "action_cost_effect": float(self._clip(strength * action_cost))})
 
         # Public stability mask: surface changes are bounded while hidden stress moves.
         e["activity"] += self.rng.normal(0, self.noise_scale, n)

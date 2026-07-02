@@ -1,0 +1,130 @@
+{
+  "name": "phase2g10_cause_side_v2_1_minimal_implementation_probe",
+  "purpose": "Minimal readiness probe for two implemented cause-side v2.1 axes with existing-v2 compatibility checks; not full validation.",
+  "runs": [
+    {
+      "label": "v2_1_information_asymmetry_low_repaired",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_information_asymmetry_low",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 42,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "v2_1_information_asymmetry_high_repaired",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_information_asymmetry_high",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 42,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "v2_1_information_asymmetry_high_legacy",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_information_asymmetry_high",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed_legacy_dampen_075",
+        "steps": 2,
+        "seed": 42,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "v2_1_information_asymmetry_high_near_zero",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_information_asymmetry_high",
+      "action_profile": "action_conservative",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 42,
+        "action_coupling": 0.001,
+        "min_action_strength": 0.0001,
+        "max_action_strength": 0.001,
+        "strength_scale": 0.001,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "v2_1_action_cost_low_repaired",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_action_cost_low",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 42,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "v2_1_action_cost_high_repaired",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_action_cost_high",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 42,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "v2_1_action_cost_high_flat",
+      "validation_profile": "smoke",
+      "world_profile": "cause_side_v2_1/pseudo_reality_v2_1_cause_side_minimal_action_cost_high",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "flat",
+        "steps": 2,
+        "seed": 42,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "existing_v2_trust_collapse_repaired_compatibility",
+      "validation_profile": "smoke",
+      "world_profile": "pseudo_reality_v2_trust_collapse",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 43,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "existing_v2_shrinking_equilibrium_repaired_compatibility",
+      "validation_profile": "smoke",
+      "world_profile": "pseudo_reality_v2_shrinking_equilibrium",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 44,
+        "n_entities": 6
+      }
+    },
+    {
+      "label": "default_relaxed_smoke",
+      "validation_profile": "smoke",
+      "world_profile": "pseudo_reality_default",
+      "action_profile": "action_default",
+      "overrides": {
+        "intermediate_conservatism_mode": "relaxed",
+        "steps": 2,
+        "seed": 46,
+        "n_entities": 6
+      }
+    }
+  ]
+}

@@ -1428,6 +1428,84 @@ def main() -> int:
     dataframe_to_csv(v2_mer_readiness, output_dir / "v2_cause_side_metric_readiness_summary.csv")
     dataframe_to_csv(v2_mer_missing, output_dir / "v2_metric_export_missing_evidence.csv")
     dataframe_to_csv(v2_mer_next, output_dir / "v2_metric_export_next_task_recommendation.csv")
+    cause_profiles = {}
+    for run in matrix["runs"]:
+        wp = str(run["world_profile"])
+        if "cause_side_v2_1/" in wp:
+            try:
+                cause_profiles[wp] = load_json(REPO_ROOT / "configs" / "world_profiles" / f"{wp}.json")
+            except FileNotFoundError:
+                cause_profiles[wp] = {}
+    v2_1_rows = []
+    for r in rows:
+        profile = cause_profiles.get(str(r.get("world_profile", "")), {})
+        if not profile:
+            continue
+        config = profile.get("config", {}).get("v2_world_config", {}) if profile else {}
+        params = config.get("cause_side_parameters", profile.get("cause_side_parameters", {})) if isinstance(config, dict) else {}
+        implemented = config.get("implemented_axes", profile.get("implemented_axes", [])) if isinstance(config, dict) else []
+        deferred = config.get("deferred_axes", profile.get("deferred_axes", [])) if isinstance(config, dict) else []
+        axis_names = list(params.keys()) if isinstance(params, dict) else []
+        for axis in axis_names or ["not_applicable"]:
+            v2_1_rows.append({
+                "run_label": r.get("label", ""),
+                "world_profile": r.get("world_profile", ""),
+                "profile_family": config.get("profile_family", profile.get("profile_family", "")) if isinstance(config, dict) else "",
+                "implemented_axes": ";".join(implemented),
+                "deferred_axes": ";".join(deferred),
+                "cause_side_parameter_name": axis,
+                "cause_side_parameter_value": params.get(axis, "") if isinstance(params, dict) else "",
+                "baseline_name": "near_zero_action" if "near_zero" in str(r.get("label", "")) else ("relaxed_legacy_dampen_075" if r.get("intermediate_conservatism_mode") == "relaxed_legacy_dampen_075" else ("flat" if r.get("intermediate_conservatism_mode") == "flat" else "repaired_relaxed")),
+                "seed": r.get("seed", ""),
+                "steps": r.get("steps", ""),
+                "v2_1_profile_loaded": bool(profile),
+                "existing_v2_compatibility_pass": bool(r.get("overall_pass", False)) if str(r.get("label", "")).startswith("existing_v2_") else "",
+                "action_mass_total": r.get("action_frame_strength_sum", 0.0),
+                "hidden_damage_mean": r.get("hidden_damage_mean", 0.0),
+                "fatigue_mean": r.get("fatigue_mean", 0.0),
+                "information_quality_mean": r.get("information_quality_mean", 0.0),
+                "cooperation_intent_mean": r.get("cooperation_intent_mean", 0.0),
+                "defensiveness_mean": r.get("defensiveness_mean", 0.0),
+                "latent_pressure_mean": r.get("latent_pressure_mean", 0.0),
+                "private_resource_mean": r.get("private_resource_mean", 0.0),
+                "boundary_violation_total": r.get("boundary_violation_rows", 0),
+                "dry_run_write_violation_count": int(bool(r.get("dry_run_write_violation", False))),
+                "forbidden_write_count": int(bool(r.get("forbidden_write_detected", False))),
+                "minimal_implementation_probe_pass": bool(profile) and bool(r.get("overall_pass", False)),
+            })
+    v2_1_summary = pd.DataFrame(v2_1_rows)
+    axis_rows = []
+    for axis in ["information_asymmetry", "action_cost", "hidden_state_visibility", "short_term_gain_pressure", "relation_lock_strength", "recovery_delay"]:
+        implemented = axis in {"information_asymmetry", "action_cost"}
+        axis_rows.append({
+            "axis": axis,
+            "implemented": implemented,
+            "profile_values_available": bool(implemented and any(axis in (p.get("cause_side_parameters", {}) or p.get("config", {}).get("v2_world_config", {}).get("cause_side_parameters", {})) for p in cause_profiles.values())),
+            "matrix_runs_available": bool(implemented and v2_1_summary["run_label"].astype(str).str.contains(axis, regex=False).any()) if not v2_1_summary.empty else False,
+            "primary_metrics_available": "exact_for_exported_hidden_trace_means" if implemented else "not_applicable",
+            "proxy_metrics_available": "proxy_available" if implemented else "not_applicable",
+            "readiness_class": "ready_for_preliminary_one_axis_validation" if implemented else "deferred",
+            "blocker": "" if implemented else "deferred_by_phase2g10_scope",
+            "recommended_next_task": "Phase 2G-11 Cause-side Preliminary Validation Pack" if implemented else "Phase 2G-11 Additional v2.1 Axis Implementation Probe",
+        })
+    deferred_axes = sorted({x for p in cause_profiles.values() for x in (p.get("deferred_axes", []) or p.get("config", {}).get("v2_world_config", {}).get("deferred_axes", []))})
+    v2_1_axis = pd.DataFrame(axis_rows)
+    v2_1_compat = pd.DataFrame([r for r in rows if str(r.get("label", "")).startswith("existing_v2_")])
+    v2_1_metric = pd.DataFrame([
+        {"metric": "information_quality_mean", "status": "exact_exported_mean", "axis": "information_asymmetry"},
+        {"metric": "hidden_damage_mean", "status": "exact_exported_mean", "axis": "information_asymmetry"},
+        {"metric": "observed_vs_hidden_gap_proxy", "status": "proxy_available", "axis": "information_asymmetry"},
+        {"metric": "fatigue_mean", "status": "exact_exported_mean", "axis": "action_cost"},
+        {"metric": "action_cost_effect", "status": "proxy_available", "axis": "action_cost"},
+    ])
+    v2_1_deferred = pd.DataFrame([{"axis": axis, "implemented": False, "reason": "deferred_by_phase2g10_minimal_scope", "recommended_next_task": "Phase 2G-11 Additional v2.1 Axis Implementation Probe"} for axis in deferred_axes])
+    v2_1_next = pd.DataFrame([{"recommended_next_task": "Phase 2G-11 Cause-side Preliminary Validation Pack", "reason": "minimal two-axis v2.1 profile namespace loads and compatibility/safety smoke checks are present", "priority": "high"}])
+    dataframe_to_csv(v2_1_summary, output_dir / "v2_1_cause_side_minimal_implementation_summary.csv")
+    dataframe_to_csv(v2_1_axis, output_dir / "v2_1_cause_side_axis_readiness_summary.csv")
+    dataframe_to_csv(v2_1_compat, output_dir / "v2_1_cause_side_compatibility_summary.csv")
+    dataframe_to_csv(v2_1_metric, output_dir / "v2_1_cause_side_metric_readiness_summary.csv")
+    dataframe_to_csv(v2_1_deferred, output_dir / "v2_1_cause_side_deferred_axes_summary.csv")
+    dataframe_to_csv(v2_1_next, output_dir / "v2_1_cause_side_next_task_recommendation.csv")
 
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
@@ -1493,6 +1571,17 @@ def main() -> int:
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
         "recommended_next_task": "Phase 2G-9 Cause-side Matrix Skeleton Pack, with Additional Metric Export Repair for exact secondary claims as needed.",
+        "v2_1_cause_side_minimal_implementation_summary_present": (output_dir / "v2_1_cause_side_minimal_implementation_summary.csv").exists(),
+        "v2_1_cause_side_axis_readiness_summary_present": (output_dir / "v2_1_cause_side_axis_readiness_summary.csv").exists(),
+        "v2_1_cause_side_compatibility_summary_present": (output_dir / "v2_1_cause_side_compatibility_summary.csv").exists(),
+        "v2_1_cause_side_metric_readiness_summary_present": (output_dir / "v2_1_cause_side_metric_readiness_summary.csv").exists(),
+        "v2_1_cause_side_deferred_axes_summary_present": (output_dir / "v2_1_cause_side_deferred_axes_summary.csv").exists(),
+        "v2_1_cause_side_next_task_recommendation_present": (output_dir / "v2_1_cause_side_next_task_recommendation.csv").exists(),
+        "v2_1_cause_side_run_count": int(v2_1_summary["run_label"].nunique()) if "v2_1_summary" in locals() and not v2_1_summary.empty else 0,
+        "v2_1_implemented_axis_count": 2,
+        "v2_1_deferred_axis_count": int(len(deferred_axes)) if "deferred_axes" in locals() else 0,
+        "v2_1_minimal_implementation_probe_pass": bool("v2_1_summary" in locals() and not v2_1_summary.empty and v2_1_summary["minimal_implementation_probe_pass"].astype(bool).all()),
+        "existing_v2_compatibility_pass": bool("v2_1_compat" in locals() and not v2_1_compat.empty and v2_1_compat["overall_pass"].astype(bool).all()),
         "v2_extended_validation_summary_present": (output_dir / "v2_extended_validation_summary.csv").exists(),
         "v2_extended_profile_mode_comparison_present": (output_dir / "v2_extended_profile_mode_comparison.csv").exists(),
         "v2_extended_seed_stability_summary_present": (output_dir / "v2_extended_seed_stability_summary.csv").exists(),
