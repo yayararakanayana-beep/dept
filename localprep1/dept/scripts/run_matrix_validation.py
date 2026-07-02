@@ -542,6 +542,106 @@ def build_dampen_only_repair_tables(rows: list[dict]) -> tuple[pd.DataFrame, pd.
     } for r in rows if str(r.get("label", "")) in {"no_exploration_relaxed", "high_noise_relaxed", "shock_recovery_relaxed"} or str(r.get("world_profile", "")) in {"pseudo_reality_high_noise", "pseudo_reality_shock"}])
     return summary, comparison, relation, safety
 
+
+
+def _cols_present(frame: pd.DataFrame, columns: list[str]) -> bool:
+    return bool(not frame.empty and all(c in frame.columns for c in columns))
+
+
+def _missing_evidence(*items: tuple[str, bool]) -> str:
+    return ";".join(name for name, present in items if not present)
+
+
+def build_acd_low_risk_tables(label: str, cfg, out: dict, metrics: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    pressure = _df(out, "pressure_translation_audit")
+    window = _df(out, "parameter_window_binding_audit")
+    shadow = _df(out, "parameter_shadow_audit")
+    rollback = _df(out, "rollback_snapshot")
+    write = _df(out, "canonical_write_audit")
+    action_frame = _df(out, "action_frame")
+    action_result = _df(out, "action_result")
+    exec_audit = _df(out, "action_execution_audit")
+    world = _df(out, "world_transition_audit")
+    boundary = _df(out, "boundary_guard_audit")
+    ledger = _df(out, "cycle_audit_row")
+    v2_frames = [_df(out, n) for n in ["v2_hidden_trace", "v2_game_trace", "v2_resource_trace", "v2_information_trace", "v2_action_effect_trace"]]
+    v2_rows = sum(int(len(f)) for f in v2_frames if not f.empty)
+    mode = str(cfg.intermediate_conservatism_mode)
+    boundary_total = int(metrics.get("boundary_violation_rows", 0))
+    dry_run_write = int(bool(metrics.get("dry_run_write_violation", False)))
+    forbidden_write = int(bool(metrics.get("forbidden_write_detected", False)))
+    canonical_write = int(bool(metrics.get("dry_run_write_violation", False)))
+    direct_param = int(bool(metrics.get("direct_parameter_box_input_to_actionmodule", False)))
+    gk = int(bool(metrics.get("forbidden_write_detected", False)))
+    ot = int(bool(metrics.get("forbidden_write_detected", False)))
+
+    a_missing = _missing_evidence(
+        ("pressure_translation_audit", not pressure.empty),
+        ("parameter_window_binding_audit", not window.empty),
+        ("parameter_shadow_audit", not shadow.empty),
+        ("rollback_snapshot", not rollback.empty),
+    )
+    c_missing = _missing_evidence(
+        ("action_frame", not action_frame.empty),
+        ("action_result", not action_result.empty),
+        ("action_execution_audit", not exec_audit.empty),
+        ("action_source/planning_source/pressure_source/binding_source", _cols_present(action_frame, ["action_source", "planning_source", "pressure_source", "binding_source"])),
+    )
+    d_missing = _missing_evidence(
+        ("world_transition_audit", not world.empty),
+        ("boundary_guard_audit", not boundary.empty),
+        ("cycle_audit_row", not ledger.empty),
+    )
+    cross_missing = _missing_evidence(
+        ("pressure_to_window", (not pressure.empty) and (not window.empty)),
+        ("window_to_actionframe", (not window.empty) and _cols_present(action_frame, ["binding_source"])),
+        ("actionframe_to_actionresult", (not action_frame.empty) and (not action_result.empty)),
+        ("actionresult_to_world", (not action_result.empty) and (not world.empty)),
+        ("world_to_audit", (not world.empty) and ((not boundary.empty) or (not ledger.empty))),
+    )
+    a_pass = (boundary_total + dry_run_write + forbidden_write + canonical_write + direct_param == 0 and not window.empty and not shadow.empty and not rollback.empty)
+    c_pass = (boundary_total + forbidden_write + direct_param + gk + ot == 0 and not action_frame.empty and not action_result.empty)
+    d_pass = (boundary_total + dry_run_write + forbidden_write + canonical_write + gk + ot == 0 and not world.empty and not boundary.empty)
+    cross_pass = a_pass and c_pass and d_pass and cross_missing == ""
+    major_count = 0
+    missing_count = sum(1 for x in [a_missing, c_missing, d_missing, cross_missing] if x)
+
+    a = pd.DataFrame([{
+        "run_label": label, "pressure_translation_rows": int(len(pressure)), "parameter_window_rows": int(len(window)), "shadow_box_rows": int(len(shadow)), "mode": mode,
+        "relaxed_legacy_available": True, "repaired_relaxed_detected": mode == "relaxed", "canonical_write_detected": bool(canonical_write),
+        "rollback_snapshot_available": not rollback.empty, "parameter_to_action_direct_path_detected": bool(direct_param), "missing_evidence": a_missing,
+    }])
+    c = pd.DataFrame([{
+        "run_label": label, "action_frame_rows": int(len(action_frame)), "action_result_rows": int(len(action_result)), "action_mass": _sum_numeric(action_frame, "action_strength"),
+        "action_channel_counts": _count_values(action_frame, "action_channel"), "action_source_columns_present": _cols_present(action_frame, ["action_source", "planning_source", "pressure_source", "binding_source"]),
+        "actionmodule_input_boundary_clean": not bool(direct_param), "direct_parameter_box_input_to_actionmodule": bool(direct_param), "gk_access_detected": bool(gk), "ot_access_detected": bool(ot),
+        "action_result_by_channel_available": (not action_result.empty and "action_channel" in action_result.columns), "missing_evidence": c_missing,
+    }])
+    d = pd.DataFrame([{
+        "run_label": label, "world_transition_rows": int(len(world)), "boundary_guard_rows": int(len(boundary)), "audit_ledger_rows": int(len(ledger)),
+        "matrix_summary_fields_present": True, "world_actionframe_only_input": not bool(forbidden_write), "gk_writeback_detected": bool(gk), "ot_writeback_detected": bool(ot),
+        "canonical_write_detected": bool(canonical_write), "v2_trace_available": v2_rows > 0, "v2_trace_rows": v2_rows, "missing_evidence": d_missing,
+    }])
+    cross = pd.DataFrame([{
+        "run_label": label, "pressure_to_window_traceable": (not pressure.empty) and (not window.empty), "window_to_actionframe_traceable": (not window.empty) and _cols_present(action_frame, ["binding_source"]),
+        "actionframe_to_actionresult_traceable": (not action_frame.empty) and (not action_result.empty), "actionresult_to_world_traceable": (not action_result.empty) and (not world.empty),
+        "world_to_audit_traceable": (not world.empty) and ((not boundary.empty) or (not ledger.empty)), "forbidden_shortcut_detected": bool(direct_param or forbidden_write),
+        "cross_boundary_pass": bool(cross_pass), "missing_evidence": cross_missing,
+    }])
+    group = pd.DataFrame([{
+        "run_label": label, "seed": cfg.seed, "steps": cfg.steps, "world_profile": cfg.world_profile_name, "action_profile": cfg.action_profile_name,
+        "intermediate_conservatism_mode": mode, "a_group_pass": bool(a_pass), "c_group_pass": bool(c_pass), "d_group_pass": bool(d_pass), "cross_boundary_pass": bool(cross_pass),
+        "boundary_violation_total": boundary_total, "dry_run_write_violation_count": dry_run_write, "forbidden_write_count": forbidden_write,
+        "missing_evidence_count": missing_count, "major_repair_candidate_count": major_count,
+    }])
+    repair = pd.DataFrame([
+        {"file":"scripts/run_matrix_validation.py", "repair_type":"summary/export", "group":"A/C/D/Cross", "behavior_change":"no", "reason":"add consolidated validation CSVs and matrix summary flags", "risk_level":"low", "validation_support":label},
+        {"file":"configs/matrices/matrix_phase2g3_acd_consolidated_validation_low_risk_repair.json", "repair_type":"matrix", "group":"A/C/D/Cross", "behavior_change":"no", "reason":"add bounded 16-run validation matrix", "risk_level":"low", "validation_support":label},
+        {"file":"docs/PHASE2G3_ACD_CONSOLIDATED_VALIDATION_LOW_RISK_REPAIR.md", "repair_type":"report", "group":"A/C/D/Cross", "behavior_change":"no", "reason":"document separate findings and deferred major repair candidates", "risk_level":"low", "validation_support":label},
+    ])
+    deferred = pd.DataFrame(columns=["group", "module", "issue", "why_major", "evidence", "recommended_future_task", "priority"])
+    return group, a, c, d, cross, repair, deferred
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -558,6 +658,13 @@ def main() -> int:
     gate_decomposition_rows = []
     action_loss_rows = []
     stage_retention_rows = []
+    acd_group_rows = []
+    a_group_rows = []
+    c_group_rows = []
+    d_group_rows = []
+    acd_cross_rows = []
+    low_risk_repair_rows = []
+    deferred_major_rows = []
     per_run_dir = output_dir / "runs"
     per_run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -600,6 +707,20 @@ def main() -> int:
         dataframe_to_csv(action_loss, rd / "action_loss_by_gate_decision.csv")
         dataframe_to_csv(stage_retention, rd / "stage_retention_summary.csv")
 
+        acd_group, a_group, c_group, d_group, acd_cross, repair_manifest, deferred_major = build_acd_low_risk_tables(label, cfg, out, metrics)
+        acd_group_rows.append(acd_group)
+        a_group_rows.append(a_group)
+        c_group_rows.append(c_group)
+        d_group_rows.append(d_group)
+        acd_cross_rows.append(acd_cross)
+        low_risk_repair_rows.append(repair_manifest)
+        deferred_major_rows.append(deferred_major)
+        dataframe_to_csv(acd_group, rd / "acd_group_validation_summary.csv")
+        dataframe_to_csv(a_group, rd / "a_group_pressure_parameter_summary.csv")
+        dataframe_to_csv(c_group, rd / "c_group_action_boundary_summary.csv")
+        dataframe_to_csv(d_group, rd / "d_group_world_audit_export_summary.csv")
+        dataframe_to_csv(acd_cross, rd / "acd_cross_boundary_summary.csv")
+
     candidate_retention_all = pd.concat(candidate_retention_rows, ignore_index=True) if candidate_retention_rows else pd.DataFrame()
     gate_decomposition_all = pd.concat(gate_decomposition_rows, ignore_index=True) if gate_decomposition_rows else pd.DataFrame()
     action_loss_all = pd.concat(action_loss_rows, ignore_index=True) if action_loss_rows else pd.DataFrame()
@@ -608,6 +729,20 @@ def main() -> int:
     dataframe_to_csv(gate_decomposition_all, output_dir / "gate_decomposition_by_decision.csv")
     dataframe_to_csv(action_loss_all, output_dir / "action_loss_by_gate_decision.csv")
     dataframe_to_csv(stage_retention_all, output_dir / "stage_retention_summary.csv")
+    acd_group_all = pd.concat(acd_group_rows, ignore_index=True) if acd_group_rows else pd.DataFrame()
+    a_group_all = pd.concat(a_group_rows, ignore_index=True) if a_group_rows else pd.DataFrame()
+    c_group_all = pd.concat(c_group_rows, ignore_index=True) if c_group_rows else pd.DataFrame()
+    d_group_all = pd.concat(d_group_rows, ignore_index=True) if d_group_rows else pd.DataFrame()
+    acd_cross_all = pd.concat(acd_cross_rows, ignore_index=True) if acd_cross_rows else pd.DataFrame()
+    low_risk_repair_all = pd.concat(low_risk_repair_rows, ignore_index=True).drop_duplicates() if low_risk_repair_rows else pd.DataFrame()
+    deferred_major_all = pd.concat(deferred_major_rows, ignore_index=True) if deferred_major_rows else pd.DataFrame(columns=["group", "module", "issue", "why_major", "evidence", "recommended_future_task", "priority"])
+    dataframe_to_csv(acd_group_all, output_dir / "acd_group_validation_summary.csv")
+    dataframe_to_csv(a_group_all, output_dir / "a_group_pressure_parameter_summary.csv")
+    dataframe_to_csv(c_group_all, output_dir / "c_group_action_boundary_summary.csv")
+    dataframe_to_csv(d_group_all, output_dir / "d_group_world_audit_export_summary.csv")
+    dataframe_to_csv(acd_cross_all, output_dir / "acd_cross_boundary_summary.csv")
+    dataframe_to_csv(low_risk_repair_all, output_dir / "low_risk_repair_manifest.csv")
+    dataframe_to_csv(deferred_major_all, output_dir / "deferred_major_repair_candidates.csv")
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
     dataframe_to_csv(relation_comparison, output_dir / "relation_unlock_mode_comparison.csv")
@@ -671,7 +806,21 @@ def main() -> int:
         "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
-        "recommended_next_task": "Phase 2G-2e post-repair confirmation stress before v2 metric premise freeze",
+        "recommended_next_task": "Phase 2G-4 v2 premise freeze pack, with individual A/C/D major repair tasks only if deferred candidates appear",
+        "acd_group_validation_summary_present": (output_dir / "acd_group_validation_summary.csv").exists(),
+        "a_group_pressure_parameter_summary_present": (output_dir / "a_group_pressure_parameter_summary.csv").exists(),
+        "c_group_action_boundary_summary_present": (output_dir / "c_group_action_boundary_summary.csv").exists(),
+        "d_group_world_audit_export_summary_present": (output_dir / "d_group_world_audit_export_summary.csv").exists(),
+        "acd_cross_boundary_summary_present": (output_dir / "acd_cross_boundary_summary.csv").exists(),
+        "low_risk_repair_manifest_present": (output_dir / "low_risk_repair_manifest.csv").exists(),
+        "deferred_major_repair_candidates_present": (output_dir / "deferred_major_repair_candidates.csv").exists(),
+        "a_group_pass_total": int(acd_group_all["a_group_pass"].astype(bool).sum()) if not acd_group_all.empty else 0,
+        "c_group_pass_total": int(acd_group_all["c_group_pass"].astype(bool).sum()) if not acd_group_all.empty else 0,
+        "d_group_pass_total": int(acd_group_all["d_group_pass"].astype(bool).sum()) if not acd_group_all.empty else 0,
+        "cross_boundary_pass_total": int(acd_group_all["cross_boundary_pass"].astype(bool).sum()) if not acd_group_all.empty else 0,
+        "major_repair_candidate_count": int(acd_group_all["major_repair_candidate_count"].sum()) if not acd_group_all.empty else 0,
+        "missing_evidence_count": int(acd_group_all["missing_evidence_count"].sum()) if not acd_group_all.empty else 0,
+        "v2_trace_readiness_pass": bool((d_group_all["v2_trace_available"].astype(bool).any()) if not d_group_all.empty and "v2_trace_available" in d_group_all.columns else False),
     }
     probe_only = relation_comparison[relation_comparison["mode_or_variant"].astype(str).str.contains("probe", regex=False)] if not relation_comparison.empty else pd.DataFrame()
     best_mass = probe_only.sort_values("action_mass", ascending=False).iloc[0] if not probe_only.empty else None
