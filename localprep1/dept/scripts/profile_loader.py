@@ -24,9 +24,12 @@ def load_json(path: Path) -> Dict[str, Any]:
 
 
 def load_named_profile(kind: str, name: str) -> Dict[str, Any]:
+    # Names may include a namespace subdirectory for generated/cause-side
+    # profiles (for example cause_side_v2_1/foo). Existing flat profile names
+    # continue to resolve exactly as before.
     path = CONFIG_ROOT / kind / f"{name}.json"
     if not path.exists():
-        available = sorted(p.stem for p in (CONFIG_ROOT / kind).glob("*.json"))
+        available = sorted(str(p.relative_to(CONFIG_ROOT / kind).with_suffix("")) for p in (CONFIG_ROOT / kind).rglob("*.json"))
         raise FileNotFoundError(f"Profile not found: {kind}/{name}. Available: {available}")
     return load_json(path)
 
@@ -105,6 +108,7 @@ def collect_metrics(label: str, cfg: FullSpecRunnerConfig, out: Dict[str, Any]) 
     exec_audit = df("action_execution_audit")
     world = df("world_transition_audit")
     binding = df("parameter_window_binding_audit")
+    hidden = df("v2_hidden_trace")
 
     def sum_col(frame, col):
         if frame is None or frame.empty or col not in frame.columns:
@@ -212,6 +216,13 @@ def collect_metrics(label: str, cfg: FullSpecRunnerConfig, out: Dict[str, Any]) 
         "forbidden_write_detected": forbidden,
         "direct_parameter_box_input_to_actionmodule": bool_any(exec_audit, "direct_parameter_box_input_to_actionmodule"),
         "action_source_audit_columns_present": bool_all(exec_audit, "action_source_audit_columns_present"),
+        "hidden_damage_mean": mean_col(hidden, "hidden_damage"),
+        "fatigue_mean": mean_col(hidden, "fatigue"),
+        "information_quality_mean": mean_col(hidden, "information_quality"),
+        "cooperation_intent_mean": mean_col(hidden, "cooperation_intent"),
+        "defensiveness_mean": mean_col(hidden, "defensiveness"),
+        "latent_pressure_mean": mean_col(hidden, "latent_pressure"),
+        "private_resource_mean": mean_col(hidden, "private_resource"),
     }
 
 
