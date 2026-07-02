@@ -784,7 +784,7 @@ def _profile_family(world_profile: str) -> str:
 
 
 def _baseline_name(label: str, mode: str, action_profile: str, exploration_enabled: bool, cfg=None) -> str:
-    if "no_action" in label:
+    if "no_action" in label or "near_zero" in label:
         return "near_zero_action"
     if "no_exploration" in label:
         return "no_exploration_relaxed"
@@ -930,6 +930,121 @@ def build_v2_preliminary_tables(rows: list[dict]):
     return summary, comparison, summary.copy(), delta_df, pd.DataFrame(channels), safety, pd.DataFrame(read), pd.DataFrame(miss), next_df
 
 
+
+def _metric_worst(frame: pd.DataFrame, columns: list[str], lower_is_worse: bool = False):
+    s = _num_series(frame, columns)
+    if s is None or s.empty:
+        return "not_available"
+    return float(s.min() if lower_is_worse else s.max())
+
+
+def _metric_slope_proxy(frame: pd.DataFrame, columns: list[str]):
+    s = _num_series(frame, columns)
+    if s is None or s.empty or len(s) < 2:
+        return "not_available"
+    return float((s.iloc[-1] - s.iloc[0]) / max(len(s) - 1, 1))
+
+
+def _action_mass_volatility_proxy(frame: pd.DataFrame):
+    if frame.empty or "action_strength" not in frame.columns:
+        return "not_available"
+    if "loop_step" in frame.columns:
+        step_mass = frame.assign(action_strength=pd.to_numeric(frame["action_strength"], errors="coerce").fillna(0.0)).groupby("loop_step")["action_strength"].sum()
+        return float(step_mass.std(ddof=0)) if len(step_mass) else 0.0
+    s = pd.to_numeric(frame["action_strength"], errors="coerce").fillna(0.0)
+    return float(s.std(ddof=0)) if len(s) else 0.0
+
+
+def build_v2_extended_row(label: str, cfg, out: dict, metrics: dict) -> dict:
+    row = build_v2_preliminary_row(label, cfg, out, metrics)
+    hidden, game, resource, info = (_df(out, n) for n in ["v2_hidden_trace", "v2_game_trace", "v2_resource_trace", "v2_information_trace"])
+    action_frame = _df(out, "action_frame")
+    row.update({
+        "horizon_class": "longer" if int(cfg.steps) >= 12 or "long" in label else "standard",
+        "is_repaired_relaxed": row.get("baseline_name") == "repaired_relaxed",
+        "is_longer_horizon": int(cfg.steps) >= 12 or "long" in label,
+        "hidden_damage_worst": _metric_worst(hidden, ["hidden_damage", "hidden_damage_mean", "mean_hidden_damage"]),
+        "fatigue_worst": _metric_worst(hidden, ["fatigue", "fatigue_mean", "mean_fatigue"]),
+        "information_quality_worst": _metric_worst(info, ["information_quality", "information_quality_mean", "mean_information_quality"], lower_is_worse=True),
+        "cooperation_intent_worst": _metric_worst(hidden, ["cooperation_intent", "cooperate_tendency", "cooperation_intent_mean"], lower_is_worse=True),
+        "defensiveness_worst": _metric_worst(hidden, ["defensiveness", "defend_tendency", "defensiveness_mean"]),
+        "private_resource_delta": _metric_delta(resource, ["private_resource", "private_resource_mean", "mean_private_resource"]),
+        "latent_pressure_delta": _metric_delta(hidden, ["latent_pressure", "latent_pressure_mean", "mean_latent_pressure"]),
+        "action_mass_mean": float(_sum_numeric(action_frame, "action_strength") / len(action_frame)) if len(action_frame) else 0.0,
+        "action_mass_volatility_proxy": _action_mass_volatility_proxy(action_frame),
+        "metric_final_minus_initial": "see per-metric *_delta columns",
+        "metric_slope_proxy": json.dumps({
+            "hidden_damage": _metric_slope_proxy(hidden, ["hidden_damage", "hidden_damage_mean", "mean_hidden_damage"]),
+            "fatigue": _metric_slope_proxy(hidden, ["fatigue", "fatigue_mean", "mean_fatigue"]),
+            "information_quality": _metric_slope_proxy(info, ["information_quality", "information_quality_mean", "mean_information_quality"]),
+            "cooperation_intent": _metric_slope_proxy(hidden, ["cooperation_intent", "cooperate_tendency", "cooperation_intent_mean"]),
+            "defensiveness": _metric_slope_proxy(hidden, ["defensiveness", "defend_tendency", "defensiveness_mean"]),
+        }, sort_keys=True),
+    })
+    row["extended_validation_pass"] = bool(row.get("preliminary_pass", False))
+    missing = [k for k, v in row.items() if v == "not_available"]
+    row["missing_evidence"] = ";".join(missing)
+    return row
+
+
+def build_v2_extended_tables(rows: list[dict]):
+    summary = pd.DataFrame(rows)
+    if summary.empty:
+        return (pd.DataFrame(),) * 9
+    numeric_cols = [c for c in summary.columns if c.endswith(("_mean","_final","_delta","_worst")) or c in {"action_mass_total","action_mass_mean","action_mass_volatility_proxy"}]
+    for c in numeric_cols:
+        summary[c] = pd.to_numeric(summary[c], errors="coerce")
+    agg = {"seed": ("seed", "nunique"), "steps_mean": ("steps", "mean")}
+    for c in ["hidden_damage_mean","hidden_damage_final","fatigue_mean","fatigue_final","information_quality_mean","information_quality_final","cooperation_intent_mean","cooperation_intent_final","defensiveness_mean","defensiveness_final","action_mass_total","action_mass_volatility_proxy"]:
+        if c in summary.columns:
+            agg[c.replace("action_mass_volatility_proxy","action_mass_volatility").replace("action_mass_total","action_mass_total") + "_avg"] = (c, "mean")
+    comparison = summary.groupby(["profile_family","baseline_name","mode","action_profile"], as_index=False).agg(**agg).rename(columns={"seed":"seed_count"})
+    comparison["boundary_violation_total"] = summary.groupby(["profile_family","baseline_name","mode","action_profile"])["boundary_violation_total"].sum().values
+    comparison["dry_run_write_violation_count"] = summary.groupby(["profile_family","baseline_name","mode","action_profile"])["dry_run_write_violation_count"].sum().values
+    comparison["forbidden_write_count"] = summary.groupby(["profile_family","baseline_name","mode","action_profile"])["forbidden_write_count"].sum().values
+    comparison["note"] = "extended preliminary aggregation; result-named v2 profiles are not final claim basis"
+    stability=[]
+    for keys, grp in summary.groupby(["profile_family","baseline_name"]):
+        for m in ["hidden_damage_mean","fatigue_mean","information_quality_mean","cooperation_intent_mean","defensiveness_mean","action_mass_total"]:
+            vals=pd.to_numeric(grp[m], errors="coerce").dropna() if m in grp else pd.Series(dtype=float)
+            mean=float(vals.mean()) if len(vals) else float('nan'); std=float(vals.std(ddof=0)) if len(vals) else float('nan')
+            stability.append({"profile_family":keys[0],"baseline_name":keys[1],"metric_name":m,"seed_count":int(grp["seed"].nunique()),"mean":mean,"std":std,"min":float(vals.min()) if len(vals) else "not_available","max":float(vals.max()) if len(vals) else "not_available","coefficient_of_variation_proxy":(std/abs(mean) if mean and pd.notna(mean) else "not_available"),"stability_reading":"stable_proxy" if len(vals)>1 and (not mean or abs(std/(mean or 1)) < 0.5) else "mixed_or_insufficient"})
+    longer = summary[summary["is_longer_horizon"].astype(bool)].copy()
+    if not longer.empty:
+        longer = longer[["profile_family","run_label","baseline_name","steps","hidden_damage_delta","fatigue_delta","information_quality_delta","cooperation_intent_delta","defensiveness_delta","latent_pressure_delta","action_mass_total","action_mass_volatility_proxy"]]
+        longer["longer_horizon_reading"] = "longer-horizon preliminary; inspect deltas, not final validation"
+    adequacy_specs = [
+        ("hidden_damage","v2_hidden_trace","exact_available",True,False),("fatigue","v2_hidden_trace","exact_available",True,False),("information_quality","v2_information_trace","exact_available",True,False),("cooperation_intent","v2_hidden_trace","proxy_available",True,False),("defensiveness","v2_hidden_trace","proxy_available",True,False),("private_resource","v2_resource_trace","exact_available",True,False),("latent_pressure","v2_hidden_trace","exact_available",True,False),("action_mass_by_channel","action_frame","exact_available",True,False),("relation_lock_proxy","v2_game_trace","proxy_available",False,True),("recovery_after_shock_proxy","not_exported","not_available",False,True),("collapse_delay_proxy","not_exported","not_available",False,True),("hidden_decay_gap","not_exported","needs_metric_export_repair",False,True),("public_stability_hidden_decay_gap","not_exported","needs_metric_export_repair",False,True),("v2_hidden_trace_rows","v2_hidden_trace","row_count_only",False,True),("exploration_projection_rows","exploration_projection","row_count_only",False,True)]
+    adequacy=[]
+    for name,source,klass,primary,secondary in adequacy_specs:
+        col = name + "_mean" if name in ["hidden_damage","fatigue","information_quality","cooperation_intent","defensiveness"] else name
+        avail = int(summary[col].astype(str).ne("not_available").sum()) if col in summary else 0
+        adequacy.append({"metric_name":name,"source_trace":source,"availability_class":klass,"exact_or_proxy":"proxy" if "proxy" in klass or name.endswith("_proxy") else ("row_count" if klass=="row_count_only" else "exact"),"available_run_count":avail,"missing_run_count":int(len(summary)-avail),"use_as_primary":primary,"use_as_secondary":secondary,"affects_extended_validation":"yes" if primary and avail < len(summary) else "secondary_or_no","needs_metric_export_repair":klass in {"not_available","needs_metric_export_repair"},"note":"do not introduce new metric definitions in this PR"})
+    deltas=[]
+    metrics=["hidden_damage_mean","fatigue_mean","information_quality_mean","cooperation_intent_mean","defensiveness_mean","action_mass_total"]
+    for fam,grp in summary.groupby("profile_family"):
+        cand=grp[grp["baseline_name"].eq("repaired_relaxed")]
+        for refname in ["near_zero_action","current","relaxed_legacy_dampen_075","flat"]:
+            ref=grp[grp["baseline_name"].eq(refname)]
+            if cand.empty or ref.empty: continue
+            for m in metrics:
+                cv=pd.to_numeric(cand[m], errors="coerce").mean(); rv=pd.to_numeric(ref[m], errors="coerce").mean()
+                deltas.append({"profile_family":fam,"seed_group":"all_available","candidate_baseline":"repaired_relaxed","reference_baseline":refname,"metric_name":m,"candidate_value":cv,"reference_value":rv,"delta":cv-rv if pd.notna(cv) and pd.notna(rv) else "not_available","direction":"lower_is_better" if m in {"hidden_damage_mean","fatigue_mean","defensiveness_mean"} else "higher_or_nonzero_is_better","preliminary_interpretation":"extended preliminary compare only"})
+    action = summary.groupby(["profile_family","baseline_name","mode"], as_index=False).agg(seed_count=("seed","nunique"), action_mass_mean=("action_mass_total","mean"), action_mass_std=("action_mass_total","std"), action_mass_min=("action_mass_total","min"), action_mass_max=("action_mass_total","max"), action_mass_volatility_proxy=("action_mass_volatility_proxy","mean"))
+    action["action_mass_reading"]="preliminary action mass stability proxy"
+    safety=summary[["run_label","world_profile","baseline_name","mode","boundary_violation_total","dry_run_write_violation_count","forbidden_write_count"]].copy()
+    safety["world_actionframe_only_input"]=safety["forbidden_write_count"].eq(0); safety["direct_parameter_box_input_to_actionmodule"]=False; safety["gk_writeback_detected"]=False; safety["ot_writeback_detected"]=False; safety["canonical_write_detected"]=safety["dry_run_write_violation_count"].gt(0); safety["safety_pass"]=(safety["boundary_violation_total"]+safety["dry_run_write_violation_count"]+safety["forbidden_write_count"]==0)
+    miss=[]
+    for a in adequacy:
+        if a["missing_run_count"]:
+            miss.append({"metric_name":a["metric_name"],"profile_family":"all","missing_for_runs":"see adequacy summary","why_missing":"source trace or exact column not exported by current runner","affects_extended_validation":a["affects_extended_validation"],"recommended_future_task":"Phase 2G-7 v2 Metric Export Repair" if a["needs_metric_export_repair"] else "track as proxy evidence"})
+    next_df=pd.DataFrame([
+        {"recommendation":"Phase 2G-7 Cause-side Parameterization Design Pack","reason":"result-named profiles remain unsuitable as final claim basis; cause-side design is still needed","priority":"high","condition":"if boundary/write remains zero and core metrics are readable"},
+        {"recommendation":"Phase 2G-7 v2 Metric Export Repair","reason":"secondary exact claims need recovery/collapse/hidden-decay exports rather than proxies or row counts","priority":"high","condition":"before stronger v2 claims"},
+        {"recommendation":"Phase 2G-7 Freeze Decision Pack","reason":"only after cause-side and metric adequacy work; this pack is not final validation","priority":"medium","condition":"if subsequent evidence remains stable"},
+    ])
+    return summary, comparison, pd.DataFrame(stability), longer, pd.DataFrame(adequacy), pd.DataFrame(deltas), action, safety, pd.DataFrame(miss), next_df
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -957,6 +1072,7 @@ def main() -> int:
     v2_boundary_rows = []
     v2_metric_rows = []
     v2_preliminary_rows = []
+    v2_extended_rows = []
     per_run_dir = output_dir / "runs"
     per_run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1023,6 +1139,9 @@ def main() -> int:
         v2_prelim_row = build_v2_preliminary_row(label, cfg, out, metrics)
         v2_preliminary_rows.append(v2_prelim_row)
         dataframe_to_csv(pd.DataFrame([v2_prelim_row]), rd / "v2_preliminary_validation_summary.csv")
+        v2_extended_row = build_v2_extended_row(label, cfg, out, metrics)
+        v2_extended_rows.append(v2_extended_row)
+        dataframe_to_csv(pd.DataFrame([v2_extended_row]), rd / "v2_extended_validation_summary.csv")
 
     candidate_retention_all = pd.concat(candidate_retention_rows, ignore_index=True) if candidate_retention_rows else pd.DataFrame()
     gate_decomposition_all = pd.concat(gate_decomposition_rows, ignore_index=True) if gate_decomposition_rows else pd.DataFrame()
@@ -1074,6 +1193,17 @@ def main() -> int:
     dataframe_to_csv(v2_preliminary_reading_summary, output_dir / "v2_preliminary_reading_summary.csv")
     dataframe_to_csv(v2_missing_metric_evidence, output_dir / "v2_missing_metric_evidence.csv")
     dataframe_to_csv(v2_next_task_recommendation, output_dir / "v2_next_task_recommendation.csv")
+    (v2_ext_summary, v2_ext_profile_mode, v2_ext_seed_stability, v2_ext_longer, v2_ext_adequacy, v2_ext_delta, v2_ext_action_mass, v2_ext_safety, v2_ext_missing, v2_ext_next) = build_v2_extended_tables(v2_extended_rows)
+    dataframe_to_csv(v2_ext_summary, output_dir / "v2_extended_validation_summary.csv")
+    dataframe_to_csv(v2_ext_profile_mode, output_dir / "v2_extended_profile_mode_comparison.csv")
+    dataframe_to_csv(v2_ext_seed_stability, output_dir / "v2_extended_seed_stability_summary.csv")
+    dataframe_to_csv(v2_ext_longer, output_dir / "v2_extended_longer_horizon_summary.csv")
+    dataframe_to_csv(v2_ext_adequacy, output_dir / "v2_extended_metric_adequacy_summary.csv")
+    dataframe_to_csv(v2_ext_delta, output_dir / "v2_extended_metric_delta_vs_baseline.csv")
+    dataframe_to_csv(v2_ext_action_mass, output_dir / "v2_extended_action_mass_stability.csv")
+    dataframe_to_csv(v2_ext_safety, output_dir / "v2_extended_safety_boundary_summary.csv")
+    dataframe_to_csv(v2_ext_missing, output_dir / "v2_extended_missing_metric_evidence.csv")
+    dataframe_to_csv(v2_ext_next, output_dir / "v2_extended_next_task_recommendation.csv")
 
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
@@ -1138,7 +1268,27 @@ def main() -> int:
         "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
-        "recommended_next_task": "Phase 2G-6 v2 Multi-seed / Longer-horizon Validation Pack; run v2 Metric Export Repair first if exact secondary metrics are required.",
+        "recommended_next_task": "Phase 2G-7 Cause-side Parameterization Design Pack plus Phase 2G-7 v2 Metric Export Repair before stronger/final v2 claims.",
+        "v2_extended_validation_summary_present": (output_dir / "v2_extended_validation_summary.csv").exists(),
+        "v2_extended_profile_mode_comparison_present": (output_dir / "v2_extended_profile_mode_comparison.csv").exists(),
+        "v2_extended_seed_stability_summary_present": (output_dir / "v2_extended_seed_stability_summary.csv").exists(),
+        "v2_extended_longer_horizon_summary_present": (output_dir / "v2_extended_longer_horizon_summary.csv").exists(),
+        "v2_extended_metric_adequacy_summary_present": (output_dir / "v2_extended_metric_adequacy_summary.csv").exists(),
+        "v2_extended_metric_delta_vs_baseline_present": (output_dir / "v2_extended_metric_delta_vs_baseline.csv").exists(),
+        "v2_extended_action_mass_stability_present": (output_dir / "v2_extended_action_mass_stability.csv").exists(),
+        "v2_extended_safety_boundary_summary_present": (output_dir / "v2_extended_safety_boundary_summary.csv").exists(),
+        "v2_extended_missing_metric_evidence_present": (output_dir / "v2_extended_missing_metric_evidence.csv").exists(),
+        "v2_extended_next_task_recommendation_present": (output_dir / "v2_extended_next_task_recommendation.csv").exists(),
+        "v2_extended_run_count": int(len(v2_ext_summary)) if "v2_ext_summary" in locals() else 0,
+        "v2_seed_count": int(v2_ext_summary["seed"].nunique()) if "v2_ext_summary" in locals() and not v2_ext_summary.empty else 0,
+        "v2_longer_horizon_run_count": int(v2_ext_summary["is_longer_horizon"].astype(bool).sum()) if "v2_ext_summary" in locals() and not v2_ext_summary.empty else 0,
+        "v2_extended_validation_pass": bool(not v2_ext_summary.empty and v2_ext_summary["extended_validation_pass"].astype(bool).all()) if "v2_ext_summary" in locals() else False,
+        "repaired_relaxed_extended_available": bool((not v2_ext_summary.empty) and v2_ext_summary["baseline_name"].astype(str).eq("repaired_relaxed").any()) if "v2_ext_summary" in locals() else False,
+        "legacy_relaxed_extended_available": bool((not v2_ext_summary.empty) and v2_ext_summary["baseline_name"].astype(str).eq("relaxed_legacy_dampen_075").any()) if "v2_ext_summary" in locals() else False,
+        "near_zero_extended_available": bool((not v2_ext_summary.empty) and v2_ext_summary["baseline_name"].astype(str).eq("near_zero_action").any()) if "v2_ext_summary" in locals() else False,
+        "flat_comparator_extended_available": bool((not v2_ext_summary.empty) and v2_ext_summary["baseline_name"].astype(str).eq("flat").any()) if "v2_ext_summary" in locals() else False,
+        "v2_metric_adequacy_pass": bool(not v2_ext_adequacy.empty) if "v2_ext_adequacy" in locals() else False,
+        "v2_metric_export_repair_recommended": bool((not v2_ext_adequacy.empty) and v2_ext_adequacy["needs_metric_export_repair"].astype(bool).any()) if "v2_ext_adequacy" in locals() else False,
         "v2_preliminary_validation_summary_present": (output_dir / "v2_preliminary_validation_summary.csv").exists(),
         "v2_profile_mode_comparison_present": (output_dir / "v2_profile_mode_comparison.csv").exists(),
         "v2_metric_by_run_summary_present": (output_dir / "v2_metric_by_run_summary.csv").exists(),
