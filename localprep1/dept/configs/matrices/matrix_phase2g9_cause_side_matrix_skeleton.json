@@ -1,0 +1,125 @@
+{
+  "name": "phase2g9_cause_side_matrix_skeleton",
+  "status": "design_skeleton_not_executable_until_v2_1",
+  "purpose": "Define cause-side sweep structure before implementation; this is not a runnable validation matrix until cause-side v2.1 profiles/parameters exist.",
+  "non_goals": [
+    "v2_1_implementation",
+    "v2_world_dynamics_change",
+    "v2_state_update_change",
+    "v2_action_effect_formula_change",
+    "v2_profile_json_change",
+    "ActionModule_tuning",
+    "write_path_change",
+    "superiority_claim",
+    "safety_proof"
+  ],
+  "cause_axes": {
+    "primary": [
+      {
+        "name": "information_asymmetry",
+        "description": "Gap between observed information and hidden state.",
+        "values": {"low": 0.1, "medium": 0.3, "high": 0.6, "extreme": 0.9}
+      },
+      {
+        "name": "hidden_state_visibility",
+        "description": "Visibility of hidden state; lower values increase hidden-state opacity.",
+        "values": {"high_visibility": 0.9, "medium_visibility": 0.6, "low_visibility": 0.3, "extreme_hidden": 0.1}
+      },
+      {
+        "name": "short_term_gain_pressure",
+        "description": "Pressure to extract near-term gain at potential long-run hidden/fatigue/cooperation cost.",
+        "values": {"low": 0.1, "medium": 0.3, "high": 0.6, "extreme": 0.8}
+      },
+      {
+        "name": "relation_lock_strength",
+        "description": "Strength of relation/topology lock that may require relation unlock actions.",
+        "values": {"low": 0.1, "medium": 0.3, "high": 0.6, "extreme": 0.8}
+      },
+      {
+        "name": "recovery_delay",
+        "description": "Persistence of deterioration after shock or action pressure.",
+        "values": {"low": 0.1, "medium": 0.3, "high": 0.6, "extreme": 0.8}
+      },
+      {
+        "name": "action_cost",
+        "description": "World-side cost of action pressure, without changing ActionModule semantics.",
+        "values": {"none_or_low": 0.0, "medium": 0.05, "high": 0.1, "extreme": 0.2}
+      }
+    ],
+    "secondary_design_table_only": [
+      "misread_probability",
+      "information_delay",
+      "information_distortion",
+      "resource_inequality",
+      "commons_dependency",
+      "private_information_rate",
+      "fatigue_accumulation_rate",
+      "intervention_fatigue",
+      "exploration_cost",
+      "repair_friction",
+      "trust_decay_rate",
+      "cooperation_decay_rate",
+      "public_metric_bias"
+    ]
+  },
+  "one_axis_sweeps": [
+    {"axis": "information_asymmetry", "hold_other_primary_axes": "medium_or_existing_v2_1_baseline", "comparison_baselines": "required_baselines", "goal": "Read observed/hidden gap, information quality, cooperation, defensiveness, and hidden damage response."},
+    {"axis": "hidden_state_visibility", "hold_other_primary_axes": "medium_or_existing_v2_1_baseline", "comparison_baselines": "required_baselines", "goal": "Read surface stability versus internal deterioration."},
+    {"axis": "short_term_gain_pressure", "hold_other_primary_axes": "medium_or_existing_v2_1_baseline", "comparison_baselines": "required_baselines", "goal": "Read whether near-term gain pressure increases hidden damage, fatigue, resource pressure, or cooperation loss."},
+    {"axis": "relation_lock_strength", "hold_other_primary_axes": "medium_or_existing_v2_1_baseline", "comparison_baselines": "required_baselines", "goal": "Read relation-lock conditions, unlock action mass, and side effects."},
+    {"axis": "recovery_delay", "hold_other_primary_axes": "medium_or_existing_v2_1_baseline", "comparison_baselines": "required_baselines", "goal": "Read deterioration persistence and recovery proxy behavior."},
+    {"axis": "action_cost", "hold_other_primary_axes": "medium_or_existing_v2_1_baseline", "comparison_baselines": "required_baselines", "goal": "Read fatigue, defensiveness, latent pressure, and channel-level action effect under action cost."}
+  ],
+  "pair_sweeps": [
+    {"axes": ["information_asymmetry", "hidden_state_visibility"], "purpose": "Separate misaligned information from hidden-state opacity."},
+    {"axes": ["information_asymmetry", "misread_probability"], "purpose": "Read information asymmetry interacting with mistaken interpretation."},
+    {"axes": ["short_term_gain_pressure", "recovery_delay"], "purpose": "Read extraction pressure when recovery is slow."},
+    {"axes": ["relation_lock_strength", "action_cost"], "purpose": "Read whether unlock/coupling actions become costly under locked relations."},
+    {"axes": ["commons_dependency", "resource_inequality"], "purpose": "Read shared-resource depletion under unequal resource conditions."},
+    {"axes": ["information_delay", "action_cost"], "purpose": "Read late or mistimed action pressure when actions are costly."}
+  ],
+  "scenario_compositions": [
+    {"name": "trust-collapse-like", "drivers": {"information_asymmetry": "high", "misread_probability": "high", "information_distortion": "high", "trust_decay_rate": "high", "relation_lock_strength": "medium_or_high"}},
+    {"name": "shrinking-equilibrium-like", "drivers": {"short_term_gain_pressure": "high", "commons_dependency": "high", "resource_inequality": "medium_or_high", "recovery_delay": "high", "relation_lock_strength": "high"}},
+    {"name": "hidden-decay-like", "drivers": {"hidden_state_visibility": "low_or_extreme_hidden", "information_delay": "high", "information_distortion": "high", "fatigue_accumulation_rate": "high", "public_metric_bias": "high"}},
+    {"name": "high-action-cost-like", "drivers": {"action_cost": "high_or_extreme", "intervention_fatigue": "high", "exploration_cost": "high", "repair_friction": "high", "recovery_delay": "medium_or_high"}}
+  ],
+  "baseline_comparisons": {
+    "required": ["near-zero-action", "current", "relaxed_legacy_dampen_075", "repaired relaxed", "flat"],
+    "optional": ["action_buffered_relaxed", "no_exploration_relaxed"],
+    "notes": {
+      "near-zero-action": "Minimal-action approximation, not a perfect no-action claim.",
+      "repaired relaxed": "Production candidate for continued investigation only.",
+      "flat": "Upper-bound comparator only; not a production candidate."
+    }
+  },
+  "metric_assignments": [
+    {"axis": "information_asymmetry", "primary": ["information_quality", "hidden_damage", "cooperation_intent", "defensiveness"], "proxy": ["observed_vs_hidden_gap", "misread_proxy"], "blocking": ["If observed_vs_hidden_gap cannot be read at all, classify the axis as proxy-only."]},
+    {"axis": "hidden_state_visibility", "primary": ["hidden_damage", "fatigue", "latent_pressure"], "proxy": ["hidden_decay_gap", "public_stability_hidden_decay_gap", "observed_vs_hidden_gap"], "blocking": ["If hidden_decay_gap and public_stability_hidden_decay_gap are both unreadable, route to additional metric export repair."]},
+    {"axis": "short_term_gain_pressure", "primary": ["hidden_damage", "fatigue", "private_resource", "cooperation_intent", "latent_pressure"], "proxy": ["commons_health_proxy"], "blocking": ["If private_resource is unreadable, stop resource-related sweeps."]},
+    {"axis": "relation_lock_strength", "primary": ["relation_lock_proxy", "defensiveness", "cooperation_intent", "action_effect_by_channel"], "proxy": ["relation_unlock_action_mass", "recovery_after_shock_proxy"], "blocking": ["If relation_lock_proxy is unreadable, downgrade relation sweeps to proxy-only."]},
+    {"axis": "recovery_delay", "primary": ["hidden_damage_final", "fatigue_final", "cooperation_intent_final"], "proxy": ["recovery_after_shock_proxy", "collapse_delay_proxy"], "blocking": ["If recovery_after_shock_proxy is unreadable, prohibit exact recovery_delay claims."]},
+    {"axis": "action_cost", "primary": ["fatigue", "defensiveness", "latent_pressure", "action_effect_by_channel"], "proxy": ["action_cost_effect", "intervention_fatigue", "repeated_intervention_proxy"], "blocking": ["If action_effect_by_channel is unreadable, prohibit ActionModule tuning decisions."]}
+  ],
+  "readiness_requirements": [
+    "Skeleton JSON is valid JSON and explicitly marked non-executable until v2.1.",
+    "Primary axes are limited to six for the first implementation probe.",
+    "One-axis sweeps, priority pair sweeps, scenario compositions, baseline comparisons, metric assignments, and blocking conditions are defined.",
+    "Exact, proxy, and not_available metric statuses from Phase 2G-8 remain distinct.",
+    "No implementation, world dynamics, ActionModule, safety, acceptance, or write-path surface is changed."
+  ],
+  "blocking_conditions": [
+    "private_resource unreadable: stop resource-related sweeps.",
+    "relation_lock_proxy unreadable: relation sweeps become proxy-only.",
+    "action_effect_by_channel unreadable: no ActionModule tuning judgment.",
+    "recovery_after_shock_proxy unreadable: no exact recovery_delay claim.",
+    "hidden_decay_gap and public_stability_hidden_decay_gap both unreadable: return to additional metric export repair."
+  ],
+  "recommended_next_tasks": [
+    "Phase 2G-10 Cause-side Parameterized v2.1 Minimal Implementation Probe",
+    "Phase 2G-10 Additional Metric Export Repair",
+    "Phase 2G-10 Cause-side Skeleton Readiness Existing-v2 Validation",
+    "Phase 2G-10 ActionModule v2 Tuning Probe",
+    "Phase 2G-10 Freeze Decision Pack"
+  ]
+}
