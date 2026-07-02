@@ -13,6 +13,7 @@ if str(REPO_ROOT_FOR_IMPORTS) not in sys.path:
 
 from dept2_fullspec_runner_rc1.runner.fullspec_integrated_closed_loop_runner import run_fullspec_task16
 
+from scripts.observation_window_summary import build_observation_window_summary, flatten_observation_windows
 from scripts.profile_loader import (
     REPO_ROOT,
     build_runner_config,
@@ -53,6 +54,9 @@ def main() -> int:
     metrics["overall_pass"] = acceptance_pass(metrics)
 
     write_json(output_dir / "summary.json", metrics)
+    window_summary = build_observation_window_summary(args.label, cfg, out, metrics)
+    write_json(output_dir / "observation_window_summary.json", window_summary)
+    dataframe_to_csv(flatten_observation_windows(window_summary), output_dir / "observation_window_summary.csv")
     write_json(output_dir / "run_manifest.json", {
         "label": args.label,
         "validation_profile": args.validation_profile,
@@ -81,7 +85,7 @@ def main() -> int:
         "# Latest validation run\n\n"
         f"label: `{args.label}`\n\n"
         f"overall_pass: `{metrics['overall_pass']}`\n\n"
-        "See `summary.json` and CSV audit files.\n",
+        "See `summary.json`, `observation_window_summary.json`, `observation_window_summary.csv`, and CSV audit files.\n",
         encoding="utf-8",
     )
 
