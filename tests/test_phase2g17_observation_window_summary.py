@@ -38,13 +38,15 @@ def test_phase2g17_observation_windows_emit_required_shape_and_unresolved_fields
         "parameter_shadow_audit": pd.DataFrame([{"gate_pressure_norm": 0.05, "gate_integral_norm": 0.01}]),
         "action_frame": pd.DataFrame([{"action_strength": 0.02, "action_channel": "uncertainty_probe"}]),
         "v2_information_trace": pd.DataFrame([{"information_asymmetry": 0.2}]),
+        "v2_resource_trace": pd.DataFrame([{"shared_resource": 0.7, "commons_health": 0.8, "private_resource_mean": 0.75}]),
+        "v2_game_trace": pd.DataFrame([{"local_payoff": 0.65, "short_term_payoff": 0.6}]),
     }
     cfg = SimpleNamespace(validation_profile_name="smoke", world_profile_name="pseudo_reality_default", action_profile_name="action_default")
 
     summary = build_observation_window_summary("unit", cfg, out)
 
     assert [w["window_name"] for w in summary["windows"]] == [
-        "system_benefit_window",
+        "v2_direct_benefit_window",
         "h11_possibility_distribution_window",
         "pressure_action_alignment_window",
         "risk_band_window",
@@ -52,7 +54,10 @@ def test_phase2g17_observation_windows_emit_required_shape_and_unresolved_fields
         "composite_balance_window",
     ]
     for window in summary["windows"]:
-        assert set(window) == {"window_name", "status_label", "evidence_fields", "warning_flags", "unresolved_flags", "short_reason"}
+        required = {"window_name", "status_label", "evidence_fields", "warning_flags", "unresolved_flags", "short_reason"}
+        if window["window_name"] == "v2_direct_benefit_window":
+            required |= {"derived_fields", "context_fields"}
+        assert set(window) == required
         assert window["status_label"] in {"healthy", "watch", "warning", "critical", "unresolved"}
     assert "missing_growth_capacity_proxy" in next(w for w in summary["windows"] if w["window_name"] == "growth_window")["unresolved_flags"]
 
