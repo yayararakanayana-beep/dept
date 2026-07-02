@@ -642,6 +642,140 @@ def build_acd_low_risk_tables(label: str, cfg, out: dict, metrics: dict) -> tupl
     deferred = pd.DataFrame(columns=["group", "module", "issue", "why_major", "evidence", "recommended_future_task", "priority"])
     return group, a, c, d, cross, repair, deferred
 
+
+
+def _trace_rows(out: dict, name: str) -> int:
+    frame = _df(out, name)
+    return 0 if frame.empty else int(len(frame))
+
+
+def build_v2_premise_freeze_tables(label: str, cfg, out: dict, metrics: dict):
+    hidden = _df(out, "v2_hidden_trace")
+    game = _df(out, "v2_game_trace")
+    resource = _df(out, "v2_resource_trace")
+    info = _df(out, "v2_information_trace")
+    effect = _df(out, "v2_action_effect_trace")
+    action_frame = _df(out, "action_frame")
+    action_result = _df(out, "action_result")
+    projection = _df(out, "exploration_projection")
+    mode = str(cfg.intermediate_conservatism_mode)
+    is_v2 = str(cfg.world_profile_name).startswith("pseudo_reality_v2_")
+    boundary_total = int(metrics.get("boundary_violation_rows", 0))
+    dry_run_write = int(bool(metrics.get("dry_run_write_violation", False)))
+    forbidden_write = int(bool(metrics.get("forbidden_write_detected", False)))
+    direct_param = int(bool(metrics.get("direct_parameter_box_input_to_actionmodule", False)))
+    v2_rows = {name: _trace_rows(out, name) for name in ["v2_hidden_trace", "v2_game_trace", "v2_resource_trace", "v2_information_trace", "v2_action_effect_trace"]}
+    v2_available = any(v2_rows.values())
+    missing = []
+    if is_v2 and not v2_available:
+        missing.append("v2_trace")
+    for trace_name, count in v2_rows.items():
+        if is_v2 and count == 0:
+            missing.append(trace_name)
+    premise_pass = bool((not is_v2 or v2_available) and boundary_total == 0 and dry_run_write == 0 and forbidden_write == 0 and direct_param == 0)
+    premise = pd.DataFrame([{
+        "run_label": label,
+        "world_profile": cfg.world_profile_name,
+        "action_profile": cfg.action_profile_name,
+        "intermediate_conservatism_mode": mode,
+        "seed": cfg.seed,
+        "steps": cfg.steps,
+        "is_v2_profile": is_v2,
+        "v2_trace_available": v2_available,
+        "v2_hidden_trace_rows": v2_rows["v2_hidden_trace"],
+        "v2_game_trace_rows": v2_rows["v2_game_trace"],
+        "v2_resource_trace_rows": v2_rows["v2_resource_trace"],
+        "v2_information_trace_rows": v2_rows["v2_information_trace"],
+        "v2_action_effect_trace_rows": v2_rows["v2_action_effect_trace"],
+        "boundary_violation_total": boundary_total,
+        "dry_run_write_violation_count": dry_run_write,
+        "forbidden_write_count": forbidden_write,
+        "premise_freeze_pass": premise_pass,
+        "missing_evidence": ";".join(missing),
+    }])
+    boundary = pd.DataFrame([{
+        "run_label": label,
+        "world_profile": cfg.world_profile_name,
+        "mode": mode,
+        "world_actionframe_only_input": not bool(forbidden_write),
+        "direct_parameter_box_input_to_actionmodule": bool(direct_param),
+        "gk_writeback_detected": bool(forbidden_write),
+        "ot_writeback_detected": bool(forbidden_write),
+        "canonical_write_detected": bool(dry_run_write),
+        "boundary_violation_total": boundary_total,
+        "dry_run_write_violation_count": dry_run_write,
+        "forbidden_write_count": forbidden_write,
+        "safety_pass": boundary_total == 0 and dry_run_write == 0 and forbidden_write == 0 and direct_param == 0,
+    }])
+    metric_specs = [
+        ("hidden_damage", hidden, ["hidden_damage", "mean_hidden_damage"], True, False),
+        ("fatigue", hidden, ["fatigue", "mean_fatigue"], True, False),
+        ("information_quality", info, ["information_quality", "mean_information_quality"], True, False),
+        ("cooperation_intent", game, ["cooperation_intent", "mean_cooperation_intent"], True, False),
+        ("defensiveness", game, ["defensiveness", "mean_defensiveness"], True, False),
+        ("private_resource", resource, ["private_resource", "mean_private_resource"], True, False),
+        ("latent_pressure", hidden, ["latent_pressure", "mean_latent_pressure"], True, False),
+        ("relation_lock_proxy", game, ["relation_lock", "mean_relation_lock"], True, False),
+        ("recovery_after_shock_proxy", game, ["recovery_after_shock_proxy"], True, False),
+        ("action_mass_total", action_frame, ["action_strength"], True, False),
+        ("action_mass_by_channel", action_frame, ["action_channel", "action_strength"], True, False),
+        ("boundary_violation_total", pd.DataFrame([metrics]), ["boundary_violation_rows"], True, False),
+        ("dry_run_write_violation_count", pd.DataFrame([metrics]), ["dry_run_write_violation"], True, False),
+        ("forbidden_write_count", pd.DataFrame([metrics]), ["forbidden_write_detected"], True, False),
+        ("volatility_proxy", pd.DataFrame([metrics]), ["world_delta_volatility_mean"], False, True),
+        ("collapse_delay_proxy", hidden, ["collapse_delay_proxy"], False, True),
+        ("hidden_decay_gap", hidden, ["hidden_decay_gap"], False, True),
+        ("public_stability_hidden_decay_gap", hidden, ["public_stability_hidden_decay_gap"], False, True),
+        ("exploration_projection_rows", projection, [], False, True),
+        ("action_frame_rows", action_frame, [], False, True),
+        ("action_result_rows", action_result, [], False, True),
+        ("v2_action_effect_rows", effect, [], False, True),
+        ("v2_information_trace_rows", info, [], False, True),
+        ("v2_resource_trace_rows", resource, [], False, True),
+    ]
+    metric_rows = []
+    for metric_name, frame, cols, primary, secondary in metric_specs:
+        source = "derived_from_existing_summary" if metric_name.endswith("count") or metric_name == "boundary_violation_total" else "existing_trace"
+        available = (not frame.empty) if not cols else (not frame.empty and all(c in frame.columns for c in cols))
+        metric_rows.append({
+            "metric_name": metric_name,
+            "source_trace": source,
+            "available": bool(available),
+            "exact_or_proxy": "proxy" if "proxy" in metric_name or metric_name in {"volatility_proxy", "relation_lock_proxy"} else "exact_or_trace_row_count",
+            "aggregation_plan": "mean/final for state metrics; sum/by-channel for action mass; count rows/violations for trace and safety metrics",
+            "missing_reason": "" if available else "source trace or expected column not exported by current runner",
+            "use_as_primary": primary,
+            "use_as_secondary": secondary,
+        })
+    return premise, boundary, pd.DataFrame(metric_rows)
+
+
+def build_v2_static_premise_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    profiles = pd.DataFrame([
+        {"profile_name":"pseudo_reality_v2_trust_collapse","profile_type":"stress/readiness profile with trust-collapse tendency","result_named_profile":True,"use_in_preliminary_validation":True,"use_as_final_claim_basis":False,"caution_note":"Do not treat this result-named profile as the sole paper-axis; future cause-side parameterization is required.","trace_available":"checked_by_matrix","readiness_pass":"checked_by_matrix"},
+        {"profile_name":"pseudo_reality_v2_shrinking_equilibrium","profile_type":"stress/readiness profile with shrinking-equilibrium tendency","result_named_profile":True,"use_in_preliminary_validation":True,"use_as_final_claim_basis":False,"caution_note":"Do not treat this result-named profile as the sole paper-axis; future cause-side parameterization is required.","trace_available":"checked_by_matrix","readiness_pass":"checked_by_matrix"},
+        {"profile_name":"pseudo_reality_v2_public_stability_hidden_decay","profile_type":"stress/readiness profile with public-stability/hidden-decay tendency","result_named_profile":True,"use_in_preliminary_validation":True,"use_as_final_claim_basis":False,"caution_note":"Use for preliminary readiness only; final claims need cause-side parameters.","trace_available":"checked_by_matrix","readiness_pass":"checked_by_matrix"},
+    ])
+    baselines = pd.DataFrame([
+        {"baseline_name":"no_action / no_intervention","mode":"relaxed with zero-strength/no exploration where available","action_profile":"action_conservative zeroed by run overrides","purpose":"observe natural v2 drift/readiness","production_candidate":False,"comparison_role":"required baseline","available_now":True,"missing_reason":""},
+        {"baseline_name":"current","mode":"current","action_profile":"action_conservative","purpose":"old conservative baseline","production_candidate":False,"comparison_role":"required comparison","available_now":True,"missing_reason":""},
+        {"baseline_name":"relaxed_legacy_dampen_075","mode":"relaxed_legacy_dampen_075","action_profile":"action_conservative","purpose":"rollback/comparison baseline","production_candidate":False,"comparison_role":"required comparison","available_now":True,"missing_reason":""},
+        {"baseline_name":"repaired relaxed","mode":"relaxed","action_profile":"action_conservative","purpose":"Phase 2G-2d current main candidate","production_candidate":True,"comparison_role":"required current candidate","available_now":True,"missing_reason":""},
+        {"baseline_name":"flat","mode":"flat","action_profile":"action_conservative","purpose":"upper-bound comparator only","production_candidate":False,"comparison_role":"required upper-bound comparator","available_now":True,"missing_reason":"not a production candidate"},
+        {"baseline_name":"action_conservative","mode":"relaxed","action_profile":"action_conservative","purpose":"optional action profile comparison","production_candidate":False,"comparison_role":"optional baseline","available_now":True,"missing_reason":""},
+        {"baseline_name":"action_buffered","mode":"relaxed","action_profile":"action_buffered","purpose":"optional buffered action comparison","production_candidate":False,"comparison_role":"optional baseline","available_now":True,"missing_reason":""},
+        {"baseline_name":"no_exploration_relaxed","mode":"relaxed with exploration_enabled=false","action_profile":"action_conservative","purpose":"optional no-exploration comparison","production_candidate":False,"comparison_role":"optional baseline","available_now":True,"missing_reason":""},
+    ])
+    missing = pd.DataFrame([
+        {"category":"metric","missing_evidence":"Some v2 primary/secondary metrics may be absent as exact columns in current traces.","why_missing":"Phase 2G-4 does not add large metric formulas or alter v2 exports.","affects_premise_freeze":False,"recommended_future_task":"Phase 2G-5 v2 Metric Export Repair if preliminary validation needs exact columns."},
+        {"category":"design","missing_evidence":"Cause-side parameterized profiles are not implemented.","why_missing":"This pack freezes premises only and does not change world dynamics/profile parameters.","affects_premise_freeze":False,"recommended_future_task":"Phase 2G-5 v2 Cause-side Parameterization Design or v2.1/v3 design task."},
+    ])
+    deferred = pd.DataFrame([
+        {"priority":"high","design_item":"information_asymmetry / hidden_state_visibility / private_information_rate / misread_probability / information_delay / information_distortion","why_deferred":"Requires cause-side profile design and likely new matrices; not a premise-freeze implementation change.","evidence":"Current v2 profiles are result-named stress/readiness profiles.","recommended_future_task":"Phase 2G-5 v2 Cause-side Parameterization Design"},
+        {"priority":"medium","design_item":"resource_inequality / commons_dependency / short_term_gain_pressure / relation_lock_strength / recovery_delay / action_cost","why_deferred":"Requires explicit dynamics/profile design beyond this no-behavior-change pack.","evidence":"Requested as future candidates only.","recommended_future_task":"v2.1/v3 cause-side parameterization design"},
+    ])
+    return profiles, baselines, missing, deferred
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Task22C profile matrix validation.")
     parser.add_argument("--matrix", default=str(REPO_ROOT / "configs" / "matrices" / "matrix_basic.json"))
@@ -665,6 +799,9 @@ def main() -> int:
     acd_cross_rows = []
     low_risk_repair_rows = []
     deferred_major_rows = []
+    v2_premise_rows = []
+    v2_boundary_rows = []
+    v2_metric_rows = []
     per_run_dir = output_dir / "runs"
     per_run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -721,6 +858,13 @@ def main() -> int:
         dataframe_to_csv(d_group, rd / "d_group_world_audit_export_summary.csv")
         dataframe_to_csv(acd_cross, rd / "acd_cross_boundary_summary.csv")
 
+        v2_premise, v2_boundary, v2_metric = build_v2_premise_freeze_tables(label, cfg, out, metrics)
+        v2_premise_rows.append(v2_premise)
+        v2_boundary_rows.append(v2_boundary)
+        v2_metric_rows.append(v2_metric)
+        dataframe_to_csv(v2_premise, rd / "v2_premise_freeze_summary.csv")
+        dataframe_to_csv(v2_boundary, rd / "v2_boundary_safety_summary.csv")
+
     candidate_retention_all = pd.concat(candidate_retention_rows, ignore_index=True) if candidate_retention_rows else pd.DataFrame()
     gate_decomposition_all = pd.concat(gate_decomposition_rows, ignore_index=True) if gate_decomposition_rows else pd.DataFrame()
     action_loss_all = pd.concat(action_loss_rows, ignore_index=True) if action_loss_rows else pd.DataFrame()
@@ -743,6 +887,21 @@ def main() -> int:
     dataframe_to_csv(acd_cross_all, output_dir / "acd_cross_boundary_summary.csv")
     dataframe_to_csv(low_risk_repair_all, output_dir / "low_risk_repair_manifest.csv")
     dataframe_to_csv(deferred_major_all, output_dir / "deferred_major_repair_candidates.csv")
+    v2_premise_all = pd.concat(v2_premise_rows, ignore_index=True) if v2_premise_rows else pd.DataFrame()
+    v2_boundary_all = pd.concat(v2_boundary_rows, ignore_index=True) if v2_boundary_rows else pd.DataFrame()
+    v2_metric_all = pd.concat(v2_metric_rows, ignore_index=True).drop_duplicates(subset=["metric_name"], keep="first") if v2_metric_rows else pd.DataFrame()
+    v2_profiles, v2_baselines, v2_missing, v2_deferred = build_v2_static_premise_tables()
+    v2_profile_pass = bool(not v2_profiles.empty and v2_premise_all[v2_premise_all["is_v2_profile"].astype(bool)]["v2_trace_available"].astype(bool).all()) if not v2_premise_all.empty else False
+    if not v2_profiles.empty:
+        v2_profiles["trace_available"] = v2_profile_pass
+        v2_profiles["readiness_pass"] = v2_profile_pass
+    dataframe_to_csv(v2_premise_all, output_dir / "v2_premise_freeze_summary.csv")
+    dataframe_to_csv(v2_profiles, output_dir / "v2_profile_readiness_summary.csv")
+    dataframe_to_csv(v2_metric_all, output_dir / "v2_metric_availability_summary.csv")
+    dataframe_to_csv(v2_baselines, output_dir / "v2_baseline_comparison_plan.csv")
+    dataframe_to_csv(v2_boundary_all, output_dir / "v2_boundary_safety_summary.csv")
+    dataframe_to_csv(v2_missing, output_dir / "v2_missing_evidence_summary.csv")
+    dataframe_to_csv(v2_deferred, output_dir / "v2_deferred_design_candidates.csv")
     probe_summary, relation_comparison, dampen_comparison, safety_summary = build_intermediate_conservatism_probe_tables(rows)
     dataframe_to_csv(probe_summary, output_dir / "intermediate_conservatism_probe_summary.csv")
     dataframe_to_csv(relation_comparison, output_dir / "relation_unlock_mode_comparison.csv")
@@ -806,7 +965,21 @@ def main() -> int:
         "repaired_relation_unlock_mass": float(repair_comparison["repaired_relation_unlock_mass"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_legacy": float(repair_comparison["repaired_relation_unlock_delta_vs_legacy"].iloc[0]) if not repair_comparison.empty else 0.0,
         "repaired_relation_unlock_delta_vs_flat": float(repair_comparison["repaired_relation_unlock_delta_vs_flat"].iloc[0]) if not repair_comparison.empty else 0.0,
-        "recommended_next_task": "Phase 2G-4 v2 premise freeze pack, with individual A/C/D major repair tasks only if deferred candidates appear",
+        "recommended_next_task": "Phase 2G-5 v2 Preliminary Validation Pack if premise, trace, metric-availability, and boundary-safety checks pass; otherwise split into v2 Metric Export Repair or boundary/readiness repair.",
+        "v2_premise_freeze_summary_present": (output_dir / "v2_premise_freeze_summary.csv").exists(),
+        "v2_profile_readiness_summary_present": (output_dir / "v2_profile_readiness_summary.csv").exists(),
+        "v2_metric_availability_summary_present": (output_dir / "v2_metric_availability_summary.csv").exists(),
+        "v2_baseline_comparison_plan_present": (output_dir / "v2_baseline_comparison_plan.csv").exists(),
+        "v2_boundary_safety_summary_present": (output_dir / "v2_boundary_safety_summary.csv").exists(),
+        "v2_missing_evidence_summary_present": (output_dir / "v2_missing_evidence_summary.csv").exists(),
+        "v2_deferred_design_candidates_present": (output_dir / "v2_deferred_design_candidates.csv").exists(),
+        "v2_profile_readiness_pass": bool(v2_profile_pass),
+        "v2_metric_availability_pass": bool(not v2_metric_all.empty),
+        "v2_boundary_safety_pass": bool(not v2_boundary_all.empty and v2_boundary_all["safety_pass"].astype(bool).all()),
+        "v2_premise_freeze_pass": bool(not v2_premise_all.empty and v2_premise_all["premise_freeze_pass"].astype(bool).all()),
+        "v2_trace_available_run_count": int(v2_premise_all["v2_trace_available"].astype(bool).sum()) if not v2_premise_all.empty else 0,
+        "v2_missing_evidence_count": int(v2_missing["missing_evidence"].astype(str).ne("").sum()) if not v2_missing.empty else 0,
+        "v2_deferred_design_candidate_count": int(len(v2_deferred)),
         "acd_group_validation_summary_present": (output_dir / "acd_group_validation_summary.csv").exists(),
         "a_group_pressure_parameter_summary_present": (output_dir / "a_group_pressure_parameter_summary.csv").exists(),
         "c_group_action_boundary_summary_present": (output_dir / "c_group_action_boundary_summary.csv").exists(),
