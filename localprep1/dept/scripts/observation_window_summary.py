@@ -8,6 +8,7 @@ inputs.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Mapping
 
 import pandas as pd
@@ -30,6 +31,37 @@ def _mean(frame: pd.DataFrame, column: str) -> float | None:
         return None
     return float(series.mean())
 
+
+
+def _latest_t(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty or "t" not in frame.columns:
+        return frame
+    t = pd.to_numeric(frame["t"], errors="coerce")
+    if t.dropna().empty:
+        return frame
+    return frame.loc[t == t.max()]
+
+
+def _latest_mean(frame: pd.DataFrame, column: str) -> float | None:
+    return _mean(_latest_t(frame), column)
+
+
+def _latest_value(frame: pd.DataFrame, column: str) -> float | None:
+    latest = _latest_t(frame)
+    if latest.empty or column not in latest.columns:
+        return None
+    series = pd.to_numeric(latest[column], errors="coerce").dropna()
+    if series.empty:
+        return None
+    return float(series.iloc[-1])
+
+
+def _clip01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _equal_mean(*values: float) -> float:
+    return _clip01(sum(values) / len(values))
 
 def _sum(frame: pd.DataFrame, column: str) -> float | None:
     if frame.empty or column not in frame.columns:
@@ -120,24 +152,110 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
 
     windows: List[Window] = []
 
-    # 1. System Benefit Window
+    # 1. v2 Direct Benefit Window
     ev: List[Dict[str, Any]] = []
     warn: List[str] = []
     unr: List[str] = []
-    total = _add_mean(ev, unr, resource, "v2_resource_trace", "total_resource", mark_missing=False)
-    if total is None:
-        total = _add_mean(ev, unr, hidden, "v2_hidden_trace", "total_resource", mark_missing=False)
-    if total is None:
-        _missing(unr, "total_resource")
-    for col in ["private_resource", "cooperation_intent", "information_quality", "hidden_damage", "fatigue", "defensiveness", "latent_pressure"]:
-        val = _add_mean(ev, unr, hidden, "v2_hidden_trace", col)
-        if col in {"hidden_damage", "fatigue", "defensiveness", "latent_pressure"} and val is not None and val >= 0.55:
-            warn.append(f"{col}_elevated")
-        if col in {"cooperation_intent", "information_quality"} and val is not None and val <= 0.35:
-            warn.append(f"{col}_low")
-    _add_mean(ev, unr, world, "world_transition_audit", "mean_delta_reversibility", "long_term_stability_proxy")
-    _missing(unr, "recovery_after_shock")
-    windows.append(_window("system_benefit_window", ev, warn, unr))
+    context_fields: Dict[str, Any] = {}
+    context_flags: List[str] = []
+
+    def add_core(field: str, source: str, value: float | None, method: str) -> float | None:
+        if value is None:
+            unr.append(f"unresolved_core_{field}")
+            return None
+        ev.append(_evidence(field, source, value, method))
+        return value
+
+    def add_context(field: str, source: str, value: float | None, method: str, status_effect: str = "context_only") -> float | None:
+        if value is not None:
+            context_fields[field] = {"value": value, "source": source, "method": method, "status_effect": status_effect}
+        return value
+
+    shared_resource = add_core("shared_resource", "v2_resource_trace", _latest_value(resource, "shared_resource"), "latest_t_value")
+    commons_health = add_core("commons_health", "v2_resource_trace", _latest_value(resource, "commons_health"), "latest_t_value")
+    private_resource_mean_value = _latest_value(resource, "private_resource_mean")
+    private_resource_source = "v2_resource_trace"
+    private_resource_method = "latest_t_value"
+    if private_resource_mean_value is None:
+        private_resource_mean_value = _latest_mean(hidden, "private_resource")
+        private_resource_source = "v2_hidden_trace.private_resource"
+        private_resource_method = "latest_t_mean_fallback"
+    private_resource_mean = add_core("private_resource_mean", private_resource_source, private_resource_mean_value, private_resource_method)
+    game = _df(out, "v2_game_trace")
+    local_payoff_mean = add_core("local_payoff_mean", "v2_game_trace.local_payoff", _latest_mean(game, "local_payoff"), "latest_t_mean")
+    short_term_payoff_mean = add_core("short_term_payoff_mean", "v2_game_trace.short_term_payoff", _latest_mean(game, "short_term_payoff"), "latest_t_mean")
+
+    resource_pressure = add_context("resource_pressure", "v2_resource_trace", _latest_value(resource, "resource_pressure"), "latest_t_value", "used_for_status")
+    resource_inequality = add_context("resource_inequality", "v2_resource_trace", _latest_value(resource, "resource_inequality"), "latest_t_value")
+    cooperation_intent_mean = add_context("cooperation_intent_mean", "v2_hidden_trace.cooperation_intent", _latest_mean(hidden, "cooperation_intent"), "latest_t_mean")
+    add_context("cooperate_tendency_mean", "v2_game_trace.cooperate_tendency", _latest_mean(game, "cooperate_tendency"), "latest_t_mean")
+    add_context("share_tendency_mean", "v2_game_trace.share_tendency", _latest_mean(game, "share_tendency"), "latest_t_mean")
+    information_quality_mean = _latest_mean(info, "information_quality_mean")
+    information_quality_source = "v2_information_trace.information_quality_mean"
+    if information_quality_mean is None:
+        information_quality_mean = _latest_mean(hidden, "information_quality")
+        information_quality_source = "v2_hidden_trace.information_quality"
+    add_context("information_quality_mean", information_quality_source, information_quality_mean, "latest_t_mean")
+    add_context("information_flow_mean", "v2_information_trace.information_flow_mean", _latest_mean(info, "information_flow_mean"), "latest_t_mean")
+
+    derived_fields: Dict[str, Any] = {}
+    if unr:
+        status = "unresolved"
+        short_reason = "core field missing: " + ", ".join(flag.removeprefix("unresolved_core_") for flag in unr)
+    else:
+        total_resource_proxy = _equal_mean(shared_resource, commons_health, private_resource_mean)  # type: ignore[arg-type]
+        visible_benefit_proxy = _equal_mean(shared_resource, commons_health, private_resource_mean, local_payoff_mean)  # type: ignore[arg-type]
+        short_term_benefit_proxy = _equal_mean(short_term_payoff_mean, local_payoff_mean)  # type: ignore[arg-type]
+        derived_fields = {
+            "total_resource_proxy": {"value": total_resource_proxy, "method": "equal_mean(shared_resource, commons_health, private_resource_mean)"},
+            "visible_benefit_proxy": {"value": visible_benefit_proxy, "method": "equal_mean(shared_resource, commons_health, private_resource_mean, local_payoff_mean)"},
+            "short_term_benefit_proxy": {"value": short_term_benefit_proxy, "method": "equal_mean(short_term_payoff_mean, local_payoff_mean)"},
+        }
+        critical = []
+        if visible_benefit_proxy < 0.20: critical.append("critical_visible_benefit_collapse")
+        if total_resource_proxy < 0.20: critical.append("critical_total_resource_proxy_collapse")
+        if shared_resource < 0.20 and commons_health < 0.20: critical.append("critical_shared_base_collapse")  # type: ignore[operator]
+        if private_resource_mean < 0.20: critical.append("critical_private_resource_depletion")  # type: ignore[operator]
+        if resource_pressure is not None and resource_pressure > 0.90: critical.append("critical_resource_pressure_extreme")
+        if visible_benefit_proxy < 0.35: warn.append("visible_benefit_low")
+        if total_resource_proxy < 0.35: warn.append("total_resource_proxy_low")
+        if short_term_benefit_proxy < 0.35: warn.append("short_term_benefit_low")
+        if shared_resource < 0.35: warn.append("shared_resource_low")  # type: ignore[operator]
+        if commons_health < 0.35: warn.append("commons_health_low")  # type: ignore[operator]
+        if private_resource_mean < 0.35: warn.append("private_resource_mean_low")  # type: ignore[operator]
+        if resource_pressure is not None and resource_pressure > 0.80: warn.append("resource_pressure_high")
+        warn = critical + warn
+        if resource_inequality is not None and resource_inequality > 0.75: context_flags.append("resource_inequality_high_context")
+        if cooperation_intent_mean is not None and cooperation_intent_mean < 0.35: context_flags.append("cooperation_context_low")
+        if information_quality_mean is not None and information_quality_mean < 0.35: context_flags.append("information_quality_context_low")
+        if context_flags:
+            context_fields["flags"] = context_flags
+        watch_condition = (
+            0.35 <= visible_benefit_proxy < 0.55 or 0.35 <= total_resource_proxy < 0.55 or
+            0.35 <= short_term_benefit_proxy < 0.45 or (resource_pressure is not None and 0.65 < resource_pressure <= 0.80)
+        )
+        healthy_condition = visible_benefit_proxy >= 0.55 and total_resource_proxy >= 0.55 and short_term_benefit_proxy >= 0.45 and (resource_pressure is None or resource_pressure <= 0.65)
+        if critical:
+            status = "critical"
+        elif warn:
+            status = "warning"
+        elif healthy_condition:
+            status = "healthy"
+        elif watch_condition:
+            status = "watch"
+        else:
+            status = "watch"
+        short_reason = _reason(status, warn, [])
+    windows.append({
+        "window_name": "v2_direct_benefit_window",
+        "status_label": status,
+        "evidence_fields": ev,
+        "derived_fields": derived_fields,
+        "context_fields": context_fields,
+        "warning_flags": warn,
+        "unresolved_flags": unr,
+        "short_reason": short_reason,
+    })
 
     # 2. H11 Possibility-Distribution Window
     ev, warn, unr = [], [], []
@@ -227,7 +345,7 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
     warning_by_name = {w["window_name"]: len(w["warning_flags"]) for w in windows}
     ev.append(_evidence("window_statuses", "observation_window_summary", status_by_name, "derived_from_window_status_labels"))
     ev.append(_evidence("window_warning_counts", "observation_window_summary", warning_by_name, "derived_from_window_warning_flags"))
-    if status_by_name.get("system_benefit_window") in {"healthy", "watch"} and status_by_name.get("h11_possibility_distribution_window") in {"warning", "critical"}:
+    if status_by_name.get("v2_direct_benefit_window") in {"healthy", "watch"} and status_by_name.get("h11_possibility_distribution_window") in {"warning", "critical"}:
         warn.append("benefit_vs_possibility_tension")
     if status_by_name.get("growth_window") in {"healthy", "watch"} and "fatigue_elevated" in windows[0]["warning_flags"]:
         warn.append("growth_vs_fatigue_tension")
@@ -238,7 +356,7 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
     windows.append(_window("composite_balance_window", ev, warn, unr))
 
     return {
-        "phase": "Phase 2G-17",
+        "phase": "Phase 2G-18R-1",
         "label": label,
         "validation_profile": getattr(cfg, "validation_profile_name", ""),
         "world_profile": getattr(cfg, "world_profile_name", ""),
@@ -262,5 +380,7 @@ def flatten_observation_windows(summary: Mapping[str, Any]) -> pd.DataFrame:
             "unresolved_flags": ";".join(window["unresolved_flags"]),
             "short_reason": window["short_reason"],
             "boundary_note": summary.get("boundary_note", ""),
+            "derived_fields_json": json.dumps(window.get("derived_fields", {}), ensure_ascii=False, sort_keys=True),
+            "context_fields_json": json.dumps(window.get("context_fields", {}), ensure_ascii=False, sort_keys=True),
         })
     return pd.DataFrame(rows)
