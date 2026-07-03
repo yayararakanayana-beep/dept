@@ -119,6 +119,16 @@ def _evidence(name: str, source: str, value: Any, method: str = "existing_trace_
     return {"field": name, "source": source, "value": value, "method": method}
 
 
+def _interpreted_evidence(name: str, source: str, value: Any, method: str, interpretation: str, higher_is: str) -> Dict[str, Any]:
+    item = _evidence(name, source, value, method)
+    item.update({"interpretation": interpretation, "higher_is": higher_is})
+    return item
+
+
+def _field_entry(value: float, method: str, interpretation: str, higher_is: str = "worse") -> Dict[str, Any]:
+    return {"value": _clip01(value), "method": method, "interpretation": interpretation, "higher_is": higher_is}
+
+
 def _status(warnings: List[str], unresolved: List[str], evidence: List[Dict[str, Any]]) -> str:
     if not evidence:
         return "unresolved"
@@ -642,23 +652,154 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
         "short_reason": short_reason,
     })
 
-    # 4. Risk-Band Window
+    # 4. v2 Direct Risk-Band Window
     ev, warn, unr = [], [], []
-    risk_vals = {}
-    for col in ["hidden_damage", "fatigue", "defensiveness", "latent_pressure", "cooperation_intent", "information_quality"]:
-        risk_vals[col] = _add_mean(ev, unr, hidden, "v2_hidden_trace", col)
-    risk_vals["information_asymmetry"] = _add_mean(ev, unr, info, "v2_information_trace", "information_asymmetry")
-    risk_vals["action_cost"] = _add_mean(ev, unr, action, "action_frame", "action_cost")
-    risk_vals["relation_lock"] = _add_mean(ev, unr, world, "world_transition_audit", "mean_delta_relation_lock", "relation_lock_proxy")
-    for col in ["recovery_capacity", "possibility_distribution_narrowing", "shrinking_equilibrium_risk", "relation_rigidity"]:
-        _missing(unr, col)
-    if any((risk_vals.get(c) or 0.0) >= 0.75 for c in ["hidden_damage", "fatigue", "defensiveness", "latent_pressure"]):
-        warn.append("critical_hidden_or_pressure_burden_extreme")
-    elif any((risk_vals.get(c) or 0.0) >= 0.55 for c in ["hidden_damage", "fatigue", "defensiveness", "latent_pressure"]):
-        warn.append("hidden_or_pressure_burden_elevated")
-    if risk_vals.get("cooperation_intent") is not None and risk_vals["cooperation_intent"] <= 0.35:
-        warn.append("cooperation_intent_low")
-    windows.append(_window("risk_band_window", ev, warn, unr))
+    risk_context_fields: Dict[str, Any] = {"used_core_fields": [], "used_auxiliary_fields": [], "missing_auxiliary_fields": [], "flags": []}
+    risk_derived_fields: Dict[str, Any] = {}
+    risk_values: Dict[str, float] = {}
+
+    risk_interpretations = {
+        "hidden_damage": "hidden internal damage on v2 side",
+        "fatigue": "fatigue and exhaustion on v2 side",
+        "latent_pressure": "latent pressure accumulated on v2 side",
+        "defensiveness": "defensive closure tendency on v2 side",
+        "resource_pressure": "direct resource stress on v2 side",
+        "resource_inequality": "direct resource inequality on v2 side",
+        "observed_vs_hidden_gap_proxy": "observed-hidden state gap on v2 side",
+        "information_distortion_mean": "direct information distortion on v2 side",
+        "opportunism": "opportunistic behavior tendency on v2 side",
+        "cooperation_intent": "cooperation intent; low value increases closure/defense risk",
+        "information_quality_mean": "information quality; low value increases information risk",
+        "information_flow_mean": "information flow; low value increases blockage risk",
+        "private_resource_min": "minimum private resource; low value increases local depletion risk",
+        "private_resource_std": "private resource spread on v2 side",
+    }
+
+    def risk_read(frame: pd.DataFrame, trace: str, field: str, method_kind: str) -> tuple[float | None, str]:
+        if frame.empty or field not in frame.columns:
+            return None, "missing"
+        if "t" in frame.columns:
+            method = "latest_t_value" if method_kind == "value" else "latest_t_mean"
+            value = _latest_value(frame, field) if method_kind == "value" else _latest_mean(frame, field)
+        else:
+            method = "all_row_mean_no_time_axis"
+            value = _mean(frame, field)
+            if "time_axis_missing_context" not in risk_context_fields["flags"]:
+                risk_context_fields["flags"].append("time_axis_missing_context")
+        return (None if value is None else _clip01(value)), method
+
+    core_specs = {
+        "hidden_damage": (hidden, "v2_hidden_trace", "hidden_damage", "mean"),
+        "fatigue": (hidden, "v2_hidden_trace", "fatigue", "mean"),
+        "latent_pressure": (hidden, "v2_hidden_trace", "latent_pressure", "mean"),
+        "defensiveness": (hidden, "v2_hidden_trace", "defensiveness", "mean"),
+        "resource_pressure": (resource, "v2_resource_trace", "resource_pressure", "value"),
+        "resource_inequality": (resource, "v2_resource_trace", "resource_inequality", "value"),
+        "observed_vs_hidden_gap_proxy": (info, "v2_information_trace", "observed_vs_hidden_gap_proxy", "mean"),
+        "information_distortion_mean": (info, "v2_information_trace", "information_distortion_mean", "mean"),
+    }
+    aux_specs = {
+        "opportunism": (hidden, "v2_hidden_trace", "opportunism", "mean"),
+        "cooperation_intent": (hidden, "v2_hidden_trace", "cooperation_intent", "mean"),
+        "information_quality_mean": (info, "v2_information_trace", "information_quality_mean", "mean"),
+        "information_flow_mean": (info, "v2_information_trace", "information_flow_mean", "mean"),
+        "private_resource_min": (resource, "v2_resource_trace", "private_resource_min", "value"),
+        "private_resource_std": (resource, "v2_resource_trace", "private_resource_std", "value"),
+    }
+
+    for field, (frame, trace, col, kind) in core_specs.items():
+        value, method = risk_read(frame, trace, col, kind)
+        if value is None:
+            unr.append(f"unresolved_core_{field}")
+        else:
+            risk_values[field] = value
+            risk_context_fields["used_core_fields"].append(field)
+            ev.append(_interpreted_evidence(field, f"{trace}.{col}", value, method, risk_interpretations[field], "worse"))
+
+    for field, (frame, trace, col, kind) in aux_specs.items():
+        value, method = risk_read(frame, trace, col, kind)
+        if value is None and field in {"private_resource_min", "private_resource_std"} and not hidden.empty and "private_resource" in hidden.columns:
+            latest_hidden = _latest_t(hidden) if "t" in hidden.columns else hidden
+            series = pd.to_numeric(latest_hidden["private_resource"], errors="coerce").dropna()
+            if not series.empty:
+                value = _clip01(float(series.min() if field == "private_resource_min" else series.std(ddof=0)))
+                method = "latest_t_min_fallback" if field == "private_resource_min" else "latest_t_std_fallback"
+                risk_context_fields["flags"].append(f"{field}_fallback_from_hidden")
+                trace = "v2_hidden_trace"
+                col = "private_resource"
+        if value is None:
+            risk_context_fields["missing_auxiliary_fields"].append(field)
+            risk_context_fields["flags"].append(f"missing_auxiliary_{field}")
+        else:
+            risk_values[field] = value
+            risk_context_fields["used_auxiliary_fields"].append(field)
+            higher = "better" if field in {"cooperation_intent", "information_quality_mean", "information_flow_mean", "private_resource_min"} else "worse"
+            ev.append(_interpreted_evidence(field, f"{trace}.{col}", value, method, risk_interpretations[field], higher))
+
+    if unr:
+        windows.append({
+            "window_name": "v2_direct_risk_band_window",
+            "status_label": "unresolved",
+            "evidence_fields": ev,
+            "derived_fields": {},
+            "context_fields": risk_context_fields,
+            "warning_flags": [],
+            "unresolved_flags": sorted(set(unr)),
+            "short_reason": "Required v2 direct risk core fields are not readable: " + ", ".join(sorted(set(unr))[:4]) + ".",
+        })
+    else:
+        def vals(*names: str) -> list[float]:
+            return [risk_values[n] for n in names if n in risk_values]
+        derived_raw = {
+            "internal_damage_risk": (_equal_mean(*vals("hidden_damage", "fatigue", "latent_pressure")), "equal_mean(hidden_damage, fatigue, latent_pressure)", "hidden damage, fatigue, and latent pressure risk"),
+            "closure_defense_risk": (_equal_mean(*vals("defensiveness", "opportunism") + ([1 - risk_values["cooperation_intent"]] if "cooperation_intent" in risk_values else [])), "equal_mean(defensiveness, opportunism, 1 - cooperation_intent)", "defensive closure, opportunism, and non-cooperation risk"),
+            "resource_stress_risk": (_equal_mean(*vals("resource_pressure", "resource_inequality") + ([1 - risk_values["private_resource_min"]] if "private_resource_min" in risk_values else []) + ([risk_values["private_resource_std"]] if "private_resource_std" in risk_values else [])), "equal_mean(resource_pressure, resource_inequality, 1 - private_resource_min, private_resource_std)", "resource pressure, inequality, local depletion, and resource spread risk"),
+            "information_blindness_risk": (_equal_mean(*vals("observed_vs_hidden_gap_proxy", "information_distortion_mean") + ([1 - risk_values["information_quality_mean"]] if "information_quality_mean" in risk_values else []) + ([1 - risk_values["information_flow_mean"]] if "information_flow_mean" in risk_values else [])), "equal_mean(observed_vs_hidden_gap_proxy, information_distortion_mean, 1 - information_quality_mean, 1 - information_flow_mean)", "observed-hidden gap, distortion, low quality, and low flow information risk"),
+        }
+        band = max(v[0] for v in derived_raw.values())
+        systemic = _equal_mean(*(v[0] for v in derived_raw.values()))
+        derived_raw["direct_risk_band_score"] = (band, "max(internal_damage_risk, closure_defense_risk, resource_stress_risk, information_blindness_risk)", "highest direct v2 risk band")
+        derived_raw["systemic_risk_pressure"] = (systemic, "equal_mean(internal_damage_risk, closure_defense_risk, resource_stress_risk, information_blindness_risk)", "spread of direct v2 risk across semantic risk families")
+        combos = {
+            "hidden_damage_blindness_risk": (min(risk_values["hidden_damage"], risk_values["observed_vs_hidden_gap_proxy"]), "min(hidden_damage, observed_vs_hidden_gap_proxy)", "hidden damage with observed-hidden gap"),
+            "fatigue_pressure_accumulation_risk": (min(risk_values["fatigue"], risk_values["latent_pressure"]), "min(fatigue, latent_pressure)", "fatigue with latent pressure accumulation"),
+            "resource_squeeze_inequality_risk": (min(risk_values["resource_pressure"], risk_values["resource_inequality"]), "min(resource_pressure, resource_inequality)", "resource pressure with inequality"),
+        }
+        if "cooperation_intent" in risk_values: combos["defensive_noncooperation_risk"] = (min(risk_values["defensiveness"], 1 - risk_values["cooperation_intent"]), "min(defensiveness, 1 - cooperation_intent)", "defensiveness with low cooperation intent")
+        if "information_quality_mean" in risk_values: combos["information_corruption_risk"] = (min(risk_values["information_distortion_mean"], 1 - risk_values["information_quality_mean"]), "min(information_distortion_mean, 1 - information_quality_mean)", "information distortion with low quality")
+        if "information_flow_mean" in risk_values: combos["information_blockage_risk"] = (min(1 - risk_values["information_flow_mean"], risk_values["observed_vs_hidden_gap_proxy"]), "min(1 - information_flow_mean, observed_vs_hidden_gap_proxy)", "low information flow with observed-hidden gap")
+        if "private_resource_min" in risk_values and "private_resource_std" in risk_values: combos["local_depletion_inequality_risk"] = (min(1 - risk_values["private_resource_min"], risk_values["private_resource_std"]), "min(1 - private_resource_min, private_resource_std)", "local depletion with resource inequality")
+        if "opportunism" in risk_values: combos["opportunistic_extraction_risk"] = (max(min(risk_values["opportunism"], risk_values["resource_pressure"]), min(risk_values["opportunism"], risk_values["resource_inequality"])), "max(min(opportunism, resource_pressure), min(opportunism, resource_inequality))", "opportunism under resource pressure or inequality")
+        derived_raw.update(combos)
+        risk_derived_fields = {k: _field_entry(v, m, i) for k, (v, m, i) in derived_raw.items()}
+
+        individual_warn = {"hidden_damage": "hidden_damage_high", "fatigue": "fatigue_high", "latent_pressure": "latent_pressure_high", "defensiveness": "defensiveness_high", "resource_pressure": "resource_pressure_high", "resource_inequality": "resource_inequality_high", "observed_vs_hidden_gap_proxy": "observed_hidden_gap_high", "information_distortion_mean": "information_distortion_high"}
+        individual_crit = {"hidden_damage": "critical_hidden_damage", "fatigue": "critical_fatigue", "latent_pressure": "critical_latent_pressure", "resource_pressure": "critical_resource_pressure", "observed_vs_hidden_gap_proxy": "critical_observed_hidden_gap", "information_distortion_mean": "critical_information_distortion"}
+        for field, flag in individual_warn.items():
+            if risk_values[field] >= 0.60: warn.append(flag)
+        for field, flag in individual_crit.items():
+            if risk_values[field] >= (0.90 if field == "resource_pressure" else 0.85): warn.append(flag)
+        combo_warning_count = 0
+        for name, (value, _method, _interp) in combos.items():
+            if value >= 0.60:
+                warn.append(name); combo_warning_count += 1
+            if value >= 0.80:
+                warn.append(f"critical_{name}")
+        core_ge_60 = sum(1 for f in core_specs if risk_values[f] >= 0.60)
+        light_combo = any(0.35 <= value < 0.60 for value, _m, _i in combos.values())
+        if any(flag.startswith("critical_") for flag in warn) or band >= 0.80 or risk_values["hidden_damage"] >= 0.85 or risk_values["fatigue"] >= 0.85 or risk_values["latent_pressure"] >= 0.85 or risk_values["resource_pressure"] >= 0.90 or combo_warning_count >= 3:
+            status = "critical"
+            reason = "v2 direct risk fields show critical direct or combined risk."
+        elif band >= 0.60 or systemic >= 0.50 or core_ge_60 >= 2 or combo_warning_count >= 1 or sum(1 for flag in warn if not flag.startswith("critical_")) >= 2:
+            status = "warning"
+            reason = "v2 direct risk fields show warning-level direct or combined risk."
+        elif band >= 0.35 or systemic >= 0.30 or any(risk_values[f] >= 0.45 for f in core_specs) or light_combo:
+            status = "watch"
+            reason = "v2 direct risk fields are approaching a risk band."
+        else:
+            status = "healthy"
+            reason = "v2 direct risk fields do not show a direct risk band."
+        windows.append({"window_name": "v2_direct_risk_band_window", "status_label": status, "evidence_fields": ev, "derived_fields": risk_derived_fields, "context_fields": risk_context_fields, "warning_flags": sorted(set(warn)), "unresolved_flags": [], "short_reason": reason})
 
     # 5. v2 Direct Growth Window
     ev, warn, unr = [], [], []
