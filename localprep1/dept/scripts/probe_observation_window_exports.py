@@ -16,7 +16,7 @@ from typing import Any, Mapping
 
 REQUIRED_WINDOWS = [
     "v2_direct_benefit_window",
-    "h11_possibility_distribution_window",
+    "v2_h11_action_effect_window",
     "pressure_action_alignment_window",
     "risk_band_window",
     "v2_direct_growth_window",
@@ -66,7 +66,7 @@ def validate_output_dir(output_dir: Path) -> dict[str, Any]:
     for window in windows:
         if not isinstance(window, dict):
             raise ValueError(f"{json_path} contains a non-object window")
-        required_keys = DERIVED_CONTEXT_WINDOW_KEYS if window.get("window_name") in {"v2_direct_benefit_window", "v2_direct_growth_window"} else REQUIRED_WINDOW_KEYS
+        required_keys = DERIVED_CONTEXT_WINDOW_KEYS if window.get("window_name") in {"v2_direct_benefit_window", "v2_direct_growth_window", "v2_h11_action_effect_window"} else REQUIRED_WINDOW_KEYS
         if set(window) != required_keys:
             raise ValueError(f"{json_path} {window.get('window_name')} keys mismatch: {sorted(window)}")
         if window["status_label"] not in ALLOWED_STATUS_LABELS:

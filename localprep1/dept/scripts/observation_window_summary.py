@@ -261,31 +261,136 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
         "short_reason": short_reason,
     })
 
-    # 2. H11 Possibility-Distribution Window
+    # 2. v2-H11 Action Effect Window
     ev, warn, unr = [], [], []
-    h11_map = {
-        "stability": "mean_delta_volatility",
-        "adaptability": "mean_delta_reversibility",
-        "exploration": "mean_delta_exploration",
-        "efficiency": "mean_delta_uncertainty",
-        "robustness": "mean_delta_relation_lock",
-        "structural_diversity": "mean_delta_entropy",
-        "trajectory_dynamics": "mean_delta_coupling",
-        "predictability": "mean_delta_uncertainty",
-        "coherence": "mean_delta_relation_lock",
-        "recoverability": "mean_delta_reversibility",
-    }
-    vals = {k: _add_mean(ev, unr, world, "world_transition_audit", v, k) for k, v in h11_map.items()}
-    _missing(unr, "novelty_quality")
-    if vals.get("exploration") is not None and vals["exploration"] < -0.01:
-        warn.append("exploration_route_contracting")
-    if vals.get("structural_diversity") is not None and vals["structural_diversity"] < -0.01:
-        warn.append("structural_diversity_contracting")
-    if vals.get("recoverability") is not None and vals["recoverability"] < -0.01:
-        warn.append("recoverability_contracting")
-    if vals.get("coherence") is not None and vals["coherence"] > 0.01:
-        warn.append("coherence_relation_lock_risk")
-    windows.append(_window("h11_possibility_distribution_window", ev, warn, unr))
+    h11_context_fields: Dict[str, Any] = {}
+    h11_context_flags: List[str] = []
+    action_effect = _df(out, "v2_action_effect_trace")
+    core_effect_fields = [
+        "net_public_effect_score",
+        "net_hidden_effect_score",
+        "exploration_delta",
+        "reversibility_delta",
+        "hidden_damage_delta",
+        "fatigue_delta",
+        "resource_inequality_delta",
+        "action_cost_effect",
+    ]
+
+    if action_effect.empty:
+        unr.append("unresolved_core_v2_action_effect_trace")
+        h11_method = "latest_t_mean"
+        core_values: Dict[str, float] = {}
+    else:
+        has_time_axis = "t" in action_effect.columns and not pd.to_numeric(action_effect["t"], errors="coerce").dropna().empty
+        h11_method = "latest_t_mean" if has_time_axis else "all_row_mean_no_time_axis"
+        if not has_time_axis:
+            h11_context_flags.append("time_axis_missing_context")
+        h11_frame = _latest_t(action_effect) if has_time_axis else action_effect
+        core_values = {}
+        for field in core_effect_fields:
+            value = _mean(h11_frame, field)
+            if value is None:
+                unr.append(f"unresolved_core_{field}")
+            else:
+                item = _evidence(field, f"v2_action_effect_trace.{field}", value, h11_method)
+                if field == "net_hidden_effect_score":
+                    item.update({"interpretation": "hidden_burden_magnitude", "higher_is": "worse"})
+                elif field in {"exploration_delta", "reversibility_delta"}:
+                    item.update({"interpretation": "surface_opening_effect_magnitude", "higher_is": "better_or_effective_when_hidden_burden_is_low"})
+                core_values[field] = value
+                ev.append(item)
+
+    def add_h11_context(frame: pd.DataFrame, trace: str, field: str, method: str = "latest_t_mean") -> float | None:
+        value = _latest_value(frame, field) if method == "latest_t_value" else _latest_mean(frame, field)
+        if value is not None:
+            h11_context_fields[field] = {"value": value, "source": f"{trace}.{field}", "method": method, "status_effect": "context_only"}
+        return value
+
+    rp = add_h11_context(resource, "v2_resource_trace", "resource_pressure", "latest_t_value")
+    ri = add_h11_context(resource, "v2_resource_trace", "resource_inequality", "latest_t_value")
+    add_h11_context(resource, "v2_resource_trace", "shared_resource", "latest_t_value")
+    add_h11_context(resource, "v2_resource_trace", "commons_health", "latest_t_value")
+    lth = add_h11_context(game, "v2_game_trace", "long_term_health_proxy")
+    for field in ["cooperate_tendency", "defend_tendency", "explore_tendency", "extract_tendency", "connect_tendency", "amplify_tendency"]:
+        add_h11_context(game, "v2_game_trace", field)
+    gap = add_h11_context(info, "v2_information_trace", "observed_vs_hidden_gap_proxy")
+    iq = add_h11_context(info, "v2_information_trace", "information_quality_mean")
+    add_h11_context(info, "v2_information_trace", "information_flow_mean")
+    distort = add_h11_context(info, "v2_information_trace", "information_distortion_mean")
+    if rp is not None and rp >= 0.80: h11_context_flags.append("resource_pressure_high_context")
+    if ri is not None and ri >= 0.75: h11_context_flags.append("resource_inequality_high_context")
+    if lth is not None and lth <= 0.35: h11_context_flags.append("long_term_health_proxy_low_context")
+    if gap is not None and gap >= 0.30: h11_context_flags.append("observed_hidden_gap_high_context")
+    if iq is not None and iq <= 0.35: h11_context_flags.append("information_quality_low_context")
+    if distort is not None and distort >= 0.30: h11_context_flags.append("information_distortion_high_context")
+    for field, flag in [("defend_tendency", "defend_tendency_high_context"), ("extract_tendency", "extract_tendency_high_context")]:
+        value = h11_context_fields.get(field, {}).get("value")
+        if value is not None and value >= 0.70:
+            h11_context_flags.append(flag)
+    if h11_context_flags:
+        h11_context_fields["flags"] = h11_context_flags
+
+    h11_derived_fields: Dict[str, Any] = {}
+    if unr:
+        h11_status = "unresolved"
+        h11_short_reason = "v2 H11 action effect requires v2_action_effect_trace and all core effect fields."
+    else:
+        surface_opening = (core_values["exploration_delta"] + core_values["reversibility_delta"]) / 2.0
+        hidden_effect_burden = core_values["net_hidden_effect_score"]
+        hidden_state_burden = (core_values["hidden_damage_delta"] + core_values["fatigue_delta"]) / 2.0
+        distribution_burden = core_values["resource_inequality_delta"]
+        cost_burden = core_values["action_cost_effect"]
+        public_hidden_tension = core_values["net_public_effect_score"] - hidden_effect_burden
+        h11_proxy = (core_values["net_public_effect_score"] + surface_opening - hidden_effect_burden - hidden_state_burden - distribution_burden - cost_burden) / 6.0
+        h11_derived_fields = {
+            "surface_opening_effect_proxy": {"value": surface_opening, "method": "equal_mean(exploration_delta, reversibility_delta)", "interpretation": "opening effect magnitude on v2 surface", "higher_is": "better_or_effective_when_hidden_burden_is_low"},
+            "hidden_effect_burden_proxy": {"value": hidden_effect_burden, "method": "net_hidden_effect_score", "interpretation": "hidden side-effect burden magnitude", "higher_is": "worse"},
+            "hidden_state_burden_proxy": {"value": hidden_state_burden, "method": "equal_mean(hidden_damage_delta, fatigue_delta)", "interpretation": "hidden damage and fatigue burden", "higher_is": "worse"},
+            "distribution_burden_proxy": {"value": distribution_burden, "method": "resource_inequality_delta", "interpretation": "resource inequality burden", "higher_is": "worse"},
+            "cost_burden_proxy": {"value": cost_burden, "method": "action_cost_effect", "interpretation": "action cost burden", "higher_is": "worse"},
+            "public_hidden_tension_proxy": {"value": public_hidden_tension, "method": "net_public_effect_score - hidden_effect_burden_proxy", "interpretation": "visible effect minus hidden burden", "higher_is": "better"},
+            "h11_action_effect_proxy": {"value": h11_proxy, "method": "equal_mean(net_public_effect_score, surface_opening_effect_proxy, -hidden_effect_burden_proxy, -hidden_state_burden_proxy, -distribution_burden_proxy, -cost_burden_proxy)", "interpretation": "v2-side H11 action effect proxy", "higher_is": "better"},
+        }
+        critical_flags = []
+        if h11_proxy <= -0.10: critical_flags.append("critical_h11_action_effect_collapse")
+        if hidden_effect_burden >= 0.12: critical_flags.append("critical_hidden_effect_burden_spike")
+        if core_values["hidden_damage_delta"] >= 0.12: critical_flags.append("critical_hidden_damage_spike")
+        if core_values["fatigue_delta"] >= 0.12: critical_flags.append("critical_fatigue_spike")
+        if core_values["hidden_damage_delta"] >= 0.08 and core_values["fatigue_delta"] >= 0.08: critical_flags.append("critical_hidden_damage_and_fatigue_spike")
+        burden_count = sum([hidden_effect_burden >= 0.06, core_values["hidden_damage_delta"] >= 0.05, core_values["fatigue_delta"] >= 0.05, distribution_burden >= 0.05, cost_burden >= 0.08])
+        if burden_count >= 3: critical_flags.append("critical_multi_field_h11_burden")
+        warning_flags = []
+        if h11_proxy <= -0.03: warning_flags.append("h11_action_effect_negative")
+        if hidden_effect_burden >= 0.06: warning_flags.append("hidden_effect_burden_high")
+        if hidden_state_burden >= 0.05: warning_flags.append("hidden_state_burden_high")
+        if core_values["hidden_damage_delta"] >= 0.05: warning_flags.append("hidden_damage_increasing")
+        if core_values["fatigue_delta"] >= 0.05: warning_flags.append("fatigue_increasing")
+        if distribution_burden >= 0.05: warning_flags.append("resource_inequality_increasing")
+        if cost_burden >= 0.08: warning_flags.append("action_cost_high")
+        if public_hidden_tension <= -0.03: warning_flags.append("public_hidden_tension_negative")
+        if core_values["net_public_effect_score"] >= 0.03 and hidden_effect_burden >= 0.06: warning_flags.append("visible_effect_with_hidden_burden")
+        if h11_proxy >= 0.03 and any(v > 0.03 for v in [hidden_effect_burden, hidden_state_burden, distribution_burden, cost_burden]): warning_flags.append("mixed_h11_action_effect_direction")
+        warn = critical_flags + warning_flags
+        if critical_flags:
+            h11_status = "critical"
+        elif warning_flags:
+            h11_status = "warning"
+        elif h11_proxy >= 0.03 and core_values["net_public_effect_score"] >= 0.03 and surface_opening >= 0.01 and hidden_effect_burden <= 0.03 and hidden_state_burden <= 0.03 and distribution_burden <= 0.03 and cost_burden <= 0.05:
+            h11_status = "healthy"
+        else:
+            h11_status = "watch"
+        h11_short_reason = "v2 H11 action effect status uses v2_action_effect_trace core effect fields only; auxiliary traces are context-only."
+    windows.append({
+        "window_name": "v2_h11_action_effect_window",
+        "status_label": h11_status,
+        "evidence_fields": ev,
+        "derived_fields": h11_derived_fields,
+        "context_fields": h11_context_fields,
+        "warning_flags": warn,
+        "unresolved_flags": unr,
+        "short_reason": h11_short_reason,
+    })
 
     # 3. Pressure-Action Alignment Window
     ev, warn, unr = [], [], []
@@ -509,7 +614,7 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
     warning_by_name = {w["window_name"]: len(w["warning_flags"]) for w in windows}
     ev.append(_evidence("window_statuses", "observation_window_summary", status_by_name, "derived_from_window_status_labels"))
     ev.append(_evidence("window_warning_counts", "observation_window_summary", warning_by_name, "derived_from_window_warning_flags"))
-    if status_by_name.get("v2_direct_benefit_window") in {"healthy", "watch"} and status_by_name.get("h11_possibility_distribution_window") in {"warning", "critical"}:
+    if status_by_name.get("v2_direct_benefit_window") in {"healthy", "watch"} and status_by_name.get("v2_h11_action_effect_window") in {"warning", "critical"}:
         warn.append("benefit_vs_possibility_tension")
     if status_by_name.get("v2_direct_growth_window") in {"healthy", "watch"} and "fatigue_elevated" in windows[0]["warning_flags"]:
         warn.append("growth_vs_fatigue_tension")
