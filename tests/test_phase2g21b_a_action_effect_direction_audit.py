@@ -22,6 +22,7 @@ from test_phase2g21ar3_fire_margin_timing_validation import (  # noqa: E402
     NON_ACTIONS,
     _case,
     _final_gate,
+    _judge,
     _post_action_audit,
     _real_v2_initial_state,
     _run_branches,
@@ -114,10 +115,42 @@ def _component_judgement(role, expected, direction_match, improvement, avn_delta
     return "unresolved"
 
 
+def _suppression_reason(case):
+    suppression = "none"
+    if case.burden > 0.72:
+        suppression = "burden"
+    if case.fatigue > 0.78:
+        suppression = "fatigue"
+    if case.collapse > 0.75:
+        suppression = "collapse"
+    if case.burden > 0.72 and case.fatigue > 0.78 and case.collapse > 0.75:
+        suppression = "burden+fatigue+collapse"
+    return suppression
+
+
+def _timing_judgement(case, *, margin, pair_margin, final, strength, audit, suppression, missing_flags=None):
+    timing_row = {
+        "missing_input_flags": missing_flags or [],
+        "local_fire_margin": margin,
+        "pair_fire_margin": pair_margin,
+        "final_gate_decision": final,
+        "outcome_improvement_vs_no_op": audit["outcome_improvement_vs_no_op"],
+        "side_effect_score": audit["side_effect_score"],
+        "local_no_action_risk_estimate": case.risk,
+        "suppression_reason": suppression,
+        "recovering": case.recovering,
+        "action_mode": case.action_mode,
+        "no_op_outcome_delta": audit["no_op_outcome_delta"],
+        "effective_action_strength": strength,
+    }
+    return _judge(timing_row)
+
+
 def _build_audit_row(case_name, *, label_override=None, include_relation=True):
     case = _case(case_name)
     initial_trace, no_op_trace, action_world = _run_branches(case)
     margin = case.risk - case.cost
+    pair_margin = case.pair_risk - case.pair_cost
     final, non_action, strength = _final_gate(case.proposed_channel, margin, case.burden, case.collapse, case.action_strength_hint)
     action_frame = None if final in NON_ACTIONS or strength <= 0 else pd.DataFrame([{"entity_id": case.entity, "action_channel": case.proposed_channel, "action_strength": strength}])
     action_trace = action_world.step(action_frame)
@@ -129,6 +162,9 @@ def _build_audit_row(case_name, *, label_override=None, include_relation=True):
     channel = str(action_effect.get("action_channel", "no_action")) if action_frame is not None else final
     v2_applied = float(action_effect.get("action_intensity", 0.0)) if action_frame is not None else 0.0
     rel_pair = case.relation_pair if case.relation_pair != "not_available" else "not_available"
+    suppression = _suppression_reason(case)
+    timing_missing_flags = ["relation_trace:not_available_in_21B_A"] if not include_relation and case.relation_id != "not_available" else []
+    timing_judgement = _timing_judgement(case, margin=margin, pair_margin=pair_margin, final=final, strength=strength, audit=audit, suppression=suppression, missing_flags=timing_missing_flags)
     rows = []
     for group, comps in [("surface", SURFACE_COMPONENTS), ("hidden", HIDDEN_COMPONENTS), ("resource", RESOURCE_COMPONENTS), ("relation", RELATION_COMPONENTS)]:
         for comp in comps:
@@ -147,7 +183,7 @@ def _build_audit_row(case_name, *, label_override=None, include_relation=True):
                 dm = _direction_match(expected, nv, av)
                 imp = _directional_improvement(expected, iv, nv, av)
                 judgement = _component_judgement(role, expected, dm, imp, avn, comp)
-            rows.append({"run_id": f"{case.label}-303", "seed": 303, "scenario_label_for_audit_only": label_override or case.label, "t": 1, "source_entity_id": case.entity, "source_relation_id": case.relation_id, "target_entity_id": case.target, "relation_pair": rel_pair, "action_channel": channel, "action_mode": case.action_mode, "effective_action_strength": strength, "v2_applied_strength": v2_applied, "component_group": group, "component_name": comp, "expected_direction": expected, "effect_role": role, "initial_value": iv, "no_op_value": nv, "action_value": av, "no_op_delta": nd, "action_delta": ad, "action_vs_no_op_delta": avn, "directional_improvement_vs_no_op": imp, "direction_match": dm, "side_effect_flag": judgement == "side_effect_detected", "material_change_flag": abs(avn) > MATERIAL_THRESHOLD, "component_effect_judgement": judgement, "timing_judgement": "", "missing_input_flags": missing})
+            rows.append({"run_id": f"{case.label}-303", "seed": 303, "scenario_label_for_audit_only": label_override or case.label, "t": 1, "source_entity_id": case.entity, "source_relation_id": case.relation_id, "target_entity_id": case.target, "relation_pair": rel_pair, "action_channel": channel, "action_mode": case.action_mode, "effective_action_strength": strength, "v2_applied_strength": v2_applied, "component_group": group, "component_name": comp, "expected_direction": expected, "effect_role": role, "initial_value": iv, "no_op_value": nv, "action_value": av, "no_op_delta": nd, "action_delta": ad, "action_vs_no_op_delta": avn, "directional_improvement_vs_no_op": imp, "direction_match": dm, "side_effect_flag": judgement == "side_effect_detected", "material_change_flag": abs(avn) > MATERIAL_THRESHOLD, "component_effect_judgement": judgement, "timing_judgement": timing_judgement, "missing_input_flags": missing})
     long = pd.DataFrame(rows)
     missing_flags = sorted({f for flags in long.missing_input_flags for f in flags})
     primary = long[long.effect_role.eq("primary")]
@@ -178,7 +214,7 @@ def _build_audit_row(case_name, *, label_override=None, include_relation=True):
         effect_j = "unresolved"
     before = audit["no_op_outcome_delta"] + 0.0 # trace-derived audit already used; risk source is helper below
     base_score = audit["action_outcome_delta"] - audit["outcome_improvement_vs_no_op"]
-    summary = {"run_id": f"{case.label}-303", "seed": 303, "scenario_label_for_audit_only": label_override or case.label, "t": 1, "source_entity_id": case.entity, "source_relation_id": case.relation_id, "target_entity_id": case.target, "relation_pair": rel_pair, "recommended_action_channel": case.proposed_channel, "final_gate_decision": final, "non_action_decision": non_action, "action_mode": case.action_mode, "action_channel": channel, "requested_action_strength": case.action_strength_hint, "effective_action_strength": strength, "v2_applied_strength": v2_applied, "action_coupling": case.action_coupling, "local_fire_margin": margin, "pair_fire_margin": case.pair_risk - case.pair_cost, "fire_permission_context": "test_local_final_gate", "suppression_reason": "none", "timing_judgement": "", "before_risk_score": base_score - audit["no_op_outcome_delta"], "no_op_risk_score": base_score, "action_risk_score": base_score - audit["outcome_improvement_vs_no_op"], **audit, "primary_expected_components": primary.component_name.tolist(), "secondary_expected_components": secondary.component_name.tolist(), "expected_side_effect_components": long[long.effect_role.eq("side_effect")].component_name.tolist(), "primary_effect_match_count": primary_match, "primary_effect_miss_count": int(len(primary) - primary_match), "secondary_effect_match_count": int((secondary.component_effect_judgement == "secondary_effect_matched").sum()), "side_effect_detected_count": side, "wrong_direction_count": wrong, "no_material_effect_count": no_mat, "direct_effect_score": float(action_effect.get("direct_effect_score", 0.0)), "effect_direction_judgement": effect_j, "missing_input_flags": missing_flags, "v2_trace_used_as_action_runtime_input": False, "v2_trace_used_as_post_action_audit": True, "actionplanner_received_only_dept_inputs": True, "actionmodule_received_only_final_gate": True}
+    summary = {"run_id": f"{case.label}-303", "seed": 303, "scenario_label_for_audit_only": label_override or case.label, "t": 1, "source_entity_id": case.entity, "source_relation_id": case.relation_id, "target_entity_id": case.target, "relation_pair": rel_pair, "recommended_action_channel": case.proposed_channel, "final_gate_decision": final, "non_action_decision": non_action, "action_mode": case.action_mode, "action_channel": channel, "requested_action_strength": case.action_strength_hint, "effective_action_strength": strength, "v2_applied_strength": v2_applied, "action_coupling": case.action_coupling, "local_fire_margin": margin, "pair_fire_margin": pair_margin, "fire_permission_context": "test_local_final_gate", "suppression_reason": suppression, "timing_judgement": timing_judgement, "before_risk_score": base_score - audit["no_op_outcome_delta"], "no_op_risk_score": base_score, "action_risk_score": base_score - audit["outcome_improvement_vs_no_op"], **audit, "primary_expected_components": primary.component_name.tolist(), "secondary_expected_components": secondary.component_name.tolist(), "expected_side_effect_components": long[long.effect_role.eq("side_effect")].component_name.tolist(), "primary_effect_match_count": primary_match, "primary_effect_miss_count": int(len(primary) - primary_match), "secondary_effect_match_count": int((secondary.component_effect_judgement == "secondary_effect_matched").sum()), "side_effect_detected_count": side, "wrong_direction_count": wrong, "no_material_effect_count": no_mat, "direct_effect_score": float(action_effect.get("direct_effect_score", 0.0)), "effect_direction_judgement": effect_j, "missing_input_flags": missing_flags, "v2_trace_used_as_action_runtime_input": False, "v2_trace_used_as_post_action_audit": True, "actionplanner_received_only_dept_inputs": True, "actionmodule_received_only_final_gate": True}
     long["timing_judgement"] = summary["timing_judgement"]
     return summary, long[LONG_COLUMNS]
 
@@ -226,3 +262,21 @@ def test_action_effect_summary_includes_harmful_early_late_and_missed_relation_c
 def test_component_long_table_has_multiple_rows_per_run(): assert action_effect_direction_audit().action_effect_component_delta_long.groupby("run_id").size().min() > 1
 def test_expected_direction_is_channel_defined_not_scenario_defined(): assert EXPECTED_DIRECTIONS["buffer_increase"]["primary"]["reversibility"] == "increase" and "stable" not in EXPECTED_DIRECTIONS
 def test_effect_direction_judgement_not_controlled_by_scenario_label(): test_scenario_label_is_audit_only_not_effect_judgement_control()
+def test_timing_judgement_is_filled_from_r3_fire_timing_logic():
+    df = action_effect_direction_audit().action_effect_direction_summary
+    lookup = df.set_index("scenario_label_for_audit_only").timing_judgement.to_dict()
+    assert all(v for v in lookup.values())
+    assert lookup["irreversible"] == "correct_fire"
+    assert lookup["harmful"] == "harmful_fire"
+    assert lookup["early"] == "early_fire"
+    assert lookup["late"] == "late_fire"
+    assert lookup["missed_relation"] == "missed_relation_fire"
+
+def test_long_table_timing_judgement_matches_summary():
+    audit = action_effect_direction_audit()
+    expected = audit.action_effect_direction_summary.set_index("run_id").timing_judgement.to_dict()
+    observed = audit.action_effect_component_delta_long.groupby("run_id").timing_judgement.nunique()
+    assert (observed == 1).all()
+    for run_id, timing in expected.items():
+        rows = audit.action_effect_component_delta_long[audit.action_effect_component_delta_long.run_id.eq(run_id)]
+        assert rows.timing_judgement.iloc[0] == timing
