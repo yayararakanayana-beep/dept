@@ -53,13 +53,13 @@ This is not full relation graph governance. It only checks that pair-level B-C r
 
 ## R3-B: fire-margin / no-op baseline / action trace timing validation
 
-R3 compares, from the same initial state:
+R3 compares, from the same real-v2 initial state:
 
-- `no_op baseline`
-- `proposed action`
-- `observe_only / cooldown`
+- `no_op baseline`, advanced with `v2.step(None)` or an equivalent no-action branch;
+- `proposed action`, advanced with an ActionFrame-like row passed to `v2.step(action_frame)`;
+- `observe_only / cooldown`, represented by a zero-strength final-gate branch.
 
-The comparison records:
+After each branch advances, R3 reads `emit_trace()` output as post-action audit evidence. The comparison records:
 
 - `no_op_outcome_delta`
 - `action_outcome_delta`
@@ -98,7 +98,7 @@ real v2 initial state
 
 ## Post-action audit boundary
 
-v2 traces are used only as post-action audit evidence. They are not runtime inputs to ActionPlanner or ActionModule. Relation traces are transformed before planner-side validation and are not read directly by ActionModule.
+v2 traces are used only as post-action audit evidence after the no-op/action branches have stepped and emitted traces. They are not runtime inputs to ActionPlanner or ActionModule. Relation traces are transformed before planner-side validation and are not read directly by ActionModule. `v2_trace_used_as_post_action_audit=True` is valid only when the helper actually reads branch `emit_trace()` / step trace output.
 
 ## Validated state series
 
@@ -115,11 +115,11 @@ R3 validates these minimum state series:
 
 ## no_op baseline
 
-The no-op baseline estimates what happens if the local state is left alone. A worsening baseline is recorded as a positive `no_op_outcome_delta`. This value is compared against the proposed action branch.
+The no-op baseline estimates what happens if the local state is left alone by advancing a matched v2 branch with `step(None)`. A worsening baseline is derived from the branch trace as a positive `no_op_outcome_delta`. This value is compared against the proposed action branch trace.
 
 ## proposed action
 
-The proposed action branch uses DEPT-side local and relation-aware inputs to select a test-local action mode such as `defensive_buffer`, `coupling_relief`, `weak_probe`, `capped_insurance`, or `none`. The branch records action outcome and side effects.
+The proposed action branch uses DEPT-side local and relation-aware inputs to select a test-local action mode such as `defensive_buffer`, `coupling_relief`, `weak_probe`, `capped_insurance`, or `none`. For acting branches, the helper builds an ActionFrame-like row and passes it to `v2.step(action_frame)`. The branch records action outcome and side effects from the resulting `v2_action_effect_trace`, `v2_hidden_trace`, `v2_resource_trace`, and entity trace audit values.
 
 ## observe_only / cooldown
 
@@ -150,7 +150,7 @@ R3 supports these classifications:
 - `spurious_relation_fire`
 - `unresolved`
 
-The judgement is not controlled by scenario label. It is computed from margins, branch outcomes, side effects, non-action decisions, burden/collapse/confidence, relation pair risk, and missing-input flags.
+The judgement is not controlled by scenario label and is not determined from fixed LocalCase outcome constants. It is computed from margins, branch outcomes read from v2 post-action traces, side effects, non-action decisions, burden/collapse/confidence, relation pair risk, and missing-input flags.
 
 ## Summary table
 
