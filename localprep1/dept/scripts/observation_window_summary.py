@@ -63,6 +63,10 @@ def _clip01(value: float) -> float:
 def _equal_mean(*values: float) -> float:
     return _clip01(sum(values) / len(values))
 
+
+def _signed_equal_mean(*values: float) -> float:
+    return max(-1.0, min(1.0, float(sum(values) / len(values))))
+
 def _sum(frame: pd.DataFrame, column: str) -> float | None:
     if frame.empty or column not in frame.columns:
         return None
@@ -324,20 +328,180 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
         warn.append("cooperation_intent_low")
     windows.append(_window("risk_band_window", ev, warn, unr))
 
-    # 5. Growth Window
+    # 5. v2 Direct Growth Window
     ev, warn, unr = [], [], []
-    for col in ["realized_growth_proxy", "sustainable_growth_proxy", "growth_capacity_proxy"]:
-        _missing(unr, col)
-    growth_proxy = _add_mean(ev, unr, world, "world_transition_audit", "mean_delta_reversibility", "growth_capacity_proxy_from_reversibility_delta")
-    hidden_damage = _add_mean(ev, unr, hidden, "v2_hidden_trace", "hidden_damage", "hidden_damage_trend_proxy")
-    fatigue = _add_mean(ev, unr, hidden, "v2_hidden_trace", "fatigue", "fatigue_trend_proxy")
-    latent = _add_mean(ev, unr, hidden, "v2_hidden_trace", "latent_pressure", "latent_pressure_trend_proxy")
-    _missing(unr, "h11_possibility_route_preservation")
-    if growth_proxy is not None and growth_proxy < -0.01:
-        warn.append("growth_capacity_proxy_contracting")
-    if any(v is not None and v >= 0.55 for v in [hidden_damage, fatigue, latent]):
-        warn.append("growth_hidden_cost_elevated")
-    windows.append(_window("growth_window", ev, warn, unr))
+    growth_derived_fields: Dict[str, Any] = {}
+    growth_context_fields: Dict[str, Any] = {}
+    growth_context_flags: List[str] = []
+
+    def numeric_times(frame: pd.DataFrame, source_name: str) -> set[float] | None:
+        if frame.empty or "t" not in frame.columns:
+            unr.append(f"unresolved_core_time_axis_{source_name}")
+            return None
+        values = pd.to_numeric(frame["t"], errors="coerce").dropna()
+        if values.empty:
+            unr.append(f"unresolved_core_time_axis_{source_name}")
+            return None
+        return set(float(value) for value in values)
+
+    resource_times = numeric_times(resource, "v2_resource_trace")
+    game_times = numeric_times(game, "v2_game_trace")
+    initial_t = latest_t = previous_t = None
+    if resource_times is not None and game_times is not None:
+        common_t_values = sorted(resource_times & game_times)
+        if len(common_t_values) < 2:
+            unr.append("unresolved_core_insufficient_common_time_history")
+        else:
+            initial_t = common_t_values[0]
+            latest_t = common_t_values[-1]
+            previous_t = common_t_values[-2]
+
+    def at_t(frame: pd.DataFrame, t_value: float | None) -> pd.DataFrame:
+        if frame.empty or t_value is None or "t" not in frame.columns:
+            return pd.DataFrame()
+        numeric_t = pd.to_numeric(frame["t"], errors="coerce")
+        return frame.loc[numeric_t == t_value]
+
+    def value_at_t(frame: pd.DataFrame, column: str, t_value: float | None) -> float | None:
+        point = at_t(frame, t_value)
+        if point.empty or column not in point.columns:
+            return None
+        series = pd.to_numeric(point[column], errors="coerce").dropna()
+        if series.empty:
+            return None
+        return float(series.iloc[-1])
+
+    def mean_at_t(frame: pd.DataFrame, column: str, t_value: float | None) -> float | None:
+        return _mean(at_t(frame, t_value), column)
+
+    def evidence_pair(field: str, source: str, initial: float, latest: float, method: str) -> None:
+        ev.append(_evidence(f"{field}_initial", source, initial, f"initial_t_{method}"))
+        ev.append(_evidence(f"{field}_latest", source, latest, f"latest_t_{method}"))
+
+    def add_delta(field: str, source: str, initial: float | None, latest: float | None, method: str) -> float | None:
+        if initial is None or latest is None:
+            unr.append(f"unresolved_core_{field}")
+            return None
+        evidence_pair(field, source, initial, latest, method)
+        delta = latest - initial
+        growth_derived_fields[f"{field}_delta"] = {"value": delta, "source": source, "method": "latest_t_minus_initial_t"}
+        return delta
+
+    def add_context_delta(field: str, source: str, initial: float | None, latest: float | None, flag: str, worsening: str) -> None:
+        if initial is None or latest is None:
+            return
+        delta = latest - initial
+        growth_context_fields[f"{field}_delta"] = {"value": delta, "source": source, "method": "latest_t_minus_initial_t", "status_effect": "context_only"}
+        if (worsening == "positive" and delta > 0) or (worsening == "negative" and delta < 0):
+            growth_context_flags.append(flag)
+
+    core_deltas: Dict[str, float] = {}
+    if not unr:
+        shared_resource_delta = add_delta("shared_resource", "v2_resource_trace.shared_resource", value_at_t(resource, "shared_resource", initial_t), value_at_t(resource, "shared_resource", latest_t), "value")
+        commons_health_delta = add_delta("commons_health", "v2_resource_trace.commons_health", value_at_t(resource, "commons_health", initial_t), value_at_t(resource, "commons_health", latest_t), "value")
+        private_initial = value_at_t(resource, "private_resource_mean", initial_t)
+        private_latest = value_at_t(resource, "private_resource_mean", latest_t)
+        private_source = "v2_resource_trace.private_resource_mean"
+        private_method = "value"
+        if private_initial is None or private_latest is None:
+            private_initial = mean_at_t(hidden, "private_resource", initial_t)
+            private_latest = mean_at_t(hidden, "private_resource", latest_t)
+            private_source = "v2_hidden_trace.private_resource"
+            private_method = "mean_fallback"
+        private_resource_mean_delta = add_delta("private_resource_mean", private_source, private_initial, private_latest, private_method)
+        local_payoff_mean_delta = add_delta("local_payoff_mean", "v2_game_trace.local_payoff", mean_at_t(game, "local_payoff", initial_t), mean_at_t(game, "local_payoff", latest_t), "mean")
+        short_term_payoff_mean_delta = add_delta("short_term_payoff_mean", "v2_game_trace.short_term_payoff", mean_at_t(game, "short_term_payoff", initial_t), mean_at_t(game, "short_term_payoff", latest_t), "mean")
+        for key, value in {
+            "shared_resource": shared_resource_delta,
+            "commons_health": commons_health_delta,
+            "private_resource_mean": private_resource_mean_delta,
+            "local_payoff_mean": local_payoff_mean_delta,
+            "short_term_payoff_mean": short_term_payoff_mean_delta,
+        }.items():
+            if value is not None:
+                core_deltas[key] = value
+
+    if unr:
+        growth_status = "unresolved"
+        growth_short_reason = "v2 direct growth requires t-aligned resource/game traces and all core growth fields."
+    else:
+        resource_growth_delta = _signed_equal_mean(core_deltas["shared_resource"], core_deltas["commons_health"], core_deltas["private_resource_mean"])
+        payoff_growth_delta = _signed_equal_mean(core_deltas["local_payoff_mean"], core_deltas["short_term_payoff_mean"])
+        direct_growth_delta = _signed_equal_mean(resource_growth_delta, payoff_growth_delta)
+        growth_derived_fields.update({
+            "resource_growth_delta": {"value": resource_growth_delta, "method": "equal_mean(shared_resource_delta, commons_health_delta, private_resource_mean_delta)"},
+            "payoff_growth_delta": {"value": payoff_growth_delta, "method": "equal_mean(local_payoff_mean_delta, short_term_payoff_mean_delta)"},
+            "direct_growth_delta": {"value": direct_growth_delta, "method": "equal_mean(resource_growth_delta, payoff_growth_delta)"},
+        })
+        if previous_t is not None:
+            previous_private = value_at_t(resource, "private_resource_mean", previous_t)
+            if previous_private is None:
+                previous_private = mean_at_t(hidden, "private_resource", previous_t)
+            latest_step_inputs = {
+                "latest_step_shared_resource_delta": (value_at_t(resource, "shared_resource", previous_t), value_at_t(resource, "shared_resource", latest_t)),
+                "latest_step_commons_health_delta": (value_at_t(resource, "commons_health", previous_t), value_at_t(resource, "commons_health", latest_t)),
+                "latest_step_private_resource_mean_delta": (previous_private, private_latest),
+                "latest_step_local_payoff_mean_delta": (mean_at_t(game, "local_payoff", previous_t), mean_at_t(game, "local_payoff", latest_t)),
+                "latest_step_short_term_payoff_mean_delta": (mean_at_t(game, "short_term_payoff", previous_t), mean_at_t(game, "short_term_payoff", latest_t)),
+            }
+            latest_step_values = {key: latest - previous for key, (previous, latest) in latest_step_inputs.items() if previous is not None and latest is not None}
+            required_latest_step = {
+                "latest_step_shared_resource_delta",
+                "latest_step_commons_health_delta",
+                "latest_step_private_resource_mean_delta",
+                "latest_step_local_payoff_mean_delta",
+                "latest_step_short_term_payoff_mean_delta",
+            }
+            if required_latest_step <= set(latest_step_values):
+                latest_step_resource_growth_delta = _signed_equal_mean(latest_step_values["latest_step_shared_resource_delta"], latest_step_values["latest_step_commons_health_delta"], latest_step_values["latest_step_private_resource_mean_delta"])
+                latest_step_payoff_growth_delta = _signed_equal_mean(latest_step_values["latest_step_local_payoff_mean_delta"], latest_step_values["latest_step_short_term_payoff_mean_delta"])
+                latest_step_values.update({
+                    "latest_step_resource_growth_delta": latest_step_resource_growth_delta,
+                    "latest_step_payoff_growth_delta": latest_step_payoff_growth_delta,
+                    "latest_step_growth_delta": _signed_equal_mean(latest_step_resource_growth_delta, latest_step_payoff_growth_delta),
+                })
+                for key, value in latest_step_values.items():
+                    growth_derived_fields[key] = {"value": value, "method": "latest_t_minus_previous_t", "status_effect": "auxiliary_only"}
+        add_context_delta("resource_pressure", "v2_resource_trace.resource_pressure", value_at_t(resource, "resource_pressure", initial_t), value_at_t(resource, "resource_pressure", latest_t), "resource_pressure_increasing_context", "positive")
+        add_context_delta("resource_inequality", "v2_resource_trace.resource_inequality", value_at_t(resource, "resource_inequality", initial_t), value_at_t(resource, "resource_inequality", latest_t), "resource_inequality_increasing_context", "positive")
+        add_context_delta("long_term_health_proxy", "v2_game_trace.long_term_health_proxy", mean_at_t(game, "long_term_health_proxy", initial_t), mean_at_t(game, "long_term_health_proxy", latest_t), "long_term_health_proxy_declining_context", "negative")
+        critical_flags = []
+        if direct_growth_delta <= -0.10: critical_flags.append("critical_direct_growth_collapse")
+        if resource_growth_delta <= -0.10: critical_flags.append("critical_resource_growth_collapse")
+        if sum(value <= -0.08 for value in core_deltas.values()) >= 3: critical_flags.append("critical_multi_field_growth_collapse")
+        warning_flags = []
+        if direct_growth_delta <= -0.03: warning_flags.append("direct_growth_contracting")
+        if resource_growth_delta <= -0.03: warning_flags.append("resource_growth_contracting")
+        if payoff_growth_delta <= -0.03: warning_flags.append("payoff_growth_contracting")
+        for key, flag in [("shared_resource", "shared_resource_contracting"), ("commons_health", "commons_health_contracting"), ("private_resource_mean", "private_resource_mean_contracting"), ("local_payoff_mean", "local_payoff_contracting"), ("short_term_payoff_mean", "short_term_payoff_contracting")]:
+            if core_deltas[key] <= -0.08:
+                warning_flags.append(flag)
+        if direct_growth_delta >= 0.03 and (resource_growth_delta < 0 or payoff_growth_delta < 0):
+            warning_flags.append("mixed_growth_direction")
+        warn = critical_flags + warning_flags
+        if growth_context_flags:
+            growth_context_fields["flags"] = growth_context_flags
+        if critical_flags:
+            growth_status = "critical"
+        elif warning_flags:
+            growth_status = "warning"
+        elif direct_growth_delta >= 0.03 and resource_growth_delta >= 0 and payoff_growth_delta >= 0:
+            growth_status = "healthy"
+        elif -0.03 < direct_growth_delta < 0.03 or (direct_growth_delta >= 0.03 and (resource_growth_delta < 0 or payoff_growth_delta < 0)):
+            growth_status = "watch"
+        else:
+            growth_status = "watch"
+        growth_short_reason = "v2 direct growth status is based on initial_t to latest_t direct benefit field deltas only."
+    windows.append({
+        "window_name": "v2_direct_growth_window",
+        "status_label": growth_status,
+        "evidence_fields": ev,
+        "derived_fields": growth_derived_fields,
+        "context_fields": growth_context_fields,
+        "warning_flags": warn,
+        "unresolved_flags": unr,
+        "short_reason": growth_short_reason,
+    })
 
     # 6. Composite Balance Window
     ev, warn, unr = [], [], []
@@ -347,7 +511,7 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
     ev.append(_evidence("window_warning_counts", "observation_window_summary", warning_by_name, "derived_from_window_warning_flags"))
     if status_by_name.get("v2_direct_benefit_window") in {"healthy", "watch"} and status_by_name.get("h11_possibility_distribution_window") in {"warning", "critical"}:
         warn.append("benefit_vs_possibility_tension")
-    if status_by_name.get("growth_window") in {"healthy", "watch"} and "fatigue_elevated" in windows[0]["warning_flags"]:
+    if status_by_name.get("v2_direct_growth_window") in {"healthy", "watch"} and "fatigue_elevated" in windows[0]["warning_flags"]:
         warn.append("growth_vs_fatigue_tension")
     if action_mass is not None and action_mass > 0 and status_by_name.get("pressure_action_alignment_window") in {"warning", "critical"}:
         warn.append("action_mass_vs_action_usefulness_tension")
