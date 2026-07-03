@@ -50,16 +50,16 @@ def test_phase2g17_observation_windows_emit_required_shape_and_unresolved_fields
         "h11_possibility_distribution_window",
         "pressure_action_alignment_window",
         "risk_band_window",
-        "growth_window",
+        "v2_direct_growth_window",
         "composite_balance_window",
     ]
     for window in summary["windows"]:
         required = {"window_name", "status_label", "evidence_fields", "warning_flags", "unresolved_flags", "short_reason"}
-        if window["window_name"] == "v2_direct_benefit_window":
+        if window["window_name"] in {"v2_direct_benefit_window", "v2_direct_growth_window"}:
             required |= {"derived_fields", "context_fields"}
         assert set(window) == required
         assert window["status_label"] in {"healthy", "watch", "warning", "critical", "unresolved"}
-    assert "missing_growth_capacity_proxy" in next(w for w in summary["windows"] if w["window_name"] == "growth_window")["unresolved_flags"]
+    assert "unresolved_core_time_axis_v2_resource_trace" in next(w for w in summary["windows"] if w["window_name"] == "v2_direct_growth_window")["unresolved_flags"]
 
     flat = flatten_observation_windows(summary)
     assert len(flat) == 6
