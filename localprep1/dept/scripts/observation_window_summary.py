@@ -56,6 +56,45 @@ def _latest_value(frame: pd.DataFrame, column: str) -> float | None:
     return float(series.iloc[-1])
 
 
+
+def _latest_string(frame: pd.DataFrame, column: str) -> str | None:
+    latest = _latest_t(frame)
+    if latest.empty or column not in latest.columns:
+        return None
+    series = latest[column].dropna()
+    if series.empty:
+        return None
+    return str(series.iloc[-1])
+
+
+def _latest_bool(frame: pd.DataFrame, column: str) -> bool | None:
+    latest = _latest_t(frame)
+    if latest.empty or column not in latest.columns:
+        return None
+    series = latest[column].dropna()
+    if series.empty:
+        return None
+    value = series.iloc[-1]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    numeric = pd.to_numeric(pd.Series([value]), errors="coerce").dropna()
+    if numeric.empty:
+        return None
+    return bool(numeric.iloc[-1])
+
+
+def _unique_strings(frame: pd.DataFrame, column: str) -> list[str] | None:
+    if frame.empty or column not in frame.columns:
+        return None
+    values = sorted(str(value) for value in frame[column].dropna().unique().tolist() if str(value) != "")
+    return values
+
 def _clip01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
 
@@ -392,28 +431,216 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
         "short_reason": h11_short_reason,
     })
 
-    # 3. Pressure-Action Alignment Window
+    # 3. Pressure-Action Translation Audit Window
     ev, warn, unr = [], [], []
-    pressure_norm = _add_mean(ev, unr, shadow, "parameter_shadow_audit", "gate_pressure_norm", "upper_pressure_intensity_proxy")
-    _add_mean(ev, unr, shadow, "parameter_shadow_audit", "gate_integral_norm", "h11_pressure_intensity_proxy")
-    action_mass = _sum(action, "action_strength")
-    if action_mass is None:
-        _missing(unr, "action_mass")
+    context_fields: Dict[str, Any] = {}
+    context_flags: List[str] = []
+    critical_flags: List[str] = []
+    derived_fields: Dict[str, Any] = {}
+
+    pressure = _df(out, "pressure_trace")
+    gate = _df(out, "gate_trace")
+    translation = _df(out, "translation_trace")
+    if pressure.empty and not shadow.empty:
+        pressure = shadow
+    if gate.empty and not shadow.empty:
+        gate = shadow
+
+    def audit_evidence(field: str, source: str, value: Any, method: str, **extra: Any) -> None:
+        item = _evidence(field, source, value, method)
+        item.update(extra)
+        ev.append(item)
+
+    pressure_norm = _latest_value(pressure, "pressure_norm")
+    pressure_norm_source = "pressure_trace.pressure_norm"
+    if pressure_norm is None:
+        pressure_norm = _latest_value(pressure, "gate_pressure_norm")
+        pressure_norm_source = "parameter_shadow_audit.gate_pressure_norm"
+    dominant_axis = _latest_string(pressure, "dominant_pressure_axis")
+    if dominant_axis is None:
+        dominant_axis = _latest_string(pressure, "pressure_axis")
+    if pressure.empty:
+        unr.append("unresolved_core_pressure_log")
+    if pressure_norm is None:
+        unr.append("unresolved_core_pressure_norm")
     else:
-        ev.append(_evidence("action_mass", "action_frame", action_mass, "existing_trace_sum"))
-    for col in ["action_strength", "action_cost"]:
-        _add_mean(ev, unr, action, "action_frame", col)
-    if "action_channel" in action.columns:
-        ev.append(_evidence("selected_action_channel", "action_frame", sorted(action["action_channel"].astype(str).unique().tolist()), "existing_trace_unique_values"))
+        audit_evidence("pressure_norm", pressure_norm_source, pressure_norm, "latest_t_value", interpretation="pressure magnitude before action translation", higher_is="stronger_pressure")
+    if dominant_axis is None:
+        unr.append("unresolved_core_dominant_pressure_axis")
     else:
-        _missing(unr, "selected_action_channel")
-    if pressure_norm is not None and action_mass is not None and pressure_norm < 0.01 and action_mass > 0.1:
-        warn.append("pressure_absent_but_action_present")
-    if pressure_norm is not None and action_mass is not None and action_mass > max(pressure_norm * 100.0, 10.0):
-        warn.append("action_mass_high_relative_to_pressure_proxy")
-    for miss in ["upper_pressure_direction", "h11_pressure_direction", "action_mass_by_channel", "over_action_risk", "under_action_risk"]:
-        _missing(unr, miss)
-    windows.append(_window("pressure_action_alignment_window", ev, warn, unr))
+        audit_evidence("dominant_pressure_axis", "pressure_trace.dominant_pressure_axis", dominant_axis, "latest_t_value", interpretation="dominant pressure direction")
+    if _latest_string(pressure, "pressure_component_distribution") is None:
+        context_flags.append("pressure_component_distribution_missing_context")
+
+    gate_passed = _latest_bool(gate, "gate_passed")
+    gate_blocked = _latest_bool(gate, "gate_blocked")
+    safety_projection = _latest_bool(gate, "safety_projection_applied") or False
+    rollback_guard = _latest_bool(gate, "rollback_guard_active") or False
+    no_op_guard = _latest_bool(gate, "no_op_guard_active") or False
+    if gate.empty:
+        unr.append("unresolved_core_gate_log")
+    if gate_passed is None and gate_blocked is None:
+        unr.append("unresolved_core_gate_log")
+    for field, value in [("gate_passed", gate_passed), ("gate_blocked", gate_blocked), ("safety_projection_applied", safety_projection), ("rollback_guard_active", rollback_guard), ("no_op_guard_active", no_op_guard)]:
+        if value is not None:
+            audit_evidence(field, f"gate_trace.{field}", value, "latest_t_value")
+    for field in ["gate_pressure_norm", "gate_integral_norm"]:
+        value = _latest_value(gate, field)
+        if value is not None:
+            audit_evidence(field, f"gate_trace.{field}", value, "latest_t_value")
+            if field == "gate_integral_norm" and value >= 0.7:
+                context_flags.append("gate_integral_high_context")
+    if safety_projection:
+        context_flags.append("safety_projection_applied_context")
+
+    selected_channels = _unique_strings(translation, "selected_action_channels")
+    if selected_channels is None:
+        selected_channels = _unique_strings(translation, "action_channel")
+    translation_flags = _unique_strings(translation, "translation_unresolved_flags") or []
+    if translation.empty:
+        unr.append("unresolved_core_translation_log")
+        translation_flags = sorted(set(translation_flags + ["unresolved_core_translation_log"]))
+    if selected_channels is None:
+        unr.append("unresolved_core_selected_action_channels")
+    else:
+        audit_evidence("selected_action_channels", "translation_trace.selected_action_channels", selected_channels, "unique_values")
+    audit_evidence("translation_unresolved_flags", "translation_trace.translation_unresolved_flags", translation_flags, "unique_values")
+    translated_intent = _latest_string(translation, "translated_action_intent")
+    if translated_intent is not None:
+        audit_evidence("translated_action_intent", "translation_trace.translated_action_intent", translated_intent, "latest_t_value")
+    if _latest_value(translation, "translation_confidence") is None:
+        context_flags.append("translation_confidence_missing_context")
+
+    if action.empty:
+        unr.append("unresolved_core_action_frame")
+    action_channels = _unique_strings(action, "action_channel")
+    if action_channels is None:
+        unr.append("unresolved_core_action_channel")
+    else:
+        audit_evidence("action_channel", "action_frame.action_channel", action_channels, "unique_values")
+    strengths = pd.to_numeric(action["action_strength"], errors="coerce") if not action.empty and "action_strength" in action.columns else pd.Series(dtype=float)
+    if strengths.dropna().empty:
+        unr.append("unresolved_core_action_strength")
+        action_mass = None
+    else:
+        target = pd.to_numeric(action["target_count"], errors="coerce") if "target_count" in action.columns else None
+        if target is not None and not target.dropna().empty:
+            action_mass = float((strengths.fillna(0.0) * target.fillna(1.0)).sum())
+            mass_method = "sum_action_strength_times_target_count"
+        else:
+            action_mass = float(strengths.dropna().sum())
+            mass_method = "sum_action_strength"
+            if "target_count" not in action.columns:
+                context_flags.append("target_count_missing_context")
+        audit_evidence("action_strength", "action_frame.action_strength", float(strengths.dropna().mean()), "mean")
+        audit_evidence("action_mass", "action_frame.action_strength", action_mass, mass_method, interpretation="total emitted action mass", higher_is="more_action")
+    no_op_count = int(action["action_channel"].astype(str).isin({"no_op", "no_action"}).sum()) if action_channels is not None else 0
+    no_op_rate = (no_op_count / len(action)) if len(action) else None
+    if no_op_rate is None:
+        context_flags.append("no_op_rate_missing_context")
+
+    expected = {
+        "Exploration": {"exploration_injection", "uncertainty_probe"},
+        "Recoverability": {"buffer_increase", "relation_unlock", "coupling_relief"},
+        "Reversibility": {"buffer_increase", "relation_unlock", "coupling_relief"},
+        "Stability": {"volatility_damping", "coupling_relief", "buffer_increase"},
+        "Robustness": {"volatility_damping", "buffer_increase", "coupling_relief"},
+        "Coherence": {"coupling_relief", "uncertainty_probe"},
+    }
+    alignment = None
+    if action_mass is not None and action_mass > 0 and action_channels is not None:
+        expected_channels = expected.get(str(dominant_axis), set())
+        if not expected_channels and dominant_axis != "Efficiency":
+            context_flags.append("translation_route_unknown_context")
+        matched = 0.0
+        for _, row in action.iterrows():
+            strength = pd.to_numeric(pd.Series([row.get("action_strength")]), errors="coerce").fillna(0.0).iloc[0]
+            count = pd.to_numeric(pd.Series([row.get("target_count", 1.0)]), errors="coerce").fillna(1.0).iloc[0]
+            mass = float(strength * count) if "target_count" in action.columns else float(strength)
+            if str(row.get("action_channel")) in expected_channels:
+                matched += mass
+        alignment = matched / action_mass if action_mass else None
+
+    pressure_present = pressure_norm is not None and pressure_norm >= 0.03
+    action_present = action_mass is not None and action_mass >= 0.01
+    gate_consistency = None
+    if gate_passed is True and action_present:
+        gate_consistency = 1.0
+    elif gate_blocked is True and not action_present:
+        gate_consistency = 1.0
+    elif gate_blocked is True and action_present:
+        gate_consistency = 0.0
+    elif gate_passed is True and pressure_present and no_op_rate is not None and no_op_rate >= 0.70:
+        gate_consistency = 0.5
+
+    pairing = {k: None for k in ["run_id", "scenario", "seed", "t", "pressure_frame_id", "translation_frame_id", "action_frame_id"]}
+    for key in pairing:
+        for frame in [action, pressure, translation, gate]:
+            if not frame.empty and key in frame.columns:
+                pairing[key] = frame[key].dropna().iloc[-1] if not frame[key].dropna().empty else None
+                break
+    context_fields["pairing_keys"] = {k: v for k, v in pairing.items() if v is not None}
+    if not any(pairing.get(k) is not None for k in ["action_frame_id", "pressure_frame_id", "translation_frame_id"]) and not all(pairing.get(k) is not None for k in ["t", "seed", "scenario"]):
+        context_flags.append("weak_pairing_context")
+
+    groups_present = sum([pressure_norm is not None and dominant_axis is not None, gate_passed is not None or gate_blocked is not None, bool(selected_channels is not None and not translation.empty), action_mass is not None and action_channels is not None, "weak_pairing_context" not in context_flags])
+    observability = groups_present / 5.0
+    if pressure_norm is not None and action_mass is not None:
+        derived_fields["pressure_presence_proxy"] = {"value": pressure_norm, "method": "pressure_norm"}
+        derived_fields["action_mass_proxy"] = {"value": action_mass, "method": mass_method}
+        derived_fields["pressure_to_action_ratio"] = {"value": action_mass / max(pressure_norm, 1e-9), "method": "action_mass_proxy / max(pressure_norm, epsilon)", "interpretation": "translation intensity relative to pressure", "higher_is": "more_action_per_pressure"}
+    derived_fields["no_op_rate_proxy"] = {"value": no_op_rate, "method": "no_op_count / len(action_frame)"}
+    derived_fields["channel_alignment_proxy"] = {"value": alignment, "method": "matched_action_mass / total_action_mass", "interpretation": "share of action mass emitted through expected channels for dominant pressure axis", "higher_is": "better"}
+    derived_fields["gate_action_consistency_proxy"] = {"value": gate_consistency, "method": "gate decision and action presence consistency", "interpretation": "whether gate outcome and emitted action agree", "higher_is": "better"}
+    derived_fields["translation_observability_proxy"] = {"value": observability, "method": "required audit field completeness", "interpretation": "how well the pressure-to-action path can be reconstructed", "higher_is": "better"}
+
+    if pressure_norm is not None and action_mass is not None:
+        if pressure_norm >= 0.30 and action_mass == 0: critical_flags.append("critical_pressure_without_action")
+        elif pressure_norm >= 0.20 and action_mass < 0.03: warn.append("under_action_for_pressure")
+        if pressure_norm < 0.01 and action_mass >= 0.10: critical_flags.append("critical_action_without_pressure")
+        elif pressure_norm < 0.03 and action_mass >= 0.05: warn.append("over_action_for_pressure")
+    if gate_blocked is True and action_present: critical_flags.append("critical_gate_blocked_but_action_emitted")
+    if rollback_guard and action_present: critical_flags.append("critical_rollback_guard_ignored")
+    if no_op_guard and action_present: critical_flags.append("critical_no_op_guard_ignored")
+    if not translation.empty and selected_channels == [] and action_present: warn.append("translation_unresolved")
+    if translation.empty and action_mass is not None and action_mass >= 0.20: critical_flags.append("critical_translation_missing_but_action_emitted")
+    if alignment is not None and alignment < 0.40: warn.append("channel_alignment_low")
+    if gate_passed is True and pressure_norm is not None and pressure_norm >= 0.20 and no_op_rate is not None and no_op_rate >= 0.70: warn.append("gate_passed_but_no_action_high")
+    if translation_flags: warn.append("translation_unresolved")
+    if observability < 0.70: warn.append("translation_observability_low")
+    if strengths is not None and not strengths.dropna().empty and (strengths.dropna() >= 0.95).mean() >= 0.8: critical_flags.append("critical_action_strength_saturation")
+    if "weak_pairing_context" in context_flags and action_mass is not None and action_mass >= 0.20: critical_flags.append("critical_unpaired_action_frame")
+    if "translation_route_unknown_context" in context_flags: warn.append("translation_route_unknown")
+    if "weak_pairing_context" in context_flags: warn.append("weak_pairing_context")
+
+    if context_flags:
+        context_fields["flags"] = sorted(set(context_flags))
+    warn = sorted(set(critical_flags + warn))
+    if unr:
+        status = "unresolved"
+        short_reason = "pressure-action translation audit core log missing: " + ", ".join(sorted(set(unr))[:5])
+    elif critical_flags:
+        status = "critical"
+        short_reason = "pressure-action translation audit found critical pressure/gate/action inconsistency."
+    elif any(flag in warn for flag in ["under_action_for_pressure", "over_action_for_pressure", "channel_alignment_low", "gate_passed_but_no_action_high", "translation_unresolved", "translation_observability_low"]):
+        status = "warning"
+        short_reason = "pressure-action translation audit found warning-level mismatch or observability gap."
+    elif warn or safety_projection:
+        status = "watch"
+        short_reason = "pressure-action translation audit is readable with context/watch flags."
+    else:
+        status = "healthy"
+        short_reason = "pressure, gate, translation, and ActionFrame logs are readable without mismatch flags."
+    windows.append({
+        "window_name": "pressure_action_translation_audit_window",
+        "status_label": status,
+        "evidence_fields": ev,
+        "derived_fields": derived_fields,
+        "context_fields": context_fields,
+        "warning_flags": warn,
+        "unresolved_flags": sorted(set(unr)),
+        "short_reason": short_reason,
+    })
 
     # 4. Risk-Band Window
     ev, warn, unr = [], [], []
@@ -618,7 +845,7 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
         warn.append("benefit_vs_possibility_tension")
     if status_by_name.get("v2_direct_growth_window") in {"healthy", "watch"} and "fatigue_elevated" in windows[0]["warning_flags"]:
         warn.append("growth_vs_fatigue_tension")
-    if action_mass is not None and action_mass > 0 and status_by_name.get("pressure_action_alignment_window") in {"warning", "critical"}:
+    if action_mass is not None and action_mass > 0 and status_by_name.get("pressure_action_translation_audit_window") in {"warning", "critical"}:
         warn.append("action_mass_vs_action_usefulness_tension")
     for col in ["benefit_vs_possibility", "visible_benefit_vs_hidden_damage", "growth_vs_fatigue", "stability_vs_shrinking_equilibrium", "predictability_vs_predictable_collapse", "pressure_alignment_vs_metric_optimization", "short_term_benefit_vs_long_term_route_preservation"]:
         _missing(unr, col)
