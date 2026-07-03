@@ -1166,7 +1166,7 @@ def flatten_observation_windows(summary: Mapping[str, Any]) -> pd.DataFrame:
             "unresolved_flags": ";".join(window["unresolved_flags"]),
             "short_reason": window["short_reason"],
             "boundary_note": summary.get("boundary_note", ""),
-            "derived_fields_json": json.dumps(window.get("derived_fields", {}), ensure_ascii=False, sort_keys=True),
-            "context_fields_json": json.dumps(window.get("context_fields", {}), ensure_ascii=False, sort_keys=True),
+            "derived_fields_json": json.dumps(window.get("derived_fields", {}), ensure_ascii=False, sort_keys=True, default=str),
+            "context_fields_json": json.dumps(window.get("context_fields", {}), ensure_ascii=False, sort_keys=True, default=str),
         })
     return pd.DataFrame(rows)
