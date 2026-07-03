@@ -55,7 +55,7 @@ def test_phase2g17_observation_windows_emit_required_shape_and_unresolved_fields
     ]
     for window in summary["windows"]:
         required = {"window_name", "status_label", "evidence_fields", "warning_flags", "unresolved_flags", "short_reason"}
-        if window["window_name"] in {"v2_direct_benefit_window", "v2_direct_growth_window", "v2_h11_action_effect_window", "pressure_action_translation_audit_window", "v2_direct_risk_band_window"}:
+        if window["window_name"] in {"v2_direct_benefit_window", "v2_direct_growth_window", "v2_h11_action_effect_window", "pressure_action_translation_audit_window", "v2_direct_risk_band_window", "composite_balance_window"}:
             required |= {"derived_fields", "context_fields"}
         assert set(window) == required
         assert window["status_label"] in {"healthy", "watch", "warning", "critical", "unresolved"}

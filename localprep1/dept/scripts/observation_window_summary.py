@@ -178,6 +178,168 @@ def _window(name: str, evidence: List[Dict[str, Any]], warnings: List[str], unre
     }
 
 
+
+def _entry_value(entry: Any) -> float | None:
+    if isinstance(entry, Mapping):
+        entry = entry.get("value")
+    try:
+        value = float(entry)
+    except (TypeError, ValueError):
+        return None
+    return value
+
+
+def _build_composite_balance_window(windows: List[Window]) -> Window:
+    """Build the auxiliary composite balance window from existing windows only."""
+    by_name = {w.get("window_name"): w for w in windows}
+    main_sources = {
+        "v2_h11_action_effect_window": ("governance_health_reference", "h11_action_effect_proxy"),
+        "v2_direct_benefit_window": ("benefit_preservation_reference", "visible_benefit_proxy"),
+        "v2_direct_growth_window": ("growth_preservation_reference", "direct_growth_delta"),
+    }
+    auxiliary_sources = {
+        "v2_direct_risk_band_window": ["direct_risk_band_score", "systemic_risk_pressure"],
+        "pressure_action_translation_audit_window": ["translation_observability_proxy", "gate_action_consistency_proxy", "channel_alignment_proxy"],
+    }
+    evidence: List[Dict[str, Any]] = []
+    warning_flags: List[str] = []
+    unresolved_flags: List[str] = []
+    missing_reference_fields: List[str] = []
+    used_reference_fields: Dict[str, str] = {}
+    values: Dict[str, float] = {}
+
+    status_by_name = {str(w.get("window_name")): w.get("status_label") for w in windows}
+    warning_by_name = {str(w.get("window_name")): len(w.get("warning_flags", [])) for w in windows}
+    unresolved_by_name = {str(w.get("window_name")): len(w.get("unresolved_flags", [])) for w in windows}
+
+    for window_name, (reference_name, field_name) in main_sources.items():
+        window = by_name.get(window_name)
+        if not window:
+            unresolved_flags.append(f"unresolved_missing_{window_name}")
+            unresolved_flags.append(f"unresolved_missing_{reference_name}")
+            missing_reference_fields.append(f"{window_name}.derived_fields.{field_name}")
+            continue
+        value = _entry_value(window.get("derived_fields", {}).get(field_name))
+        if value is None:
+            unresolved_flags.append(f"unresolved_missing_{reference_name}")
+            missing_reference_fields.append(f"{window_name}.derived_fields.{field_name}")
+            continue
+        values[reference_name] = value
+        source = f"{window_name}.derived_fields.{field_name}"
+        used_reference_fields[reference_name] = source
+        evidence.append(_interpreted_evidence(reference_name, source, value, "existing_window_derived_field", {
+            "governance_health_reference": "H11-like action effect reference for governance health",
+            "benefit_preservation_reference": "direct v2 benefit preservation reference",
+            "growth_preservation_reference": "signed direct v2 growth reference",
+        }[reference_name], "better"))
+
+    risk_window = by_name.get("v2_direct_risk_band_window")
+    if not risk_window:
+        warning_flags.append("missing_auxiliary_risk_window")
+        missing_reference_fields.append("v2_direct_risk_band_window")
+    else:
+        for field_name in auxiliary_sources["v2_direct_risk_band_window"]:
+            value = _entry_value(risk_window.get("derived_fields", {}).get(field_name))
+            if value is not None:
+                values["direct_risk_reference"] = value
+                source = f"v2_direct_risk_band_window.derived_fields.{field_name}"
+                used_reference_fields["direct_risk_reference"] = source
+                evidence.append(_interpreted_evidence("direct_risk_reference", source, value, "existing_window_derived_field", "auxiliary direct v2 risk reference", "worse"))
+                break
+        if "direct_risk_reference" not in values:
+            warning_flags.append("missing_auxiliary_direct_risk_reference")
+            missing_reference_fields.append("v2_direct_risk_band_window.derived_fields.direct_risk_band_score|systemic_risk_pressure")
+
+    translation_window = by_name.get("pressure_action_translation_audit_window")
+    translation_values: List[float] = []
+    if not translation_window:
+        warning_flags.append("missing_auxiliary_translation_window")
+        missing_reference_fields.append("pressure_action_translation_audit_window")
+    else:
+        for field_name in auxiliary_sources["pressure_action_translation_audit_window"]:
+            value = _entry_value(translation_window.get("derived_fields", {}).get(field_name))
+            if value is not None:
+                translation_values.append(_clip01(value))
+                used_reference_fields[f"translation_audit_reference.{field_name}"] = f"pressure_action_translation_audit_window.derived_fields.{field_name}"
+        if translation_values:
+            values["translation_audit_reference"] = _equal_mean(*translation_values)
+            evidence.append(_interpreted_evidence("translation_audit_reference", "pressure_action_translation_audit_window.derived_fields.translation_observability_proxy|gate_action_consistency_proxy|channel_alignment_proxy", values["translation_audit_reference"], "equal_mean(existing_translation_audit_fields_present)", "auxiliary pressure-to-action readability reference", "better"))
+        else:
+            warning_flags.append("missing_auxiliary_translation_audit_reference")
+            missing_reference_fields.append("pressure_action_translation_audit_window.derived_fields.translation_observability_proxy|gate_action_consistency_proxy|channel_alignment_proxy")
+
+    context_fields: Dict[str, Any] = {
+        "source_window_statuses": status_by_name,
+        "source_window_warning_counts": warning_by_name,
+        "source_window_unresolved_counts": unresolved_by_name,
+        "used_reference_fields": used_reference_fields,
+        "missing_reference_fields": missing_reference_fields,
+        "auxiliary_context": {
+            "direct_risk_status": status_by_name.get("v2_direct_risk_band_window"),
+            "translation_audit_status": status_by_name.get("pressure_action_translation_audit_window"),
+        },
+        "extension_notes": [
+            "governance_risk_tension can be added later if direct risk becomes central",
+            "translation_benefit_tension can be added later if translation/benefit mismatch becomes important",
+            "benefit_growth_split_tension can be added later if benefit and growth diverge repeatedly",
+            "long_term_health_tension can be added when long-term health proxy becomes stable",
+        ],
+    }
+    derived_fields: Dict[str, Any] = {}
+    if unresolved_flags:
+        return {"window_name": "composite_balance_window", "status_label": "unresolved", "evidence_fields": evidence, "derived_fields": derived_fields, "context_fields": context_fields, "warning_flags": sorted(set(warning_flags)), "unresolved_flags": sorted(set(unresolved_flags)), "short_reason": "Composite balance window cannot read all main references."}
+
+    gh = values["governance_health_reference"]; benefit = values["benefit_preservation_reference"]; growth = values["growth_preservation_reference"]
+    risk = values.get("direct_risk_reference", 0.0); translation_ref = values.get("translation_audit_reference", 0.0)
+    ngh = _clip01(0.5 + gh); clipped_growth = _clip01(0.5 + growth)
+    primary = _equal_mean(ngh, benefit, clipped_growth)
+    tensions = {
+        "governance_benefit_tension": max(0.0, ngh - benefit),
+        "governance_growth_tension": max(0.0, gh - growth),
+        "benefit_risk_tension": min(benefit, risk),
+        "growth_risk_tension": risk if growth >= 0.03 else 0.0,
+        "translation_effect_tension": max(0.0, translation_ref - ngh),
+    }
+    for name, value, method, interp, higher in [
+        ("governance_health_reference", gh, "v2_h11_action_effect_window.derived_fields.h11_action_effect_proxy", "H11-like action effect reference for governance health", "better"),
+        ("benefit_preservation_reference", benefit, "v2_direct_benefit_window.derived_fields.visible_benefit_proxy", "direct v2 benefit preservation reference", "better"),
+        ("growth_preservation_reference", growth, "v2_direct_growth_window.derived_fields.direct_growth_delta", "signed direct v2 growth reference", "better"),
+        ("direct_risk_reference", risk, used_reference_fields.get("direct_risk_reference", "missing_auxiliary_default_0"), "auxiliary direct v2 risk reference", "worse"),
+        ("translation_audit_reference", translation_ref, "equal_mean(translation_observability_proxy, gate_action_consistency_proxy, channel_alignment_proxy)", "auxiliary pressure-to-action readability reference", "better"),
+        ("primary_balance_reference", primary, "equal_mean(normalized_governance_health, benefit_preservation_reference, clipped_growth_reference)", "display-only primary balance reference; not a success/failure judgment", "better"),
+    ]:
+        derived_fields[name] = {"value": value, "method": method, "interpretation": interp, "higher_is": higher}
+    for name, value in tensions.items():
+        derived_fields[name] = {"value": value, "method": name, "interpretation": name.replace("_", " "), "higher_is": "worse"}
+
+    critical_primary = any(status_by_name.get(n) == "critical" for n in main_sources)
+    warning_primary = any(status_by_name.get(n) == "warning" for n in main_sources)
+    eps = 1e-12
+    if gh + eps >= 0.05 and benefit < 0.20: warning_flags.append("critical_governance_benefit_tension")
+    elif gh + eps >= 0.03 and benefit < 0.35: warning_flags.append("governance_benefit_tension")
+    if gh + eps >= 0.05 and growth <= -0.10 + eps: warning_flags.append("critical_governance_growth_tension")
+    elif gh + eps >= 0.03 and growth <= -0.03 + eps: warning_flags.append("governance_growth_tension")
+    if benefit + eps >= 0.55 and risk + eps >= 0.80: warning_flags.append("benefit_risk_tension")
+    elif benefit + eps >= 0.55 and risk + eps >= 0.60: warning_flags.append("benefit_risk_tension")
+    if growth + eps >= 0.03 and risk + eps >= 0.80: warning_flags.append("growth_risk_tension")
+    elif growth + eps >= 0.03 and risk + eps >= 0.60: warning_flags.append("growth_risk_tension")
+    if translation_ref + eps >= 0.80 and gh <= -0.10 + eps: warning_flags.append("critical_translation_effect_tension")
+    elif translation_ref + eps >= 0.70 and gh <= -0.03 + eps: warning_flags.append("translation_effect_tension")
+    if critical_primary: warning_flags.append("critical_primary_window_status")
+    if risk_window and risk_window.get("status_label") == "critical": warning_flags.append("direct_risk_critical_context")
+    elif risk >= 0.60: warning_flags.append("direct_risk_high_context")
+    if translation_window and translation_window.get("status_label") in {"warning", "critical"}: warning_flags.append("translation_audit_low_context")
+
+    critical_flags = {"critical_governance_benefit_tension", "critical_governance_growth_tension", "critical_translation_effect_tension", "critical_primary_window_status"}
+    primary_warning_flags = {"governance_benefit_tension", "governance_growth_tension", "translation_effect_tension"}
+    if critical_flags & set(warning_flags): status = "critical"
+    elif warning_primary or primary_warning_flags & set(warning_flags) or {"benefit_risk_tension", "growth_risk_tension"} & set(warning_flags): status = "warning"
+    elif warning_flags or any(status_by_name.get(n) in {"watch"} for n in list(main_sources) + list(auxiliary_sources)): status = "watch"
+    else: status = "healthy"
+    if "direct_risk_critical_context" in warning_flags and not critical_flags & set(warning_flags): status = "warning"
+    return {"window_name": "composite_balance_window", "status_label": status, "evidence_fields": evidence, "derived_fields": derived_fields, "context_fields": context_fields, "warning_flags": sorted(set(warning_flags)), "unresolved_flags": [], "short_reason": "Composite balance window reads existing window references as auxiliary integration; it does not replace primary judgments."}
+
+
 def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any], metrics: Mapping[str, Any] | None = None) -> Dict[str, Any]:
     """Build six Phase 2G-17 observation windows from existing validation output."""
     hidden = _df(out, "v2_hidden_trace")
@@ -977,20 +1139,7 @@ def build_observation_window_summary(label: str, cfg: Any, out: Mapping[str, Any
     })
 
     # 6. Composite Balance Window
-    ev, warn, unr = [], [], []
-    status_by_name = {w["window_name"]: w["status_label"] for w in windows}
-    warning_by_name = {w["window_name"]: len(w["warning_flags"]) for w in windows}
-    ev.append(_evidence("window_statuses", "observation_window_summary", status_by_name, "derived_from_window_status_labels"))
-    ev.append(_evidence("window_warning_counts", "observation_window_summary", warning_by_name, "derived_from_window_warning_flags"))
-    if status_by_name.get("v2_direct_benefit_window") in {"healthy", "watch"} and status_by_name.get("v2_h11_action_effect_window") in {"warning", "critical"}:
-        warn.append("benefit_vs_possibility_tension")
-    if status_by_name.get("v2_direct_growth_window") in {"healthy", "watch"} and "fatigue_elevated" in windows[0]["warning_flags"]:
-        warn.append("growth_vs_fatigue_tension")
-    if action_mass is not None and action_mass > 0 and status_by_name.get("pressure_action_translation_audit_window") in {"warning", "critical"}:
-        warn.append("action_mass_vs_action_usefulness_tension")
-    for col in ["benefit_vs_possibility", "visible_benefit_vs_hidden_damage", "growth_vs_fatigue", "stability_vs_shrinking_equilibrium", "predictability_vs_predictable_collapse", "pressure_alignment_vs_metric_optimization", "short_term_benefit_vs_long_term_route_preservation"]:
-        _missing(unr, col)
-    windows.append(_window("composite_balance_window", ev, warn, unr))
+    windows.append(_build_composite_balance_window(windows))
 
     return {
         "phase": "Phase 2G-18R-1",
