@@ -9,8 +9,20 @@ from .diagnostic_compat_policy import (
     DIAGNOSTIC_COMPAT_POLICY_PROFILE,
     DiagnosticCompatPolicy,
 )
+from .pressure_action_map_rc1 import (
+    PRESSURE_ACTION_MAP_VERSION,
+    REQUIRED_PRESSURE_ACTION_MAP_COLUMNS,
+    build_and_validate_initial_pressure_action_map,
+    build_initial_pressure_action_map,
+    validate_initial_pressure_action_map,
+)
 
 __all__ = [
     "DIAGNOSTIC_COMPAT_POLICY_PROFILE",
     "DiagnosticCompatPolicy",
+    "PRESSURE_ACTION_MAP_VERSION",
+    "REQUIRED_PRESSURE_ACTION_MAP_COLUMNS",
+    "build_and_validate_initial_pressure_action_map",
+    "build_initial_pressure_action_map",
+    "validate_initial_pressure_action_map",
 ]
