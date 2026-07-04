@@ -66,6 +66,15 @@ from .pressure_action_task2_5f_inverse_validation import (
     build_inverse_pressure_action_validation_table,
     validate_inverse_pressure_action_validation_table,
 )
+from .pressure_action_task2_6_converter_rc1 import (
+    TASK2_6_CONVERTER_VERSION,
+    REQUIRED_TASK2_6_COLUMNS,
+    PressureActionConversionConfig,
+    build_and_validate_demo_pressure_action_candidates,
+    build_demo_pressure_inputs,
+    convert_pressure_inputs_to_action_candidates,
+    validate_pressure_action_candidates_no_strength_boost,
+)
 from .pressure_action_validation_suite_rc1 import (
     TASK2_4_VALIDATION_VERSION,
     build_action_combination_additivity_validation,
@@ -111,7 +120,6 @@ __all__ = [
     "build_pressure_action_validation_report",
     "build_single_action_pressure_alignment_validation",
     "summarize_pressure_action_validation_report",
-    "summarize_state_dependence",
     "validate_pressure_action_validation_report",
     "TASK2_5A_VERSION",
     "REQUIRED_TASK2_5A_COLUMNS",
@@ -143,4 +151,11 @@ __all__ = [
     "build_and_validate_inverse_pressure_action_validation_table",
     "build_inverse_pressure_action_validation_table",
     "validate_inverse_pressure_action_validation_table",
+    "TASK2_6_CONVERTER_VERSION",
+    "REQUIRED_TASK2_6_COLUMNS",
+    "PressureActionConversionConfig",
+    "build_and_validate_demo_pressure_action_candidates",
+    "build_demo_pressure_inputs",
+    "convert_pressure_inputs_to_action_candidates",
+    "validate_pressure_action_candidates_no_strength_boost",
 ]
