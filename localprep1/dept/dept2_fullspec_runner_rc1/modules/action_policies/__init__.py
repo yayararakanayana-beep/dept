@@ -75,6 +75,18 @@ from .pressure_action_task2_6_converter_rc1 import (
     convert_pressure_inputs_to_action_candidates,
     validate_pressure_action_candidates_no_strength_boost,
 )
+from .pressure_action_task2_7_insurance_terrain_gate import (
+    TASK2_7_INSURANCE_GATE_VERSION,
+    REQUIRED_TASK2_7_COLUMNS,
+    InsuranceTerrainGateConfig,
+    build_and_validate_demo_insurance_terrain_action_gate_table,
+    build_demo_pressure_inputs_for_insurance_gate,
+    build_demo_terrain_map,
+    build_insurance_terrain_action_gate_table,
+    compute_terrain_gain,
+    compute_terrain_risk,
+    validate_insurance_terrain_action_gate_table,
+)
 from .pressure_action_validation_suite_rc1 import (
     TASK2_4_VALIDATION_VERSION,
     build_action_combination_additivity_validation,
@@ -158,4 +170,14 @@ __all__ = [
     "build_demo_pressure_inputs",
     "convert_pressure_inputs_to_action_candidates",
     "validate_pressure_action_candidates_no_strength_boost",
+    "TASK2_7_INSURANCE_GATE_VERSION",
+    "REQUIRED_TASK2_7_COLUMNS",
+    "InsuranceTerrainGateConfig",
+    "build_and_validate_demo_insurance_terrain_action_gate_table",
+    "build_demo_pressure_inputs_for_insurance_gate",
+    "build_demo_terrain_map",
+    "build_insurance_terrain_action_gate_table",
+    "compute_terrain_gain",
+    "compute_terrain_risk",
+    "validate_insurance_terrain_action_gate_table",
 ]
