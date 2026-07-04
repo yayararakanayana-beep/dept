@@ -1,0 +1,153 @@
+name: Task2-6 Pressure-Action Converter
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_4.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5a.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5b.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5c.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5d.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5e.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5f.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_6.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_6_conversion_design.md'
+      - '.github/workflows/task2_6_pressure_action_converter.yml'
+
+jobs:
+  task2-6-pressure-action-converter:
+    name: Task2-6 pressure-action converter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-6 tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5a.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5b.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5c.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5d.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5e.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5f.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_6.py
+
+      - name: Export Task2-6 converter candidate table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_6_converter_rc1 import (
+              build_and_validate_demo_pressure_action_candidates,
+          )
+
+          def markdown_table(df, columns, limit=40):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_6_pressure_action_converter_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_demo_pressure_action_candidates()
+          table.to_csv(out_dir / 'pressure_action_candidates_no_strength_boost.csv', index=False)
+
+          review = table[table['requires_downstream_gate_review'].astype(bool)].copy() if not table.empty else pd.DataFrame()
+          review.to_csv(out_dir / 'downstream_gate_review_candidates.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'pressure_inputs': int(table['pressure_input_id'].nunique()) if not table.empty else 0,
+              'actions': sorted(table['action_channel'].astype(str).unique().tolist()) if not table.empty else [],
+              'gap_rows': int((table['pressure_result_gap'] > 0).sum()) if not table.empty else 0,
+              'downstream_gate_review_rows': int(table['requires_downstream_gate_review'].astype(bool).sum()) if not table.empty else 0,
+              'strength_correction_applied': bool(table['action_strength_correction_applied'].astype(bool).any()) if not table.empty else False,
+              'pressure_matching_boost_applied': bool(table['pressure_matching_boost_applied'].astype(bool).any()) if not table.empty else False,
+              'runtime_policy_input': bool(table['runtime_policy_input'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-6 Pressure-Action Converter RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Pressure-action candidate converter table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Candidate rows')
+          md.append('')
+          cols = [
+              'pressure_input_id', 'pressure_component', 'component_direction', 'pressure_strength',
+              'action_name_ja', 'pressure_signal', 'expected_result_signal', 'pressure_result_gap',
+              'candidate_status', 'state_audit_status', 'interaction_audit_status',
+          ]
+          md.append(markdown_table(table, cols, limit=50))
+          md.append('')
+          (out_dir / 'TASK2_6_PRESSURE_ACTION_CONVERTER_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:160]))
+          if errors:
+              raise SystemExit('Task2-6 converter table contained structural errors')
+          PY
+
+      - name: Upload Task2-6 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-6-pressure-action-converter-rc1
+          path: results/task2_6_pressure_action_converter_rc1/
+          if-no-files-found: error
