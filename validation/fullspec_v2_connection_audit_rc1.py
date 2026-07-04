@@ -95,7 +95,7 @@ def _all_contract_contains_either(df: pd.DataFrame, tokens: tuple[str, ...]) -> 
 
 
 def _validate_exploration_bridge_old_and_current_thin_contract(
-    self: BoundaryGuard,
+    self,
     exploration_sidecar: pd.DataFrame,
     exploration_projection: pd.DataFrame,
 ) -> list[str]:
