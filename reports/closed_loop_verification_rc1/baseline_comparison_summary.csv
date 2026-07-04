@@ -1,0 +1,4 @@
+baseline_name,mean_cumulative_gain,mean_final_stability,mean_final_risk,mean_safety_violation_rate,mean_over_action_rate,mean_missed_opportunity_rate,mean_recovery_score,mean_time_to_recover,mean_final_relation_lock,mean_exploration_capacity_retention,mean_audit_pass_rate,closed_loop_robustness_score
+ACTION_MODULE_RC1,0.0,0.575935,0.533844,0.0,0.0,0.478571,0.575343,28.285714,0.064214,0.969602,1.0,0.837179
+NO_ACTION,0.0,0.570732,0.575,0.0,0.0,0.52381,0.564724,28.285714,0.06,0.974884,1.0,0.829844
+V2_GREEDY_OPTIMIZER,5.962297,0.97001,0.743902,0.0,0.333333,0.0,0.435401,14.142857,0.299136,0.759116,1.0,0.676638

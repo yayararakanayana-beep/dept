@@ -1,0 +1,7 @@
+preflight_item,value,passed,blocking,note
+v2_alignment_available,True,True,False,PR #99 audit callable and safe for test-local closed-loop comparison
+open_stress_available,True,True,False,PR #99 audit callable and safe for test-local closed-loop comparison
+three_baselines_available,True,True,False,PR #99 audit callable and safe for test-local closed-loop comparison
+harmful_execute_violation_rate,0.0,True,False,PR #99 audit callable and safe for test-local closed-loop comparison
+audit_boundary_pass_rate,1.0,True,False,PR #99 audit callable and safe for test-local closed-loop comparison
+preflight_passed,True,True,False,PR #99 audit callable and safe for test-local closed-loop comparison
