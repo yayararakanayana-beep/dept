@@ -24,6 +24,15 @@ from .pressure_action_map_rc1 import (
     build_initial_pressure_action_map,
     validate_initial_pressure_action_map,
 )
+from .pressure_intent_to_action_candidate_adapter import (
+    TASK2_3_ADAPTER_PROFILE,
+    REQUIRED_ACTION_CANDIDATE_COLUMNS,
+    CandidateStrengthConfig,
+    PressureIntentToActionCandidateAdapter,
+    build_and_validate_pressure_intent_action_candidates,
+    build_basic_action_correspondence_map,
+    validate_pressure_intent_action_candidates,
+)
 
 __all__ = [
     "DIAGNOSTIC_COMPAT_POLICY_PROFILE",
@@ -39,4 +48,11 @@ __all__ = [
     "build_single_action_probe_response_map",
     "calibrate_pressure_action_map",
     "validate_calibrated_pressure_action_map",
+    "TASK2_3_ADAPTER_PROFILE",
+    "REQUIRED_ACTION_CANDIDATE_COLUMNS",
+    "CandidateStrengthConfig",
+    "PressureIntentToActionCandidateAdapter",
+    "build_and_validate_pressure_intent_action_candidates",
+    "build_basic_action_correspondence_map",
+    "validate_pressure_intent_action_candidates",
 ]
