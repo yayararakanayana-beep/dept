@@ -1,4 +1,4 @@
-name: Task2-4 Pressure-Action Validation Manual
+name: Task2-4 Pressure-Action Validation
 
 on:
   workflow_dispatch:
@@ -11,10 +11,16 @@ on:
         options:
           - 'true'
           - 'false'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_*.py'
+      - '.github/workflows/task2_4_pressure_action_validation.yml'
 
 jobs:
-  task2-4-pressure-action-validation-manual:
-    name: Task2-4 pressure-action validation manual
+  task2-4-pressure-action-validation:
+    name: Task2-4 pressure-action validation
     runs-on: ubuntu-latest
 
     steps:
@@ -36,7 +42,7 @@ jobs:
         run: python -m pip install pytest
 
       - name: Run Task2 pressure-action tests
-        if: ${{ inputs.run_tests == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_tests == 'true' }}
         env:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: |
