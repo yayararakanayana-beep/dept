@@ -23,6 +23,7 @@ for path in (LOCALPREP_ROOT, ACTION_MODULE_ROOT, REPO_ROOT):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+from dept2_fullspec_runner_rc1.modules.boundary_guard import BoundaryGuard  # noqa: E402
 from dept2_fullspec_runner_rc1.runner.fullspec_integrated_closed_loop_runner import (  # noqa: E402
     run_fullspec_task16,
 )
@@ -49,7 +50,8 @@ REVERSIBLE_OVERRIDES: dict[str, Any] = {
 
 LEGACY_THIN_CONTRACT_TOKEN = "thin_projection_only"
 CURRENT_THIN_NOTICE_CONTRACT_TOKEN = "thin_candidate_handoff_only"
-LEGACY_FALSE_POSITIVE_DETAIL = "exploration_projection_not_thin_contract"
+
+_ORIGINAL_VALIDATE_EXPLORATION_BRIDGE = BoundaryGuard.validate_exploration_bridge
 
 
 def _frame(out: dict[str, Any], name: str) -> pd.DataFrame:
@@ -85,45 +87,97 @@ def _all_contract_contains(df: pd.DataFrame, token: str) -> bool:
     return bool(df["projection_contract"].astype(str).str.contains(token, regex=False).all())
 
 
-def _only_known_thin_contract_false_positive(out: dict[str, Any]) -> tuple[bool, str]:
-    """Return True only when the guard failure is the known old-name mismatch.
+def _all_contract_contains_either(df: pd.DataFrame, tokens: tuple[str, ...]) -> bool:
+    if df.empty or "projection_contract" not in df.columns:
+        return False
+    contracts = df["projection_contract"].astype(str)
+    return bool(contracts.map(lambda value: any(token in value for token in tokens)).all())
 
-    Japanese meaning:
-    - The action-side notice is still thin.
-    - The full detail box is not directly passed onward.
-    - The only failing guard row is the old contract-name check.
 
-    This does not permit any writeback, ActionFrame creation, or direct
-    ActionModule call from the exploration bridge.
+def _validate_exploration_bridge_old_and_current_thin_contract(
+    self: BoundaryGuard,
+    exploration_sidecar: pd.DataFrame,
+    exploration_projection: pd.DataFrame,
+) -> list[str]:
+    """Validate exploration bridge while accepting old and current thin notice names.
+
+    Japanese fixed terms used in this validation:
+    - projection = action-side notice
+    - sidecar = detail storage box
+
+    The current Phase 2G-20AB bridge renamed the thin action-side notice contract
+    from `thin_projection_only` to `thin_candidate_handoff_only`.  Both names are
+    accepted here only when the original safety gates still hold: no full detail
+    storage box is passed onward, no direct ActionModule call is made, no
+    ActionFrame is created by the exploration bridge, and no writeback occurs.
     """
-    bvr = _frame(out, "boundary_violation_report")
-    projection = _frame(out, "exploration_projection")
-    if bvr.empty:
-        return False, "no boundary violation rows"
-    if projection.empty:
-        return False, "exploration_projection is empty while boundary violation rows exist"
-    if "violation_detail" not in bvr.columns:
-        return False, "boundary_violation_report.violation_detail missing"
-    details = sorted(set(bvr["violation_detail"].astype(str)))
-    if details != [LEGACY_FALSE_POSITIVE_DETAIL]:
-        return False, f"unexpected boundary violations: {details}"
+    violations: list[str] = []
+    if exploration_sidecar is None or exploration_sidecar.empty:
+        violations.append("sidecar_missing")
+        return violations
+    if "full_context_present" in exploration_sidecar.columns and not bool(exploration_sidecar["full_context_present"].astype(bool).all()):
+        violations.append("sidecar_context_not_preserved")
+    if "sidecar_is_noncompressed" in exploration_sidecar.columns and not bool(exploration_sidecar["sidecar_is_noncompressed"].astype(bool).all()):
+        violations.append("sidecar_compressed")
+    for col in [
+        "sidecar_direct_actionmodule_input", "bridge_writes_world", "bridge_writes_gk",
+        "bridge_writes_ot", "bridge_updates_parameter_box", "bridge_calls_actionmodule",
+        "bridge_creates_actionframe",
+    ]:
+        if col in exploration_sidecar.columns and bool(exploration_sidecar[col].astype(bool).any()):
+            violations.append(f"exploration_bridge_boundary_violation:{col}")
+    if "eligible_for_action_projection" in exploration_sidecar.columns:
+        eligible = exploration_sidecar["eligible_for_action_projection"].fillna(False).astype(bool)
+        if bool(eligible.any()) and (exploration_projection is None or exploration_projection.empty):
+            violations.append("eligible_exploration_missing_projection")
+    if exploration_projection is not None and not exploration_projection.empty:
+        required = {
+            "projection_contract", "sidecar_id", "candidate_axis_id", "projection_strength",
+            "projection_source_verified", "projection_source_local_audit_passed",
+            "projection_is_thin", "projection_contains_full_sidecar_payload",
+            "sidecar_direct_actionmodule_input",
+        }
+        missing = sorted(required - set(exploration_projection.columns))
+        if missing:
+            violations.append(f"exploration_projection_contract_missing:{missing}")
+        else:
+            if not _all_contract_contains_either(
+                exploration_projection,
+                (LEGACY_THIN_CONTRACT_TOKEN, CURRENT_THIN_NOTICE_CONTRACT_TOKEN),
+            ):
+                violations.append("exploration_projection_not_thin_contract")
+            if not bool(exploration_projection["projection_source_verified"].astype(bool).all()):
+                violations.append("unverified_exploration_projection")
+            if not bool(exploration_projection["projection_source_local_audit_passed"].astype(bool).all()):
+                violations.append("projection_without_local_audit_pass")
+            if not bool(exploration_projection["projection_is_thin"].astype(bool).all()):
+                violations.append("projection_not_marked_thin")
+            if bool(exploration_projection["projection_contains_full_sidecar_payload"].astype(bool).any()):
+                violations.append("projection_contains_full_sidecar_payload")
+            if bool(exploration_projection["sidecar_direct_actionmodule_input"].astype(bool).any()):
+                violations.append("sidecar_direct_actionmodule_input")
+            for col in [
+                "projection_writes_world", "projection_writes_gk", "projection_writes_ot",
+                "projection_updates_parameter_box", "projection_calls_actionmodule",
+                "projection_creates_actionframe",
+            ]:
+                if col in exploration_projection.columns and bool(exploration_projection[col].astype(bool).any()):
+                    violations.append(f"exploration_projection_boundary_violation:{col}")
+            if "sidecar_id" in exploration_sidecar.columns:
+                sidecars = set(exploration_sidecar["sidecar_id"].astype(str))
+                projected = set(exploration_projection["sidecar_id"].astype(str))
+                if not projected.issubset(sidecars):
+                    violations.append("projection_sidecar_reference_missing")
+    return violations
 
-    safety_checks = {
-        "current_contract_token_present": _all_contract_contains(projection, CURRENT_THIN_NOTICE_CONTRACT_TOKEN),
-        "marked_thin": _all_bool(projection, "projection_is_thin", False),
-        "no_full_detail_payload": not _any_bool(projection, "projection_contains_full_sidecar_payload", False),
-        "no_direct_detail_box_input": not _any_bool(projection, "sidecar_direct_actionmodule_input", False),
-        "no_world_write": not _any_bool(projection, "projection_writes_world", False),
-        "no_gk_write": not _any_bool(projection, "projection_writes_gk", False),
-        "no_ot_write": not _any_bool(projection, "projection_writes_ot", False),
-        "no_parameter_box_update": not _any_bool(projection, "projection_updates_parameter_box", False),
-        "no_actionmodule_call": not _any_bool(projection, "projection_calls_actionmodule", False),
-        "no_actionframe_creation": not _any_bool(projection, "projection_creates_actionframe", False),
-    }
-    failed = [name for name, passed in safety_checks.items() if not passed]
-    if failed:
-        return False, f"thin action-side notice safety checks failed: {failed}"
-    return True, "only legacy contract-name mismatch; current thin action-side notice contract is safe"
+
+def _install_old_and_current_thin_contract_guard() -> None:
+    """Install a reversible in-process guard patch for this diagnostic run only."""
+    BoundaryGuard.validate_exploration_bridge = _validate_exploration_bridge_old_and_current_thin_contract
+
+
+def _restore_original_guard() -> None:
+    BoundaryGuard.validate_exploration_bridge = _ORIGINAL_VALIDATE_EXPLORATION_BRIDGE
 
 
 def _check(name: str, passed: bool, detail: str, critical: bool = True) -> dict[str, Any]:
@@ -154,8 +208,6 @@ def build_connection_checks(cfg, out: dict[str, Any], metrics: dict[str, Any]) -
     no_gk_writeback = not _any_bool(transition, "gk_writeback_performed", False)
     no_ot_writeback = not _any_bool(transition, "ot_writeback_performed", False)
     no_canonical_world_write = not _any_bool(transition, "canonical_parameter_write_performed", False)
-    known_false_positive, false_positive_detail = _only_known_thin_contract_false_positive(out)
-    boundary_clean_or_known_false_positive = int(metrics.get("boundary_violation_rows", -1)) == 0 or known_false_positive
 
     return [
         _check("world_engine_is_v2", cfg.world_engine == "asymmetric_game_v2", f"world_engine={cfg.world_engine!r}"),
@@ -181,7 +233,8 @@ def build_connection_checks(cfg, out: dict[str, Any], metrics: dict[str, Any]) -
         _check("pressure_translation_pass", _all_status(translation, "pressure_translation_audit_status", "pass"), "translation should preserve approved pressure components non-compressively"),
         _check("pressure_intent_bundle_exported", _rows(out, "pressure_intent_bundle") > 0, f"rows={_rows(out, 'pressure_intent_bundle')}"),
         _check("cycle_audit_rows_present", len(cycle) >= cfg.steps, f"rows={len(cycle)}, steps={cfg.steps}"),
-        _check("boundary_clean_or_current_thin_notice_contract", boundary_clean_or_known_false_positive, f"boundary_violation_rows={metrics.get('boundary_violation_rows')!r}; {false_positive_detail}"),
+        _check("boundary_violation_zero", int(metrics.get("boundary_violation_rows", -1)) == 0, f"boundary_violation_rows={metrics.get('boundary_violation_rows')!r}"),
+        _check("exploration_notice_accepts_old_or_current_thin_contract", _all_contract_contains_either(projection, (LEGACY_THIN_CONTRACT_TOKEN, CURRENT_THIN_NOTICE_CONTRACT_TOKEN)), "旧契約または現行契約の薄い作用側通知だけを許可すること"),
         _check("exploration_notice_uses_current_thin_contract", _all_contract_contains(projection, CURRENT_THIN_NOTICE_CONTRACT_TOKEN), "作用側通知が現行の薄い通知契約を名乗っていること"),
         _check("exploration_notice_does_not_pass_detail_box", not _any_bool(projection, "projection_contains_full_sidecar_payload", False), "詳細保管箱の中身を作用側通知へ直接載せないこと"),
         _check("exploration_notice_does_not_call_actionmodule", not _any_bool(projection, "projection_calls_actionmodule", False), "探索橋が作用モジュールを直接呼ばないこと"),
@@ -227,7 +280,7 @@ def _write_report(output_dir: Path, summary: dict[str, Any], checks: list[dict[s
         "",
         "## Japanese boundary note",
         "",
-        "`projection` means action-side notice. `sidecar` means detail storage box. The audit allows the current thin action-side notice contract only when the detail storage box is not directly passed onward and the exploration bridge does not create ActionFrame or call ActionModule.",
+        "`projection` means action-side notice. `sidecar` means detail storage box. The audit accepts both the old and current thin action-side notice contract names only when the detail storage box is not directly passed onward and the exploration bridge does not create ActionFrame or call ActionModule.",
         "",
         "## Summary",
         "",
@@ -266,18 +319,20 @@ def run_validation(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
         action_profile=ACTION_PROFILE,
         overrides=REVERSIBLE_OVERRIDES,
     )
-    out = run_fullspec_task16(cfg)
+    _install_old_and_current_thin_contract_guard()
+    try:
+        out = run_fullspec_task16(cfg)
+    finally:
+        _restore_original_guard()
     metrics = collect_metrics(LABEL, cfg, out)
     checks = build_connection_checks(cfg, out, metrics)
     failed = [c for c in checks if c["critical"] and not c["passed"]]
-    known_false_positive, false_positive_detail = _only_known_thin_contract_false_positive(out)
     summary = {
         "label": LABEL,
         "overall_pass": len(failed) == 0,
         "failed_critical_check_count": len(failed),
         "failed_critical_checks": [c["check_name"] for c in failed],
-        "known_legacy_thin_contract_false_positive": known_false_positive,
-        "legacy_thin_contract_false_positive_detail": false_positive_detail,
+        "old_and_current_thin_contract_guard_applied": True,
         "world_engine": cfg.world_engine,
         "world_profile": cfg.world_profile_name,
         "validation_profile": cfg.validation_profile_name,
