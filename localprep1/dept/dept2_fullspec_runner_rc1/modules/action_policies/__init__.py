@@ -38,6 +38,13 @@ from .pressure_action_task2_5b_state_modifier_validation import (
     build_state_modifier_validation_table,
     validate_state_modifier_validation_table,
 )
+from .pressure_action_task2_5c_interaction_modifier_validation import (
+    TASK2_5C_VERSION,
+    REQUIRED_TASK2_5C_COLUMNS,
+    build_and_validate_interaction_modifier_validation_table,
+    build_interaction_modifier_validation_table,
+    validate_interaction_modifier_validation_table,
+)
 from .pressure_action_validation_suite_rc1 import (
     TASK2_4_VALIDATION_VERSION,
     build_action_combination_additivity_validation,
@@ -95,4 +102,9 @@ __all__ = [
     "build_and_validate_state_modifier_validation_table",
     "build_state_modifier_validation_table",
     "validate_state_modifier_validation_table",
+    "TASK2_5C_VERSION",
+    "REQUIRED_TASK2_5C_COLUMNS",
+    "build_and_validate_interaction_modifier_validation_table",
+    "build_interaction_modifier_validation_table",
+    "validate_interaction_modifier_validation_table",
 ]
