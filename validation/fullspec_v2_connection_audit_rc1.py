@@ -23,7 +23,6 @@ for path in (LOCALPREP_ROOT, ACTION_MODULE_ROOT, REPO_ROOT):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from dept2_fullspec_runner_rc1.modules.boundary_guard import BoundaryGuard  # noqa: E402
 from dept2_fullspec_runner_rc1.runner.fullspec_integrated_closed_loop_runner import (  # noqa: E402
     run_fullspec_task16,
 )
@@ -50,8 +49,6 @@ REVERSIBLE_OVERRIDES: dict[str, Any] = {
 
 LEGACY_THIN_CONTRACT_TOKEN = "thin_projection_only"
 CURRENT_THIN_NOTICE_CONTRACT_TOKEN = "thin_candidate_handoff_only"
-
-_ORIGINAL_VALIDATE_EXPLORATION_BRIDGE = BoundaryGuard.validate_exploration_bridge
 
 
 def _frame(out: dict[str, Any], name: str) -> pd.DataFrame:
@@ -92,92 +89,6 @@ def _all_contract_contains_either(df: pd.DataFrame, tokens: tuple[str, ...]) -> 
         return False
     contracts = df["projection_contract"].astype(str)
     return bool(contracts.map(lambda value: any(token in value for token in tokens)).all())
-
-
-def _validate_exploration_bridge_old_and_current_thin_contract(
-    self,
-    exploration_sidecar: pd.DataFrame,
-    exploration_projection: pd.DataFrame,
-) -> list[str]:
-    """Validate exploration bridge while accepting old and current thin notice names.
-
-    Japanese fixed terms used in this validation:
-    - projection = action-side notice
-    - sidecar = detail storage box
-
-    The current Phase 2G-20AB bridge renamed the thin action-side notice contract
-    from `thin_projection_only` to `thin_candidate_handoff_only`.  Both names are
-    accepted here only when the original safety gates still hold: no full detail
-    storage box is passed onward, no direct ActionModule call is made, no
-    ActionFrame is created by the exploration bridge, and no writeback occurs.
-    """
-    violations: list[str] = []
-    if exploration_sidecar is None or exploration_sidecar.empty:
-        violations.append("sidecar_missing")
-        return violations
-    if "full_context_present" in exploration_sidecar.columns and not bool(exploration_sidecar["full_context_present"].astype(bool).all()):
-        violations.append("sidecar_context_not_preserved")
-    if "sidecar_is_noncompressed" in exploration_sidecar.columns and not bool(exploration_sidecar["sidecar_is_noncompressed"].astype(bool).all()):
-        violations.append("sidecar_compressed")
-    for col in [
-        "sidecar_direct_actionmodule_input", "bridge_writes_world", "bridge_writes_gk",
-        "bridge_writes_ot", "bridge_updates_parameter_box", "bridge_calls_actionmodule",
-        "bridge_creates_actionframe",
-    ]:
-        if col in exploration_sidecar.columns and bool(exploration_sidecar[col].astype(bool).any()):
-            violations.append(f"exploration_bridge_boundary_violation:{col}")
-    if "eligible_for_action_projection" in exploration_sidecar.columns:
-        eligible = exploration_sidecar["eligible_for_action_projection"].fillna(False).astype(bool)
-        if bool(eligible.any()) and (exploration_projection is None or exploration_projection.empty):
-            violations.append("eligible_exploration_missing_projection")
-    if exploration_projection is not None and not exploration_projection.empty:
-        required = {
-            "projection_contract", "sidecar_id", "candidate_axis_id", "projection_strength",
-            "projection_source_verified", "projection_source_local_audit_passed",
-            "projection_is_thin", "projection_contains_full_sidecar_payload",
-            "sidecar_direct_actionmodule_input",
-        }
-        missing = sorted(required - set(exploration_projection.columns))
-        if missing:
-            violations.append(f"exploration_projection_contract_missing:{missing}")
-        else:
-            if not _all_contract_contains_either(
-                exploration_projection,
-                (LEGACY_THIN_CONTRACT_TOKEN, CURRENT_THIN_NOTICE_CONTRACT_TOKEN),
-            ):
-                violations.append("exploration_projection_not_thin_contract")
-            if not bool(exploration_projection["projection_source_verified"].astype(bool).all()):
-                violations.append("unverified_exploration_projection")
-            if not bool(exploration_projection["projection_source_local_audit_passed"].astype(bool).all()):
-                violations.append("projection_without_local_audit_pass")
-            if not bool(exploration_projection["projection_is_thin"].astype(bool).all()):
-                violations.append("projection_not_marked_thin")
-            if bool(exploration_projection["projection_contains_full_sidecar_payload"].astype(bool).any()):
-                violations.append("projection_contains_full_sidecar_payload")
-            if bool(exploration_projection["sidecar_direct_actionmodule_input"].astype(bool).any()):
-                violations.append("sidecar_direct_actionmodule_input")
-            for col in [
-                "projection_writes_world", "projection_writes_gk", "projection_writes_ot",
-                "projection_updates_parameter_box", "projection_calls_actionmodule",
-                "projection_creates_actionframe",
-            ]:
-                if col in exploration_projection.columns and bool(exploration_projection[col].astype(bool).any()):
-                    violations.append(f"exploration_projection_boundary_violation:{col}")
-            if "sidecar_id" in exploration_sidecar.columns:
-                sidecars = set(exploration_sidecar["sidecar_id"].astype(str))
-                projected = set(exploration_projection["sidecar_id"].astype(str))
-                if not projected.issubset(sidecars):
-                    violations.append("projection_sidecar_reference_missing")
-    return violations
-
-
-def _install_old_and_current_thin_contract_guard() -> None:
-    """Install a reversible in-process guard patch for this diagnostic run only."""
-    BoundaryGuard.validate_exploration_bridge = _validate_exploration_bridge_old_and_current_thin_contract
-
-
-def _restore_original_guard() -> None:
-    BoundaryGuard.validate_exploration_bridge = _ORIGINAL_VALIDATE_EXPLORATION_BRIDGE
 
 
 def _check(name: str, passed: bool, detail: str, critical: bool = True) -> dict[str, Any]:
@@ -280,7 +191,7 @@ def _write_report(output_dir: Path, summary: dict[str, Any], checks: list[dict[s
         "",
         "## Japanese boundary note",
         "",
-        "`projection` means action-side notice. `sidecar` means detail storage box. The audit accepts both the old and current thin action-side notice contract names only when the detail storage box is not directly passed onward and the exploration bridge does not create ActionFrame or call ActionModule.",
+        "`projection` means action-side notice. `sidecar` means detail storage box. The audit expects both the old and current thin action-side notice contract tokens while still requiring that the detail storage box is not directly passed onward and the exploration bridge does not create ActionFrame or call ActionModule.",
         "",
         "## Summary",
         "",
@@ -319,11 +230,7 @@ def run_validation(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
         action_profile=ACTION_PROFILE,
         overrides=REVERSIBLE_OVERRIDES,
     )
-    _install_old_and_current_thin_contract_guard()
-    try:
-        out = run_fullspec_task16(cfg)
-    finally:
-        _restore_original_guard()
+    out = run_fullspec_task16(cfg)
     metrics = collect_metrics(LABEL, cfg, out)
     checks = build_connection_checks(cfg, out, metrics)
     failed = [c for c in checks if c["critical"] and not c["passed"]]
@@ -332,7 +239,6 @@ def run_validation(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
         "overall_pass": len(failed) == 0,
         "failed_critical_check_count": len(failed),
         "failed_critical_checks": [c["check_name"] for c in failed],
-        "old_and_current_thin_contract_guard_applied": True,
         "world_engine": cfg.world_engine,
         "world_profile": cfg.world_profile_name,
         "validation_profile": cfg.validation_profile_name,
