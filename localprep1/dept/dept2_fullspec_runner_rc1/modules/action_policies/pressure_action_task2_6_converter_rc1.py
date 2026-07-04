@@ -8,7 +8,9 @@ force the result to match the pressure magnitude.  If pressure 10 only maps to
 an expected result signal of 7, that gap is preserved as information.
 
 Boundary:
-    - converts pressure intents into candidate actions
+    - converts pressure intents into candidate actions when the 6-action
+      vocabulary has a supported candidate
+    - preserves unsupported pressure intents instead of silently dropping them
     - preserves pressure/result gaps as audit information
     - logs pressure-intent coverage and unresolved intent when the 6-action
       vocabulary is too coarse
@@ -47,6 +49,7 @@ DEFAULT_CANDIDATE_THRESHOLD = 0.018
 OPENING_ACTIONS = {"exploration_injection", "relation_unlock", "coupling_relief"}
 SAFETY_ACTIONS = {"buffer_increase", "volatility_damping"}
 PROBE_ACTIONS = {"uncertainty_probe"}
+NO_ACTION_CANDIDATE = "no_action_candidate"
 
 OPENING_INTENT_FAMILIES = {
     "exploration_attempt", "exploration_observation", "adoption_opening",
@@ -153,6 +156,8 @@ def _state_audit_for_action(
     state_level: str,
     state_modifiers: pd.DataFrame,
 ) -> tuple[str, str]:
+    if action == NO_ACTION_CANDIDATE:
+        return "state_not_applicable_no_action_candidate", "対応する作用候補がないため、状態補正は適用しない。"
     axes = [str(axis) for axis in state_axes]
     if not axes:
         return "state_not_supplied", "状態軸が未指定のため、下位レイヤー未接続として候補強度補正は行わない。"
@@ -165,7 +170,6 @@ def _state_audit_for_action(
         return "state_not_matched", "対応する状態補正行がないため、候補強度補正は行わない。"
     classes = set(rows["modifier_class"].astype(str))
     reasons = " / ".join(rows["modifier_reason"].astype(str).head(3).tolist())
-    # Important: boost is deliberately not used as strength amplification.
     if "block" in classes:
         return "blocked_by_state_audit", reasons
     if "defer" in classes:
@@ -199,6 +203,8 @@ def _interaction_audit_for_action(
     state_band: str,
     interactions: pd.DataFrame,
 ) -> tuple[str, str, list[str]]:
+    if action == NO_ACTION_CANDIDATE:
+        return "interaction_not_applicable_no_action_candidate", "対応する作用候補がないため、相互作用監査は適用しない。", []
     statuses: list[str] = []
     reasons: list[str] = []
     unsafe_pairs: list[str] = []
@@ -239,6 +245,8 @@ def _interaction_audit_for_action(
 
 
 def _candidate_status(state_status: str, interaction_status: str) -> str:
+    if "no_action_candidate" in state_status or "no_action_candidate" in interaction_status:
+        return "unresolved_pressure_intent_no_action_candidate"
     if state_status.startswith("blocked") or interaction_status.startswith("blocked"):
         return "blocked_candidate_not_final_action"
     if state_status.startswith("deferred") or interaction_status.startswith("deferred"):
@@ -248,13 +256,17 @@ def _candidate_status(state_status: str, interaction_status: str) -> str:
     return "candidate_available_for_downstream_gate"
 
 
-def _pressure_intent_audit(match: pd.Series, action: str, status: str, pressure_signal: float) -> dict[str, object]:
-    """Audit whether the 6-action vocabulary is too coarse for this pressure intent.
+def _unresolved_payload(effect: str, family: str, route: str, reason: str) -> str:
+    return json.dumps({
+        "semantic_effect": str(effect),
+        "intent_family": str(family),
+        "suggested_control_route": str(route),
+        "reason": str(reason),
+    }, ensure_ascii=False, sort_keys=True)
 
-    This is observation/logging only.  It must not change the pressure signal or
-    boost an action.  Low fit is preserved as unresolved intent information for
-    later action-channel design.
-    """
+
+def _pressure_intent_audit(match: pd.Series, action: str, status: str, pressure_signal: float) -> dict[str, object]:
+    """Audit whether the 6-action vocabulary is too coarse for this pressure intent."""
     basic = float(match.get("basic_alignment_score", 0.0) or 0.0)
     share = float(match.get("action_to_pressure_share", 0.0) or 0.0)
     family = str(match.get("intent_family", "unknown"))
@@ -262,8 +274,17 @@ def _pressure_intent_audit(match: pd.Series, action: str, status: str, pressure_
     route = str(match.get("suggested_control_route", "unknown"))
     action = str(action)
 
-    coverage = _clip01(0.60 * min(1.0, basic) + 0.40 * min(1.0, share * 3.0))
+    if action == NO_ACTION_CANDIDATE:
+        return {
+            "pressure_intent_coverage_score": 0.0,
+            "action_vocabulary_fit_score": 0.0,
+            "action_granularity_insufficient_flag": True,
+            "new_action_channel_candidate_flag": True,
+            "unresolved_pressure_intent": _unresolved_payload(effect, family, route, "6作用語彙に対応する作用候補がない。"),
+            "safety_fallback_used": False,
+        }
 
+    coverage = _clip01(0.60 * min(1.0, basic) + 0.40 * min(1.0, share * 3.0))
     direct_family_fit = 0.0
     if action == "exploration_injection" and family in {"exploration_attempt", "exploration_observation", "update_opening"}:
         direct_family_fit = 1.0
@@ -295,12 +316,7 @@ def _pressure_intent_audit(match: pd.Series, action: str, status: str, pressure_
 
     unresolved = ""
     if granularity_insufficient or new_channel_candidate or safety_fallback:
-        unresolved = json.dumps({
-            "semantic_effect": effect,
-            "intent_family": family,
-            "suggested_control_route": route,
-            "reason": "6作用語彙では圧意味を十分に表現しきれない可能性がある。",
-        }, ensure_ascii=False, sort_keys=True)
+        unresolved = _unresolved_payload(effect, family, route, "6作用語彙では圧意味を十分に表現しきれない可能性がある。")
 
     return {
         "pressure_intent_coverage_score": float(coverage),
@@ -309,6 +325,80 @@ def _pressure_intent_audit(match: pd.Series, action: str, status: str, pressure_
         "new_action_channel_candidate_flag": bool(new_channel_candidate),
         "unresolved_pressure_intent": unresolved,
         "safety_fallback_used": bool(safety_fallback),
+    }
+
+
+def _fallback_intent_fields(pressure_row: pd.Series, component: str, direction: str) -> tuple[str, str, str]:
+    effect = str(pressure_row.get("semantic_effect", f"{component}_{direction}_unmapped"))
+    family = str(pressure_row.get("intent_family", "unmapped_pressure_intent"))
+    route = str(pressure_row.get("suggested_control_route", "no_supported_route"))
+    return effect, family, route
+
+
+def _unsupported_candidate_row(
+    pressure_row: pd.Series,
+    pressure_id: str,
+    component: str,
+    direction: str,
+    strength: float,
+) -> dict:
+    effect, family, route = _fallback_intent_fields(pressure_row, component, direction)
+    match = pd.Series({
+        "basic_alignment_score": 0.0,
+        "action_to_pressure_share": 0.0,
+        "semantic_effect": effect,
+        "intent_family": family,
+        "suggested_control_route": route,
+    })
+    state_status = "state_not_applicable_no_action_candidate"
+    interaction_status = "interaction_not_applicable_no_action_candidate"
+    status = _candidate_status(state_status, interaction_status)
+    intent_audit = _pressure_intent_audit(match, NO_ACTION_CANDIDATE, status, 0.0)
+    return {
+        "task2_6_converter_version": TASK2_6_CONVERTER_VERSION,
+        "task2_6_contract": TASK2_6_CONTRACT,
+        "conversion_type": "pressure_to_action_candidate_conversion_no_strength_boost",
+        "candidate_only": True,
+        "runtime_policy_input": False,
+        "final_action_decision": False,
+        "action_frame_created": False,
+        "actionmodule_called": False,
+        "world_runtime_called": False,
+        "pressure_to_action_converter_created": True,
+        "action_strength_correction_applied": False,
+        "pressure_matching_boost_applied": False,
+        "strength_curve_applied": False,
+        "pressure_result_gap_preserved": True,
+        "mapping_source": TASK2_6_MAPPING_SOURCE,
+        "calibration_status": TASK2_6_CALIBRATION_STATUS,
+        "pressure_input_id": pressure_id,
+        "pressure_component": component,
+        "component_direction": direction,
+        "pressure_strength": strength,
+        "semantic_effect": effect,
+        "intent_family": family,
+        "suggested_control_route": route,
+        "action_channel": NO_ACTION_CANDIDATE,
+        "action_name_ja": "対応する作用候補なし",
+        "basic_alignment_score": 0.0,
+        "action_to_pressure_share": 0.0,
+        "pressure_signal": 0.0,
+        "expected_result_signal": 0.0,
+        "pressure_result_gap": float(abs(strength)),
+        **intent_audit,
+        "candidate_rank": 9999,
+        "candidate_status": status,
+        "state_audit_status": state_status,
+        "state_audit_reason": "対応する作用候補がないため、状態補正は適用しない。",
+        "interaction_audit_status": interaction_status,
+        "interaction_audit_reason": "対応する作用候補がないため、相互作用監査は適用しない。",
+        "unsafe_interaction_pairs": "[]",
+        "requires_downstream_strength_handling": False,
+        "requires_downstream_gate_review": True,
+        "uses_existing_pressure_intent_semantics": True,
+        "new_semantic_translation_layer_added": False,
+        "diagnostic_compat_policy_used": False,
+        "repaired_diagnostic_policy_used": False,
     }
 
 
@@ -340,6 +430,7 @@ def convert_pressure_inputs_to_action_candidates(
             & (pd.to_numeric(corr["basic_alignment_score"], errors="coerce").fillna(0.0) > 0.0)
         ].copy()
         if matches.empty:
+            rows.append(_unsupported_candidate_row(pressure_row, pressure_id, component, direction, strength))
             continue
         matches["pressure_signal"] = strength * pd.to_numeric(matches["action_to_pressure_share"], errors="coerce").fillna(0.0)
         candidate_actions = _candidate_action_set_from_rows(matches, config.candidate_threshold)
@@ -459,37 +550,28 @@ def validate_pressure_action_candidates_no_strength_boost(df: pd.DataFrame) -> l
         if bool(values.isna().any() or (values < 0.0).any() or (values > 1.0).any()):
             errors.append(f"task2_6_invalid_unit_score:{col}")
 
-    # The key invariant: expected result must not be boosted above the raw
-    # pressure signal in this converter.
     if bool((pd.to_numeric(df["expected_result_signal"], errors="coerce") > pd.to_numeric(df["pressure_signal"], errors="coerce") + 1e-12).any()):
         errors.append("task2_6_expected_result_boosted_above_pressure_signal")
     if not bool((pd.to_numeric(df["pressure_result_gap"], errors="coerce") > 0.0).any()):
         errors.append("task2_6_no_pressure_result_gap_preserved")
 
-    flag_fields = [
-        "action_granularity_insufficient_flag",
-        "new_action_channel_candidate_flag",
-        "safety_fallback_used",
-    ]
-    for field in flag_fields:
-        if field not in df.columns:
-            errors.append(f"task2_6_missing_audit_flag:{field}")
-
     unresolved_required = df[
         df["action_granularity_insufficient_flag"].astype(bool)
         | df["new_action_channel_candidate_flag"].astype(bool)
         | df["safety_fallback_used"].astype(bool)
+        | df["candidate_status"].astype(str).eq("unresolved_pressure_intent_no_action_candidate")
     ]
     if not unresolved_required.empty and bool(unresolved_required["unresolved_pressure_intent"].astype(str).str.len().eq(0).any()):
         errors.append("task2_6_unresolved_pressure_intent_missing_for_flagged_rows")
 
-    allowed_status_prefix = {
+    allowed_status = {
         "candidate_available_for_downstream_gate",
         "candidate_requires_downstream_gate_review",
         "deferred_candidate_not_final_action",
         "blocked_candidate_not_final_action",
+        "unresolved_pressure_intent_no_action_candidate",
     }
-    if not set(df["candidate_status"].astype(str)).issubset(allowed_status_prefix):
+    if not set(df["candidate_status"].astype(str)).issubset(allowed_status):
         errors.append("task2_6_unknown_candidate_status")
 
     return errors
