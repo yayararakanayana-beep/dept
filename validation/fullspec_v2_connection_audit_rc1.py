@@ -47,6 +47,10 @@ REVERSIBLE_OVERRIDES: dict[str, Any] = {
     "output_prefix": LABEL,
 }
 
+LEGACY_THIN_CONTRACT_TOKEN = "thin_projection_only"
+CURRENT_THIN_NOTICE_CONTRACT_TOKEN = "thin_candidate_handoff_only"
+LEGACY_FALSE_POSITIVE_DETAIL = "exploration_projection_not_thin_contract"
+
 
 def _frame(out: dict[str, Any], name: str) -> pd.DataFrame:
     df = out.get(name, pd.DataFrame())
@@ -75,6 +79,53 @@ def _all_status(df: pd.DataFrame, col: str, status: str = "pass") -> bool:
     return bool(df[col].astype(str).eq(status).all())
 
 
+def _all_contract_contains(df: pd.DataFrame, token: str) -> bool:
+    if df.empty or "projection_contract" not in df.columns:
+        return False
+    return bool(df["projection_contract"].astype(str).str.contains(token, regex=False).all())
+
+
+def _only_known_thin_contract_false_positive(out: dict[str, Any]) -> tuple[bool, str]:
+    """Return True only when the guard failure is the known old-name mismatch.
+
+    Japanese meaning:
+    - The action-side notice is still thin.
+    - The full detail box is not directly passed onward.
+    - The only failing guard row is the old contract-name check.
+
+    This does not permit any writeback, ActionFrame creation, or direct
+    ActionModule call from the exploration bridge.
+    """
+    bvr = _frame(out, "boundary_violation_report")
+    projection = _frame(out, "exploration_projection")
+    if bvr.empty:
+        return False, "no boundary violation rows"
+    if projection.empty:
+        return False, "exploration_projection is empty while boundary violation rows exist"
+    if "violation_detail" not in bvr.columns:
+        return False, "boundary_violation_report.violation_detail missing"
+    details = sorted(set(bvr["violation_detail"].astype(str)))
+    if details != [LEGACY_FALSE_POSITIVE_DETAIL]:
+        return False, f"unexpected boundary violations: {details}"
+
+    safety_checks = {
+        "current_contract_token_present": _all_contract_contains(projection, CURRENT_THIN_NOTICE_CONTRACT_TOKEN),
+        "marked_thin": _all_bool(projection, "projection_is_thin", False),
+        "no_full_detail_payload": not _any_bool(projection, "projection_contains_full_sidecar_payload", False),
+        "no_direct_detail_box_input": not _any_bool(projection, "sidecar_direct_actionmodule_input", False),
+        "no_world_write": not _any_bool(projection, "projection_writes_world", False),
+        "no_gk_write": not _any_bool(projection, "projection_writes_gk", False),
+        "no_ot_write": not _any_bool(projection, "projection_writes_ot", False),
+        "no_parameter_box_update": not _any_bool(projection, "projection_updates_parameter_box", False),
+        "no_actionmodule_call": not _any_bool(projection, "projection_calls_actionmodule", False),
+        "no_actionframe_creation": not _any_bool(projection, "projection_creates_actionframe", False),
+    }
+    failed = [name for name, passed in safety_checks.items() if not passed]
+    if failed:
+        return False, f"thin action-side notice safety checks failed: {failed}"
+    return True, "only legacy contract-name mismatch; current thin action-side notice contract is safe"
+
+
 def _check(name: str, passed: bool, detail: str, critical: bool = True) -> dict[str, Any]:
     return {
         "check_name": name,
@@ -94,6 +145,7 @@ def build_connection_checks(cfg, out: dict[str, Any], metrics: dict[str, Any]) -
     commit = _frame(out, "commit_gate_audit")
     exec_audit = _frame(out, "action_execution_audit")
     transition = _frame(out, "world_transition_audit")
+    projection = _frame(out, "exploration_projection")
 
     no_canonical_write = not _any_bool(write, "canonical_write_performed", False)
     adapter_only = _all_bool(exec_audit, "actionmodule_received_actionframe_only", False)
@@ -102,6 +154,8 @@ def build_connection_checks(cfg, out: dict[str, Any], metrics: dict[str, Any]) -
     no_gk_writeback = not _any_bool(transition, "gk_writeback_performed", False)
     no_ot_writeback = not _any_bool(transition, "ot_writeback_performed", False)
     no_canonical_world_write = not _any_bool(transition, "canonical_parameter_write_performed", False)
+    known_false_positive, false_positive_detail = _only_known_thin_contract_false_positive(out)
+    boundary_clean_or_known_false_positive = int(metrics.get("boundary_violation_rows", -1)) == 0 or known_false_positive
 
     return [
         _check("world_engine_is_v2", cfg.world_engine == "asymmetric_game_v2", f"world_engine={cfg.world_engine!r}"),
@@ -127,7 +181,11 @@ def build_connection_checks(cfg, out: dict[str, Any], metrics: dict[str, Any]) -
         _check("pressure_translation_pass", _all_status(translation, "pressure_translation_audit_status", "pass"), "translation should preserve approved pressure components non-compressively"),
         _check("pressure_intent_bundle_exported", _rows(out, "pressure_intent_bundle") > 0, f"rows={_rows(out, 'pressure_intent_bundle')}"),
         _check("cycle_audit_rows_present", len(cycle) >= cfg.steps, f"rows={len(cycle)}, steps={cfg.steps}"),
-        _check("boundary_violation_zero", int(metrics.get("boundary_violation_rows", -1)) == 0, f"boundary_violation_rows={metrics.get('boundary_violation_rows')!r}"),
+        _check("boundary_clean_or_current_thin_notice_contract", boundary_clean_or_known_false_positive, f"boundary_violation_rows={metrics.get('boundary_violation_rows')!r}; {false_positive_detail}"),
+        _check("exploration_notice_uses_current_thin_contract", _all_contract_contains(projection, CURRENT_THIN_NOTICE_CONTRACT_TOKEN), "作用側通知が現行の薄い通知契約を名乗っていること"),
+        _check("exploration_notice_does_not_pass_detail_box", not _any_bool(projection, "projection_contains_full_sidecar_payload", False), "詳細保管箱の中身を作用側通知へ直接載せないこと"),
+        _check("exploration_notice_does_not_call_actionmodule", not _any_bool(projection, "projection_calls_actionmodule", False), "探索橋が作用モジュールを直接呼ばないこと"),
+        _check("exploration_notice_does_not_create_actionframe", not _any_bool(projection, "projection_creates_actionframe", False), "探索橋が作用フレームを作らないこと"),
         _check("canonical_write_not_performed", no_canonical_write, "canonical_write_performed must remain false"),
         _check("rollback_snapshot_per_step", len(rollback) >= cfg.steps, f"rows={len(rollback)}, steps={cfg.steps}"),
         _check("commit_gate_per_step", len(commit) >= cfg.steps, f"rows={len(commit)}, steps={cfg.steps}"),
@@ -166,6 +224,10 @@ def _write_report(output_dir: Path, summary: dict[str, Any], checks: list[dict[s
         "- `canonical_binding_source` is forced to `shadow`.",
         "- No production runtime, coefficients, ParameterBox/ShadowBox defaults, canonical state, or ActionModule logic are changed.",
         "- This validation only writes diagnostic result files under `results/fullspec_v2_connection_audit_rc1/` when executed.",
+        "",
+        "## Japanese boundary note",
+        "",
+        "`projection` means action-side notice. `sidecar` means detail storage box. The audit allows the current thin action-side notice contract only when the detail storage box is not directly passed onward and the exploration bridge does not create ActionFrame or call ActionModule.",
         "",
         "## Summary",
         "",
@@ -208,11 +270,14 @@ def run_validation(output_dir: Path = OUTPUT_DIR) -> dict[str, Any]:
     metrics = collect_metrics(LABEL, cfg, out)
     checks = build_connection_checks(cfg, out, metrics)
     failed = [c for c in checks if c["critical"] and not c["passed"]]
+    known_false_positive, false_positive_detail = _only_known_thin_contract_false_positive(out)
     summary = {
         "label": LABEL,
         "overall_pass": len(failed) == 0,
         "failed_critical_check_count": len(failed),
         "failed_critical_checks": [c["check_name"] for c in failed],
+        "known_legacy_thin_contract_false_positive": known_false_positive,
+        "legacy_thin_contract_false_positive_detail": false_positive_detail,
         "world_engine": cfg.world_engine,
         "world_profile": cfg.world_profile_name,
         "validation_profile": cfg.validation_profile_name,
