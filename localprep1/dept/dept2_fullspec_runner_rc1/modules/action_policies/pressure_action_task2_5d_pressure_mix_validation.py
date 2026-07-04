@@ -45,7 +45,11 @@ STATE_BANDS = ("stable", "medium", "high", "limit")
 STATE_TO_LEVEL = {"stable": "low", "medium": "medium", "high": "high", "limit": "limit"}
 STATE_BAND_JA = {"stable": "通常", "medium": "中負荷", "high": "高負荷", "limit": "限界"}
 
-CANDIDATE_THRESHOLD = 0.045
+# This is deliberately an audit threshold, not a runtime adoption threshold.
+# Task 2-5d must surface weak but dangerous candidates such as relation-unlock
+# tails in mixed pressure inputs, because Task 2-5c interaction rules can make
+# those tails important even when they are not the strongest candidate.
+CANDIDATE_THRESHOLD = 0.018
 TARGET_CANDIDATE_COUNT = 3
 
 OPENING_ACTIONS = {"exploration_injection", "relation_unlock", "coupling_relief"}
