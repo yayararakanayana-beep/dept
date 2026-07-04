@@ -1,0 +1,158 @@
+name: Task2-5c Interaction Modifier Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_4.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5a.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5b.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5c.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_5_validation_design.md'
+      - '.github/workflows/task2_5c_interaction_modifier_validation.yml'
+
+jobs:
+  task2-5c-interaction-modifier-validation:
+    name: Task2-5c interaction modifier validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-5c tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5a.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5b.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5c.py
+
+      - name: Export Task2-5c interaction modifier validation table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_5c_interaction_modifier_validation import (
+              build_and_validate_interaction_modifier_validation_table,
+          )
+
+          def markdown_table(df, columns, limit=40):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_5c_interaction_modifier_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_interaction_modifier_validation_table()
+          table.to_csv(out_dir / 'interaction_modifier_validation.csv', index=False)
+
+          summary_by_type = (
+              table.groupby(['interaction_type', 'modifier_class'], dropna=False)
+              .size()
+              .reset_index(name='rows')
+              if not table.empty else pd.DataFrame()
+          )
+          summary_by_type.to_csv(out_dir / 'summary_by_interaction_type.csv', index=False)
+
+          risky = table[table['modifier_class'].isin(['dampen', 'defer', 'block'])].copy() if not table.empty else pd.DataFrame()
+          risky.to_csv(out_dir / 'weakened_or_blocked_interactions.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'interaction_types': sorted(table['interaction_type'].astype(str).unique().tolist()) if not table.empty else [],
+              'boost_rows': int(table['boost_combination_flag'].astype(bool).sum()) if not table.empty else 0,
+              'dampen_rows': int(table['dampen_combination_flag'].astype(bool).sum()) if not table.empty else 0,
+              'defer_rows': int(table['defer_combination_flag'].astype(bool).sum()) if not table.empty else 0,
+              'block_rows': int(table['block_combination_flag'].astype(bool).sum()) if not table.empty else 0,
+              'relation_dependent_rows': int(table['relation_dependency_flag'].astype(bool).sum()) if not table.empty else 0,
+              'requires_mix_review_rows': int(table['requires_task2_5d_mix_review'].astype(bool).sum()) if not table.empty else 0,
+              'requires_strength_review_rows': int(table['requires_task2_5e_strength_review'].astype(bool).sum()) if not table.empty else 0,
+              'runtime_policy_input': bool(table['runtime_policy_input'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-5c Interaction Modifier Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Interaction modifier validation table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Interaction type counts')
+          md.append('')
+          md.append(markdown_table(summary_by_type, ['interaction_type', 'modifier_class', 'rows'], limit=30))
+          md.append('')
+          md.append('## Weakened / deferred / blocked interactions')
+          md.append('')
+          cols = [
+              'state_band_ja', 'action_pair_ja', 'interaction_type', 'interaction_modifier',
+              'modifier_class', 'relation_dependency_flag', 'combination_dependency_reason',
+          ]
+          md.append(markdown_table(risky.sort_values(['interaction_modifier', 'action_pair_ja']), cols, limit=40))
+          md.append('')
+          (out_dir / 'TASK2_5C_INTERACTION_MODIFIER_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:140]))
+          if errors:
+              raise SystemExit('Task2-5c table contained structural errors')
+          PY
+
+      - name: Upload Task2-5c artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-5c-interaction-modifier-validation-rc1
+          path: results/task2_5c_interaction_modifier_validation_rc1/
+          if-no-files-found: error
