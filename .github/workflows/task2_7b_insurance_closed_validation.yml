@@ -47,11 +47,11 @@ jobs:
           import json
           import pandas as pd
 
-          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7b_insurance_closed_validation import (
-              build_and_validate_insurance_closed_validation_table,
-              build_v2_danger_states,
-              lower_observation_from_v2_state,
-              upper_pressure_from_lower_observation,
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7b_insurance_closed_validation_v2 import (
+              build_and_validate_insurance_closed_validation_v2_table,
+              build_v2_risk_states,
+              lower_observation_from_v2_risk_state,
+              upper_pressure_from_lower_observation_v2,
           )
 
           def markdown_table(df, columns, limit=80):
@@ -78,15 +78,15 @@ jobs:
           out_dir = Path('results/task2_7b_insurance_closed_validation_rc1')
           out_dir.mkdir(parents=True, exist_ok=True)
 
-          v2 = build_v2_danger_states()
-          terrain = lower_observation_from_v2_state(v2)
-          pressure = upper_pressure_from_lower_observation(terrain)
-          table, errors, summary = build_and_validate_insurance_closed_validation_table()
+          v2 = build_v2_risk_states()
+          terrain = lower_observation_from_v2_risk_state(v2)
+          pressure = upper_pressure_from_lower_observation_v2(terrain)
+          table, errors, summary = build_and_validate_insurance_closed_validation_v2_table()
 
-          v2.to_csv(out_dir / 'v2_danger_states.csv', index=False)
+          v2.to_csv(out_dir / 'v2_risk_states.csv', index=False)
           terrain.to_csv(out_dir / 'lower_observation_terrain.csv', index=False)
           pressure.to_csv(out_dir / 'upper_pressure_from_lower_observation.csv', index=False)
-          table.to_csv(out_dir / 'insurance_closed_validation.csv', index=False)
+          table.to_csv(out_dir / 'insurance_closed_validation_v2.csv', index=False)
 
           activated = table[table['activated'].astype(bool)].copy()
           activated.to_csv(out_dir / 'activated_action_results.csv', index=False)
