@@ -79,4 +79,4 @@ def test_task2_4_report_contains_all_validation_tables_and_summary():
     assert summary["single_action_alignment_rows"].iloc[0] > 0
     assert summary["state_dependence_rows"].iloc[0] > 0
     assert summary["combination_additivity_rows"].iloc[0] > 0
-    assert summary["runtime_policy_input"].iloc[0] is False
+    assert not bool(summary["runtime_policy_input"].iloc[0])
