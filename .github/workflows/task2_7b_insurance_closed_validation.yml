@@ -1,0 +1,161 @@
+name: Task2-7b Insurance Closed Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_7b.py'
+      - '.github/workflows/task2_7b_insurance_closed_validation.yml'
+
+jobs:
+  task2-7b-insurance-closed-validation:
+    name: Task2-7b insurance closed validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-7b tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_7b.py
+
+      - name: Export Task2-7b closed validation tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7b_insurance_closed_validation import (
+              build_and_validate_insurance_closed_validation_table,
+              build_v2_danger_states,
+              lower_observation_from_v2_state,
+              upper_pressure_from_lower_observation,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      if isinstance(v, float):
+                          vals.append(f'{v:.6g}')
+                      else:
+                          vals.append(str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_7b_insurance_closed_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          v2 = build_v2_danger_states()
+          terrain = lower_observation_from_v2_state(v2)
+          pressure = upper_pressure_from_lower_observation(terrain)
+          table, errors, summary = build_and_validate_insurance_closed_validation_table()
+
+          v2.to_csv(out_dir / 'v2_danger_states.csv', index=False)
+          terrain.to_csv(out_dir / 'lower_observation_terrain.csv', index=False)
+          pressure.to_csv(out_dir / 'upper_pressure_from_lower_observation.csv', index=False)
+          table.to_csv(out_dir / 'insurance_closed_validation.csv', index=False)
+
+          activated = table[table['activated'].astype(bool)].copy()
+          activated.to_csv(out_dir / 'activated_action_results.csv', index=False)
+
+          by_profile = table.groupby('threshold_profile').agg(
+              rows=('threshold_profile', 'size'),
+              activated_rows=('activated', lambda s: int(s.astype(bool).sum())),
+              mean_risk_improvement=('risk_improvement_vs_no_op', 'mean'),
+              mean_recovery_improvement=('recovery_improvement_vs_no_op', 'mean'),
+              mean_gain_improvement=('gain_improvement_vs_no_op', 'mean'),
+              mean_side_effect_burden=('side_effect_burden', 'mean'),
+              mean_net_validation_benefit=('net_validation_benefit', 'mean'),
+          ).reset_index()
+          by_profile.to_csv(out_dir / 'threshold_profile_summary.csv', index=False)
+
+          summary = dict(summary)
+          summary['validation_errors'] = errors
+          summary['v2_state_rows'] = int(len(v2))
+          summary['terrain_rows'] = int(len(terrain))
+          summary['upper_pressure_rows'] = int(len(pressure))
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-7b Insurance Closed Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Closed validation completed with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Threshold profile summary')
+          md.append('')
+          md.append(markdown_table(by_profile, list(by_profile.columns), limit=20))
+          md.append('')
+          md.append('## Activated action results')
+          md.append('')
+          md.append(markdown_table(
+              activated,
+              [
+                  'v2_state_id', 'threshold_profile', 'gate_decision',
+                  'recommended_action_mode', 'action_name_ja', 'pressure_component',
+                  'component_direction', 'terrain_risk_score', 'terrain_gain_score',
+                  'recommended_action_strength_hint', 'risk_improvement_vs_no_op',
+                  'recovery_improvement_vs_no_op', 'gain_improvement_vs_no_op',
+                  'side_effect_burden', 'net_validation_benefit',
+              ],
+              limit=80,
+          ))
+          md.append('')
+          (out_dir / 'TASK2_7B_INSURANCE_CLOSED_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:240]))
+          if errors:
+              raise SystemExit('Task2-7b closed validation errors')
+          PY
+
+      - name: Upload Task2-7b artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-7b-insurance-closed-validation-rc1
+          path: results/task2_7b_insurance_closed_validation_rc1/
+          if-no-files-found: error
