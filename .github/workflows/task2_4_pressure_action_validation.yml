@@ -1,0 +1,172 @@
+name: Task2-4 Pressure-Action Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_*.py'
+      - '.github/workflows/task2_4_pressure_action_validation.yml'
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+      - main
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_*.py'
+      - '.github/workflows/task2_4_pressure_action_validation.yml'
+
+jobs:
+  task2-4-pressure-action-validation:
+    name: Task2-4 pressure-action validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2 pressure-action tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_1.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_2.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_3.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py
+
+      - name: Export Task2-4 validation tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_validation_suite_rc1 import (
+              build_pressure_action_validation_report,
+              summarize_pressure_action_validation_report,
+              validate_pressure_action_validation_report,
+          )
+
+          out_dir = Path('results/task2_4_pressure_action_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          report = build_pressure_action_validation_report()
+          errors = validate_pressure_action_validation_report(report)
+          summary = summarize_pressure_action_validation_report(report)
+
+          for name, df in report.items():
+              df.to_csv(out_dir / f'{name}.csv', index=False)
+
+          summary.to_csv(out_dir / 'summary.csv', index=False)
+          summary_row = summary.iloc[0].to_dict() if not summary.empty else {}
+          payload = {
+              'validation_errors': errors,
+              'summary': summary_row,
+              'tables': {name: {'rows': int(len(df)), 'columns': list(map(str, df.columns))} for name, df in report.items()},
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          state = report.get('state_dependence_summary', pd.DataFrame())
+          combo = report.get('combination_additivity', pd.DataFrame())
+          aligned = report.get('single_action_pressure_alignment', pd.DataFrame())
+
+          md = []
+          md.append('# Task 2-4 Pressure-Action Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Validation report generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary_row.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+
+          if not state.empty:
+              md.append('## State-dependence counts')
+              md.append('')
+              counts = state['state_dependence_status'].astype(str).value_counts().to_dict()
+              for key, value in counts.items():
+                  md.append(f'- `{key}`: `{value}`')
+              md.append('')
+              cols = [
+                  'pressure_component', 'component_direction', 'semantic_effect', 'action_channel',
+                  'state_dependence_status', 'relative_pressure_alignment_spread',
+                  'mean_pressure_alignment_score', 'mean_side_effect_burden_score',
+              ]
+              md.append('### Highest state-dependence rows')
+              md.append('')
+              top = state.sort_values('relative_pressure_alignment_spread', ascending=False).head(12)
+              md.append(top[cols].to_markdown(index=False))
+              md.append('')
+
+          if not combo.empty:
+              md.append('## Combination additivity counts')
+              md.append('')
+              counts = combo['combination_additivity_status'].astype(str).value_counts().to_dict()
+              for key, value in counts.items():
+                  md.append(f'- `{key}`: `{value}`')
+              md.append('')
+              cols = [
+                  'scenario_or_state_band', 'action_pair', 'combination_additivity_status',
+                  'non_additivity_score', 'useful_amplification_score', 'side_effect_amplification_score',
+              ]
+              md.append('### Highest non-additivity rows')
+              md.append('')
+              top = combo.sort_values('non_additivity_score', ascending=False).head(12)
+              md.append(top[cols].to_markdown(index=False))
+              md.append('')
+
+          if not aligned.empty:
+              md.append('## Weak or unresolved single-action alignment rows')
+              md.append('')
+              weak = aligned[aligned['pressure_alignment_status'].astype(str) != 'aligned']
+              if weak.empty:
+                  md.append('No weak/unresolved single-action alignment rows in this validation run.')
+              else:
+                  cols = [
+                      'scenario_or_state_band', 'pressure_component', 'component_direction',
+                      'semantic_effect', 'action_channel', 'pressure_alignment_score',
+                      'side_effect_burden_score',
+                  ]
+                  md.append(weak[cols].head(20).to_markdown(index=False))
+              md.append('')
+
+          (out_dir / 'TASK2_4_PRESSURE_ACTION_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:120]))
+          if errors:
+              raise SystemExit('Task2-4 validation report contained structural errors')
+          PY
+
+      - name: Upload Task2-4 validation artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-4-pressure-action-validation-rc1
+          path: results/task2_4_pressure_action_validation_rc1/
+          if-no-files-found: error
