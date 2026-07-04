@@ -24,6 +24,15 @@ from .pressure_action_map_rc1 import (
     build_initial_pressure_action_map,
     validate_initial_pressure_action_map,
 )
+from .pressure_action_validation_suite_rc1 import (
+    TASK2_4_VALIDATION_VERSION,
+    build_action_combination_additivity_validation,
+    build_pressure_action_validation_report,
+    build_single_action_pressure_alignment_validation,
+    summarize_pressure_action_validation_report,
+    summarize_state_dependence,
+    validate_pressure_action_validation_report,
+)
 from .pressure_intent_to_action_candidate_adapter import (
     TASK2_3_ADAPTER_PROFILE,
     REQUIRED_ACTION_CANDIDATE_COLUMNS,
@@ -55,4 +64,11 @@ __all__ = [
     "build_and_validate_pressure_intent_action_candidates",
     "build_basic_action_correspondence_map",
     "validate_pressure_intent_action_candidates",
+    "TASK2_4_VALIDATION_VERSION",
+    "build_action_combination_additivity_validation",
+    "build_pressure_action_validation_report",
+    "build_single_action_pressure_alignment_validation",
+    "summarize_pressure_action_validation_report",
+    "summarize_state_dependence",
+    "validate_pressure_action_validation_report",
 ]
