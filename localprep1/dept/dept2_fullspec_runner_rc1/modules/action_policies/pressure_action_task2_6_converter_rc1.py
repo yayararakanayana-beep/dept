@@ -10,6 +10,8 @@ an expected result signal of 7, that gap is preserved as information.
 Boundary:
     - converts pressure intents into candidate actions
     - preserves pressure/result gaps as audit information
+    - logs pressure-intent coverage and unresolved intent when the 6-action
+      vocabulary is too coarse
     - does not apply action-strength correction
     - does not boost actions to match pressure
     - does not create final actions
@@ -20,7 +22,6 @@ Boundary:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import combinations
 import json
 from typing import Iterable
 
@@ -45,6 +46,18 @@ TASK2_6_CALIBRATION_STATUS = "task2_6_candidate_converter_rc1_not_runtime_connec
 DEFAULT_CANDIDATE_THRESHOLD = 0.018
 OPENING_ACTIONS = {"exploration_injection", "relation_unlock", "coupling_relief"}
 SAFETY_ACTIONS = {"buffer_increase", "volatility_damping"}
+PROBE_ACTIONS = {"uncertainty_probe"}
+
+OPENING_INTENT_FAMILIES = {
+    "exploration_attempt", "exploration_observation", "adoption_opening",
+    "response_opening", "temporal_opening", "update_opening",
+    "switching_flexibility", "commitment_relief", "capacity_opening",
+}
+SAFETY_INTENT_FAMILIES = {
+    "safety_guard", "safety_cap", "persistence_guard", "commitment_guard",
+    "temporal_brake", "adoption_guard", "response_restraint",
+    "exploration_restraint", "probe_restraint", "observation_detail",
+}
 
 REQUIRED_PRESSURE_INPUT_COLUMNS = [
     "pressure_component",
@@ -83,6 +96,12 @@ REQUIRED_TASK2_6_COLUMNS = [
     "pressure_signal",
     "expected_result_signal",
     "pressure_result_gap",
+    "pressure_intent_coverage_score",
+    "action_vocabulary_fit_score",
+    "action_granularity_insufficient_flag",
+    "new_action_channel_candidate_flag",
+    "unresolved_pressure_intent",
+    "safety_fallback_used",
     "candidate_rank",
     "candidate_status",
     "state_audit_status",
@@ -110,6 +129,10 @@ class PressureActionConversionConfig:
     candidate_threshold: float = DEFAULT_CANDIDATE_THRESHOLD
     expected_result_ratio: float = 0.70
     preserve_blocked_candidates: bool = True
+
+
+def _clip01(value: float) -> float:
+    return float(max(0.0, min(1.0, float(value))))
 
 
 def _pressure_input_id(row: pd.Series, index: int) -> str:
@@ -225,6 +248,70 @@ def _candidate_status(state_status: str, interaction_status: str) -> str:
     return "candidate_available_for_downstream_gate"
 
 
+def _pressure_intent_audit(match: pd.Series, action: str, status: str, pressure_signal: float) -> dict[str, object]:
+    """Audit whether the 6-action vocabulary is too coarse for this pressure intent.
+
+    This is observation/logging only.  It must not change the pressure signal or
+    boost an action.  Low fit is preserved as unresolved intent information for
+    later action-channel design.
+    """
+    basic = float(match.get("basic_alignment_score", 0.0) or 0.0)
+    share = float(match.get("action_to_pressure_share", 0.0) or 0.0)
+    family = str(match.get("intent_family", "unknown"))
+    effect = str(match.get("semantic_effect", "unknown"))
+    route = str(match.get("suggested_control_route", "unknown"))
+    action = str(action)
+
+    coverage = _clip01(0.60 * min(1.0, basic) + 0.40 * min(1.0, share * 3.0))
+
+    direct_family_fit = 0.0
+    if action == "exploration_injection" and family in {"exploration_attempt", "exploration_observation", "update_opening"}:
+        direct_family_fit = 1.0
+    elif action == "uncertainty_probe" and family in {"observation_detail", "exploration_observation", "response_opening", "safety_guard"}:
+        direct_family_fit = 0.85
+    elif action == "volatility_damping" and family in {"safety_guard", "safety_cap", "persistence_guard", "commitment_guard", "temporal_brake"}:
+        direct_family_fit = 0.90
+    elif action == "buffer_increase" and family in {"safety_guard", "safety_cap", "temporal_brake", "commitment_guard", "observation_detail"}:
+        direct_family_fit = 0.90
+    elif action == "relation_unlock" and family in {"commitment_relief", "switching_flexibility", "adoption_opening", "response_opening"}:
+        direct_family_fit = 0.82
+    elif action == "coupling_relief" and family in {"commitment_relief", "switching_flexibility", "adoption_opening", "response_opening", "safety_cap"}:
+        direct_family_fit = 0.82
+    elif family in OPENING_INTENT_FAMILIES and action in OPENING_ACTIONS:
+        direct_family_fit = 0.65
+    elif family in SAFETY_INTENT_FAMILIES and action in SAFETY_ACTIONS:
+        direct_family_fit = 0.70
+    elif action in PROBE_ACTIONS:
+        direct_family_fit = 0.55
+    elif action in SAFETY_ACTIONS:
+        direct_family_fit = 0.45
+    else:
+        direct_family_fit = 0.35
+
+    fit = _clip01(0.55 * coverage + 0.45 * direct_family_fit)
+    safety_fallback = bool(action in SAFETY_ACTIONS and family in OPENING_INTENT_FAMILIES and fit < 0.72)
+    granularity_insufficient = bool(fit < 0.62 or ("warn" in str(status) and fit < 0.72))
+    new_channel_candidate = bool(fit < 0.50 or (granularity_insufficient and pressure_signal >= DEFAULT_CANDIDATE_THRESHOLD * 2.0))
+
+    unresolved = ""
+    if granularity_insufficient or new_channel_candidate or safety_fallback:
+        unresolved = json.dumps({
+            "semantic_effect": effect,
+            "intent_family": family,
+            "suggested_control_route": route,
+            "reason": "6作用語彙では圧意味を十分に表現しきれない可能性がある。",
+        }, ensure_ascii=False, sort_keys=True)
+
+    return {
+        "pressure_intent_coverage_score": float(coverage),
+        "action_vocabulary_fit_score": float(fit),
+        "action_granularity_insufficient_flag": bool(granularity_insufficient),
+        "new_action_channel_candidate_flag": bool(new_channel_candidate),
+        "unresolved_pressure_intent": unresolved,
+        "safety_fallback_used": bool(safety_fallback),
+    }
+
+
 def convert_pressure_inputs_to_action_candidates(
     pressure_inputs: pd.DataFrame,
     state_axes: Iterable[str] = (),
@@ -268,6 +355,7 @@ def convert_pressure_inputs_to_action_candidates(
                 action, candidate_actions, state_band, interaction_table
             )
             status = _candidate_status(state_status, interaction_status)
+            intent_audit = _pressure_intent_audit(match, action, status, pressure_signal)
             rows.append({
                 "task2_6_converter_version": TASK2_6_CONVERTER_VERSION,
                 "task2_6_contract": TASK2_6_CONTRACT,
@@ -299,6 +387,7 @@ def convert_pressure_inputs_to_action_candidates(
                 "pressure_signal": pressure_signal,
                 "expected_result_signal": expected_result_signal,
                 "pressure_result_gap": pressure_gap,
+                **intent_audit,
                 "candidate_rank": int(match["basic_alignment_rank"]),
                 "candidate_status": status,
                 "state_audit_status": state_status,
@@ -307,7 +396,11 @@ def convert_pressure_inputs_to_action_candidates(
                 "interaction_audit_reason": interaction_reason,
                 "unsafe_interaction_pairs": json.dumps(unsafe_pairs, ensure_ascii=False),
                 "requires_downstream_strength_handling": True,
-                "requires_downstream_gate_review": bool(status != "candidate_available_for_downstream_gate"),
+                "requires_downstream_gate_review": bool(
+                    status != "candidate_available_for_downstream_gate"
+                    or bool(intent_audit["action_granularity_insufficient_flag"])
+                    or bool(intent_audit["new_action_channel_candidate_flag"])
+                ),
                 "uses_existing_pressure_intent_semantics": True,
                 "new_semantic_translation_layer_added": False,
                 "diagnostic_compat_policy_used": False,
@@ -361,12 +454,34 @@ def validate_pressure_action_candidates_no_strength_boost(df: pd.DataFrame) -> l
         if bool(values.isna().any() or (values < 0.0).any()):
             errors.append(f"task2_6_invalid_nonnegative_score:{col}")
 
+    for col in ["pressure_intent_coverage_score", "action_vocabulary_fit_score"]:
+        values = pd.to_numeric(df[col], errors="coerce")
+        if bool(values.isna().any() or (values < 0.0).any() or (values > 1.0).any()):
+            errors.append(f"task2_6_invalid_unit_score:{col}")
+
     # The key invariant: expected result must not be boosted above the raw
     # pressure signal in this converter.
     if bool((pd.to_numeric(df["expected_result_signal"], errors="coerce") > pd.to_numeric(df["pressure_signal"], errors="coerce") + 1e-12).any()):
         errors.append("task2_6_expected_result_boosted_above_pressure_signal")
     if not bool((pd.to_numeric(df["pressure_result_gap"], errors="coerce") > 0.0).any()):
         errors.append("task2_6_no_pressure_result_gap_preserved")
+
+    flag_fields = [
+        "action_granularity_insufficient_flag",
+        "new_action_channel_candidate_flag",
+        "safety_fallback_used",
+    ]
+    for field in flag_fields:
+        if field not in df.columns:
+            errors.append(f"task2_6_missing_audit_flag:{field}")
+
+    unresolved_required = df[
+        df["action_granularity_insufficient_flag"].astype(bool)
+        | df["new_action_channel_candidate_flag"].astype(bool)
+        | df["safety_fallback_used"].astype(bool)
+    ]
+    if not unresolved_required.empty and bool(unresolved_required["unresolved_pressure_intent"].astype(str).str.len().eq(0).any()):
+        errors.append("task2_6_unresolved_pressure_intent_missing_for_flagged_rows")
 
     allowed_status_prefix = {
         "candidate_available_for_downstream_gate",
