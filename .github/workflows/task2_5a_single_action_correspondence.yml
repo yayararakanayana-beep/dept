@@ -1,0 +1,148 @@
+name: Task2-5a Single-Action Pressure Correspondence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_4.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5a.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_5_validation_design.md'
+      - '.github/workflows/task2_5a_single_action_correspondence.yml'
+
+jobs:
+  task2-5a-single-action-correspondence:
+    name: Task2-5a single-action pressure correspondence
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-5a tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5a.py
+
+      - name: Export Task2-5a single-action correspondence table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_5a_single_action_correspondence import (
+              build_and_validate_single_action_to_pressure_correspondence_table,
+          )
+
+          def markdown_table(df, columns, limit=24):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_5a_single_action_correspondence_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_single_action_to_pressure_correspondence_table()
+          table.to_csv(out_dir / 'single_action_to_pressure_correspondence.csv', index=False)
+
+          positive = table[table['basic_alignment_score'] > 0].copy() if not table.empty else pd.DataFrame()
+          top = (
+              positive.sort_values(['action_channel', 'basic_alignment_rank'])
+              .groupby('action_channel', as_index=False)
+              .head(5)
+              if not positive.empty else pd.DataFrame()
+          )
+          top.to_csv(out_dir / 'top_pressure_correspondence_by_action.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'actions': sorted(table['action_channel'].astype(str).unique().tolist()) if not table.empty else [],
+              'primary_rows': int((table['primary_or_supporting_action'].astype(str) == 'primary_correspondence').sum()) if not table.empty else 0,
+              'supporting_rows': int((table['primary_or_supporting_action'].astype(str) == 'supporting_correspondence').sum()) if not table.empty else 0,
+              'weak_or_unresolved_rows': int((table['primary_or_supporting_action'].astype(str) == 'weak_or_unresolved').sum()) if not table.empty else 0,
+              'state_sensitive_rows': int(table['state_sensitivity_flag'].astype(bool).sum()) if not table.empty else 0,
+              'interaction_sensitive_rows': int(table['interaction_sensitivity_flag'].astype(bool).sum()) if not table.empty else 0,
+              'runtime_policy_input': bool(table['runtime_policy_input'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-5a Single-Action Pressure Correspondence RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Validation table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Top pressure correspondences by action')
+          md.append('')
+          cols = [
+              'action_name_ja', 'pressure_intent_ja', 'basic_alignment_score',
+              'action_to_pressure_share', 'basic_alignment_rank',
+              'primary_or_supporting_action', 'confidence',
+              'state_dependence_status', 'side_effect_burden',
+          ]
+          md.append(markdown_table(top, cols, limit=36))
+          md.append('')
+          (out_dir / 'TASK2_5A_SINGLE_ACTION_PRESSURE_CORRESPONDENCE_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:120]))
+          if errors:
+              raise SystemExit('Task2-5a table contained structural errors')
+          PY
+
+      - name: Upload Task2-5a artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-5a-single-action-pressure-correspondence-rc1
+          path: results/task2_5a_single_action_correspondence_rc1/
+          if-no-files-found: error
