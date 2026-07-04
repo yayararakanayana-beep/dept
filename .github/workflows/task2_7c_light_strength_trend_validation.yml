@@ -47,8 +47,8 @@ jobs:
           import json
           import pandas as pd
 
-          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7c_light_strength_trend_validation import (
-              build_and_validate_strength_trend_light_validation_table,
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7c_light_strength_trend_validation_v2 import (
+              build_and_validate_strength_trend_light_v2_table,
           )
 
           def markdown_table(df, columns, limit=80):
@@ -68,7 +68,7 @@ jobs:
           out_dir = Path('results/task2_7c_light_strength_trend_rc1')
           out_dir.mkdir(parents=True, exist_ok=True)
 
-          table, errors, summary = build_and_validate_strength_trend_light_validation_table()
+          table, errors, summary = build_and_validate_strength_trend_light_v2_table()
           table.to_csv(out_dir / 'strength_trend_light_validation.csv', index=False)
 
           by_multiplier = table.groupby('strength_multiplier').agg(
