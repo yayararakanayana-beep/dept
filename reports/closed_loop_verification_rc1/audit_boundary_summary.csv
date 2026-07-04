@@ -1,0 +1,4 @@
+baseline_name,coefficient_changed,production_runtime_changed,canonical_writeback_performed,fixed_candidate_used_as_runtime_coefficient,shadow_adjustment_used_as_runtime_default,scenario_label_controlled_logic,production_runtime_modified,audit_passed
+NO_ACTION,False,False,False,False,False,False,False,True
+V2_GREEDY_OPTIMIZER,False,False,False,False,False,False,False,True
+ACTION_MODULE_RC1,False,False,False,False,False,False,False,True
