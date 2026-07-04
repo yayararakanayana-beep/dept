@@ -9,6 +9,14 @@ from .diagnostic_compat_policy import (
     DIAGNOSTIC_COMPAT_POLICY_PROFILE,
     DiagnosticCompatPolicy,
 )
+from .pressure_action_calibration_rc1 import (
+    TASK2_2_CALIBRATION_VERSION,
+    REQUIRED_CALIBRATED_MAP_COLUMNS,
+    build_and_validate_calibrated_pressure_action_map,
+    build_single_action_probe_response_map,
+    calibrate_pressure_action_map,
+    validate_calibrated_pressure_action_map,
+)
 from .pressure_action_map_rc1 import (
     PRESSURE_ACTION_MAP_VERSION,
     REQUIRED_PRESSURE_ACTION_MAP_COLUMNS,
@@ -25,4 +33,10 @@ __all__ = [
     "build_and_validate_initial_pressure_action_map",
     "build_initial_pressure_action_map",
     "validate_initial_pressure_action_map",
+    "TASK2_2_CALIBRATION_VERSION",
+    "REQUIRED_CALIBRATED_MAP_COLUMNS",
+    "build_and_validate_calibrated_pressure_action_map",
+    "build_single_action_probe_response_map",
+    "calibrate_pressure_action_map",
+    "validate_calibrated_pressure_action_map",
 ]
