@@ -24,6 +24,13 @@ from .pressure_action_map_rc1 import (
     build_initial_pressure_action_map,
     validate_initial_pressure_action_map,
 )
+from .pressure_action_task2_5a_single_action_correspondence import (
+    TASK2_5A_VERSION,
+    REQUIRED_TASK2_5A_COLUMNS,
+    build_and_validate_single_action_to_pressure_correspondence_table,
+    build_single_action_to_pressure_correspondence_table,
+    validate_single_action_to_pressure_correspondence_table,
+)
 from .pressure_action_validation_suite_rc1 import (
     TASK2_4_VALIDATION_VERSION,
     build_action_combination_additivity_validation,
@@ -71,4 +78,9 @@ __all__ = [
     "summarize_pressure_action_validation_report",
     "summarize_state_dependence",
     "validate_pressure_action_validation_report",
+    "TASK2_5A_VERSION",
+    "REQUIRED_TASK2_5A_COLUMNS",
+    "build_and_validate_single_action_to_pressure_correspondence_table",
+    "build_single_action_to_pressure_correspondence_table",
+    "validate_single_action_to_pressure_correspondence_table",
 ]
