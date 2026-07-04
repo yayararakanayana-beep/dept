@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - baseline
+          - reception_trace
       upload_artifact:
         description: "Upload generated reports as an artifact"
         required: true
@@ -49,11 +50,17 @@ jobs:
         run: |
           python scripts/run_closed_loop_verification_rc1.py
 
+      - name: Run action pressure reception trace
+        if: ${{ inputs.mode == 'reception_trace' }}
+        run: |
+          python scripts/run_action_pressure_reception_trace_rc1.py
+
       - name: List generated reports
         if: always()
         run: |
           echo "Generated report files:"
           find reports/closed_loop_verification_rc1 -maxdepth 2 -type f -print || true
+          find reports/action_pressure_reception_trace_rc1 -maxdepth 2 -type f -print || true
 
       - name: Upload verification artifact
         if: ${{ always() && inputs.upload_artifact == 'true' }}
@@ -62,5 +69,6 @@ jobs:
           name: closed-loop-verification-manual-${{ inputs.mode }}
           path: |
             reports/closed_loop_verification_rc1/**
+            reports/action_pressure_reception_trace_rc1/**
           if-no-files-found: warn
           retention-days: 14
