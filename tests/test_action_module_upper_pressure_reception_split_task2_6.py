@@ -69,6 +69,42 @@ def test_task2_6_state_and_interaction_audit_do_not_create_final_actions():
     assert set(table["final_action_decision"]) == {False}
 
 
+def test_task2_6_unresolved_pressure_intent_audit_columns_exist_and_are_bounded():
+    table, errors = build_and_validate_demo_pressure_action_candidates()
+
+    assert errors == []
+    for col in [
+        "pressure_intent_coverage_score",
+        "action_vocabulary_fit_score",
+        "action_granularity_insufficient_flag",
+        "new_action_channel_candidate_flag",
+        "unresolved_pressure_intent",
+        "safety_fallback_used",
+    ]:
+        assert col in table.columns
+
+    assert table["pressure_intent_coverage_score"].between(0.0, 1.0).all()
+    assert table["action_vocabulary_fit_score"].between(0.0, 1.0).all()
+    assert table["action_granularity_insufficient_flag"].astype(bool).any()
+    flagged = table[
+        table["action_granularity_insufficient_flag"].astype(bool)
+        | table["new_action_channel_candidate_flag"].astype(bool)
+        | table["safety_fallback_used"].astype(bool)
+    ]
+    assert not flagged.empty
+    assert flagged["unresolved_pressure_intent"].astype(str).str.len().gt(0).all()
+
+
+def test_task2_6_unresolved_audit_does_not_change_no_boost_invariant():
+    table, errors = build_and_validate_demo_pressure_action_candidates()
+
+    assert errors == []
+    assert set(table["action_strength_correction_applied"]) == {False}
+    assert set(table["pressure_matching_boost_applied"]) == {False}
+    assert (table["expected_result_signal"] <= table["pressure_signal"] + 1e-12).all()
+    assert table["pressure_result_gap"].gt(0.0).any()
+
+
 def test_task2_6_validator_detects_strength_boost_mislabel():
     table, _ = build_and_validate_demo_pressure_action_candidates()
     table.loc[table.index[0], "pressure_matching_boost_applied"] = True
