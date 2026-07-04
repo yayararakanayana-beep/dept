@@ -1,0 +1,162 @@
+name: Task2-7 Insurance Terrain Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_7.py'
+      - '.github/workflows/task2_7_insurance_terrain_gate.yml'
+
+jobs:
+  task2-7-insurance-terrain-gate:
+    name: Task2-7 insurance terrain gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-7 tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_7.py
+
+      - name: Export Task2-7 insurance terrain gate table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7_insurance_terrain_gate import (
+              build_and_validate_demo_insurance_terrain_action_gate_table,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_7_insurance_terrain_gate_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_demo_insurance_terrain_action_gate_table()
+          table.to_csv(out_dir / 'insurance_terrain_action_gate.csv', index=False)
+
+          surfaced = table[table['gate_decision'].astype(str).str.startswith('surface_')].copy()
+          surfaced.to_csv(out_dir / 'surfaced_candidates.csv', index=False)
+
+          audit_required = table[
+              table['requires_local_audit_before_action'].astype(bool)
+              | table['requires_sandbox_before_action'].astype(bool)
+          ].copy()
+          audit_required.to_csv(out_dir / 'audit_or_sandbox_required.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'pressure_inputs': int(table['pressure_input_id'].nunique()) if not table.empty else 0,
+              'terrain_locations': int(table['terrain_location_id'].nunique()) if not table.empty else 0,
+              'insurance_candidate_rows': int((table['gate_decision'] == 'surface_insurance_candidate').sum()) if not table.empty else 0,
+              'safe_gain_probe_rows': int((table['gate_decision'] == 'surface_safe_gain_probe_candidate').sum()) if not table.empty else 0,
+              'local_audit_rows': int(table['requires_local_audit_before_action'].astype(bool).sum()) if not table.empty else 0,
+              'sandbox_rows': int(table['requires_sandbox_before_action'].astype(bool).sum()) if not table.empty else 0,
+              'max_terrain_risk_score': float(table['terrain_risk_score'].max()) if not table.empty else 0.0,
+              'max_terrain_gain_score': float(table['terrain_gain_score'].max()) if not table.empty else 0.0,
+              'action_frame_created': bool(table['action_frame_created'].astype(bool).any()) if not table.empty else False,
+              'actionmodule_called': bool(table['actionmodule_called'].astype(bool).any()) if not table.empty else False,
+              'pressure_route_split_performed': bool(table['pressure_route_split_performed'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-7 Insurance Terrain Gate RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Insurance terrain gate table generated with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Surfaced candidates')
+          md.append('')
+          md.append(markdown_table(
+              surfaced,
+              [
+                  'terrain_location_id', 'terrain_risk_band', 'gate_decision',
+                  'recommended_action_mode', 'action_name_ja', 'pressure_component',
+                  'component_direction', 'terrain_risk_score', 'terrain_gain_score',
+                  'recommended_action_strength_hint', 'terrain_gate_audit_note',
+              ],
+              limit=80,
+          ))
+          md.append('')
+          md.append('## Audit / sandbox required rows')
+          md.append('')
+          md.append(markdown_table(
+              audit_required,
+              [
+                  'terrain_location_id', 'terrain_risk_band', 'gate_decision',
+                  'action_name_ja', 'requires_local_audit_before_action',
+                  'requires_sandbox_before_action', 'terrain_trigger_reason',
+              ],
+              limit=80,
+          ))
+          md.append('')
+          (out_dir / 'TASK2_7_INSURANCE_TERRAIN_GATE_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:220]))
+          if errors:
+              raise SystemExit('Task2-7 insurance terrain gate validation errors')
+          PY
+
+      - name: Upload Task2-7 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-7-insurance-terrain-gate-rc1
+          path: results/task2_7_insurance_terrain_gate_rc1/
+          if-no-files-found: error
