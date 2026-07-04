@@ -2,15 +2,17 @@ from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7c_
     HORIZON,
     STRENGTH_MULTIPLIERS,
     TASK2_7C_LIGHT_VERSION,
-    build_and_validate_strength_trend_light_validation_table,
     build_strength_trend_light_validation_table,
     summarize_strength_trend_light_validation,
-    validate_strength_trend_light_validation_table,
+)
+from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_7c_light_strength_trend_validation_v2 import (
+    build_and_validate_strength_trend_light_v2_table,
+    validate_strength_trend_light_validation_v2_table,
 )
 
 
 def test_task2_7c_contract_and_boundaries():
-    table, errors, summary = build_and_validate_strength_trend_light_validation_table()
+    table, errors, summary = build_and_validate_strength_trend_light_v2_table()
 
     assert errors == []
     assert not table.empty
@@ -46,19 +48,21 @@ def test_task2_7c_improvement_side_effect_and_trend_are_measured():
     assert table["risk_trend_class"].isin({"trend_reversal", "trend_damping", "temporary_relief"}).any()
 
 
-def test_task2_7c_summary_identifies_best_multiplier():
-    table = build_strength_trend_light_validation_table()
-    summary = summarize_strength_trend_light_validation(table)
+def test_task2_7c_summary_identifies_best_multiplier_and_net_observation():
+    table, errors, summary = build_and_validate_strength_trend_light_v2_table()
 
+    assert errors == []
     assert summary["horizon"] == HORIZON
     assert set(summary["strength_multipliers"]) == set(float(x) for x in STRENGTH_MULTIPLIERS)
     assert summary["best_multiplier_by_mean_net"] in set(float(x) for x in STRENGTH_MULTIPLIERS)
     assert len(summary["by_multiplier"]) == len(STRENGTH_MULTIPLIERS)
+    assert summary["net_benefit_positive_rows"] >= 0
+    assert summary["net_benefit_negative_rows"] >= 0
 
 
 def test_task2_7c_validator_detects_actionmodule_mislabel():
     table = build_strength_trend_light_validation_table()
     table.loc[table.index[0], "actionmodule_called"] = True
 
-    errors = validate_strength_trend_light_validation_table(table)
+    errors = validate_strength_trend_light_validation_v2_table(table)
     assert "task2_7c_forbidden_true:actionmodule_called" in errors
