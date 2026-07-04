@@ -31,6 +31,13 @@ from .pressure_action_task2_5a_single_action_correspondence import (
     build_single_action_to_pressure_correspondence_table,
     validate_single_action_to_pressure_correspondence_table,
 )
+from .pressure_action_task2_5b_state_modifier_validation import (
+    TASK2_5B_VERSION,
+    REQUIRED_TASK2_5B_COLUMNS,
+    build_and_validate_state_modifier_validation_table,
+    build_state_modifier_validation_table,
+    validate_state_modifier_validation_table,
+)
 from .pressure_action_validation_suite_rc1 import (
     TASK2_4_VALIDATION_VERSION,
     build_action_combination_additivity_validation,
@@ -83,4 +90,9 @@ __all__ = [
     "build_and_validate_single_action_to_pressure_correspondence_table",
     "build_single_action_to_pressure_correspondence_table",
     "validate_single_action_to_pressure_correspondence_table",
+    "TASK2_5B_VERSION",
+    "REQUIRED_TASK2_5B_COLUMNS",
+    "build_and_validate_state_modifier_validation_table",
+    "build_state_modifier_validation_table",
+    "validate_state_modifier_validation_table",
 ]
