@@ -1,0 +1,172 @@
+name: Task2-8j-4 Game Structure Reidentification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  task2-8j-4-game-structure-reidentification:
+    name: Task2-8j-4 game structure reidentification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-8j-4 tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_8j_4.py
+
+      - name: Export Task2-8j-4 reidentification tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import CandidateFeatureLogConfig
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_4_game_structure_reidentification import (
+              GameStructureReidentificationConfig,
+              build_and_validate_game_structure_reidentification,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              headers = list(view.columns)
+              lines = ['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join(['---'] * len(headers)) + ' |']
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      vals.append(f'{v:.6g}' if isinstance(v, float) else str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_8j_4_game_structure_reidentification_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          feature_cfg = CandidateFeatureLogConfig(steps=24, seeds=(501, 502, 503), window_sizes=(1, 6, 12))
+          reid_cfg = GameStructureReidentificationConfig(component_counts=(3, 6, 7, 8), standard_component_count=6, shadow_component_count=7)
+          scenario_table, event_table, comparison_table, final_summary, errors, summary = build_and_validate_game_structure_reidentification(
+              feature_cfg=feature_cfg,
+              reid_cfg=reid_cfg,
+          )
+
+          scenario_table.to_csv(out_dir / 'scenario_reidentification.csv', index=False)
+          event_table.to_csv(out_dir / 'event_reidentification.csv', index=False)
+          comparison_table.to_csv(out_dir / 'map_comparison.csv', index=False)
+          final_summary.to_csv(out_dir / 'final_summary.csv', index=False)
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-8j-4 Game Structure Re-identification RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Game-structure re-identification completed with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Final summary')
+          md.append('')
+          md.append(markdown_table(final_summary, list(final_summary.columns), limit=5))
+          md.append('')
+          md.append('## Map comparison')
+          md.append('')
+          md.append(markdown_table(
+              comparison_table,
+              [
+                  'component_count',
+                  'map_role',
+                  'scenario_accuracy',
+                  'mean_event_balanced_accuracy',
+                  'mean_event_f1',
+                  'mean_event_r2',
+                  'information_quality_balanced_accuracy',
+                  'coordination_lag_balanced_accuracy',
+                  'relation_lock_balanced_accuracy',
+                  'resource_pressure_balanced_accuracy',
+                  'structure_reidentification_score',
+                  'delta_score_from_static_6',
+                  'candidate_status',
+                  'candidate_reason',
+              ],
+              limit=20,
+          ))
+          md.append('')
+          md.append('## Scenario re-identification')
+          md.append('')
+          md.append(markdown_table(
+              scenario_table,
+              [
+                  'component_count',
+                  'map_role',
+                  'train_rows',
+                  'test_rows',
+                  'scenario_count',
+                  'scenario_reidentification_accuracy',
+                  'scenario_reidentification_status',
+              ],
+              limit=20,
+          ))
+          md.append('')
+          md.append('## Event re-identification')
+          md.append('')
+          md.append(markdown_table(
+              event_table,
+              [
+                  'component_count',
+                  'map_role',
+                  'event_name',
+                  'event_direction',
+                  'event_prevalence',
+                  'r2_vs_mean_baseline',
+                  'event_accuracy',
+                  'event_balanced_accuracy',
+                  'event_f1',
+                  'event_status',
+              ],
+              limit=120,
+          ))
+
+          (out_dir / 'TASK2_8J_4_GAME_STRUCTURE_REIDENTIFICATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+          print('\n'.join(md[:420]))
+          if errors:
+              raise SystemExit('Task2-8j-4 validation errors')
+          PY
+
+      - name: Upload Task2-8j-4 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8j-4-game-structure-reidentification-rc1
+          path: results/task2_8j_4_game_structure_reidentification_rc1/
+          if-no-files-found: error
