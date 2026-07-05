@@ -49,17 +49,19 @@ def test_task2_8d_modes_strengths_durations_and_horizon():
     assert set(table["horizon"].astype(int)) == {HORIZON}
 
 
-def test_task2_8d_finds_positive_targeted_condition():
+def test_task2_8d_finds_positive_active_targeted_condition():
     table, errors, summary = build_and_validate_terrain_reshaping_targeted_validation_table()
     positive_targeted = table[
         table["mode"].astype(str).isin(["terrain_targeted", "combined_targeted"])
         & table["positive_net_condition"].astype(bool)
+        & table["targeted_actions"].astype(str).ne("none")
     ]
 
     assert errors == []
     assert not positive_targeted.empty
     assert summary["positive_net_rows"] >= len(positive_targeted)
     assert positive_targeted["risk_auc_delta_vs_no_op"].gt(0.0).all()
+    assert positive_targeted["side_effect_delta_vs_no_op"].gt(0.0).all()
 
 
 def test_task2_8d_summary_exposes_best_bands():
@@ -70,6 +72,9 @@ def test_task2_8d_summary_exposes_best_bands():
     assert summary["best_mode"] in set(MODES)
     assert summary["best_strength_band"] in set(STRENGTH_BANDS)
     assert summary["best_duration_band"] in set(DURATION_BANDS)
+    assert summary["best_positive_mode"] in set(MODES)
+    assert summary["best_positive_strength_band"] in set(STRENGTH_BANDS)
+    assert summary["best_positive_duration_band"] in set(DURATION_BANDS)
     assert len(summary["by_mode"]) == len(MODES)
 
 
