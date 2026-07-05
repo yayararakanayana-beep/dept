@@ -1,0 +1,185 @@
+name: Task2-8j-3b Component Count Sweep
+
+on:
+  workflow_dispatch:
+
+jobs:
+  task2-8j-3b-component-count-sweep:
+    name: Task2-8j-3b component count sweep
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-8j-3b tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_8j_3b.py
+
+      - name: Export Task2-8j-3b component count sweep tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import CandidateFeatureLogConfig
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_3b_component_count_sweep import (
+              ComponentCountSweepConfig,
+              build_and_validate_component_count_sweep,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              headers = list(view.columns)
+              lines = ['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join(['---'] * len(headers)) + ' |']
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      vals.append(f'{v:.6g}' if isinstance(v, float) else str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_8j_3b_component_count_sweep_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          feature_cfg = CandidateFeatureLogConfig(steps=24, seeds=(501, 502, 503), window_sizes=(1, 6, 12))
+          sweep_cfg = ComponentCountSweepConfig(component_counts=(3, 4, 5, 6, 7, 8), standard_component_count=6)
+          sweep_table, target_prediction_table, static_component_table, final_summary, errors, summary = build_and_validate_component_count_sweep(
+              feature_cfg=feature_cfg,
+              sweep_cfg=sweep_cfg,
+          )
+
+          sweep_table.to_csv(out_dir / 'component_count_sweep.csv', index=False)
+          target_prediction_table.to_csv(out_dir / 'target_prediction_sweep.csv', index=False)
+          static_component_table.to_csv(out_dir / 'static_component_table.csv', index=False)
+          final_summary.to_csv(out_dir / 'final_summary.csv', index=False)
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-8j-3b Effective Dimension Component Count Sweep RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Component-count sweep completed with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Final summary')
+          md.append('')
+          md.append(markdown_table(final_summary, list(final_summary.columns), limit=5))
+          md.append('')
+          md.append('## Static PCA component-count sweep')
+          md.append('')
+          static_sweep = sweep_table[sweep_table['mode'].astype(str) == 'static_pca']
+          md.append(markdown_table(
+              static_sweep,
+              [
+                  'mode',
+                  'requested_component_count',
+                  'component_count_role',
+                  'total_explained_variance_ratio',
+                  'reconstruction_error_ratio',
+                  'marginal_component_gain',
+                  'mean_prediction_r2',
+                  'information_quality_prediction_r2',
+                  'coordination_lag_prediction_r2',
+                  'stability_score',
+                  'nonredundancy_score',
+                  'overall_evaluation_score',
+                  'candidate_status',
+              ],
+              limit=20,
+          ))
+          md.append('')
+          md.append('## All-mode sweep summary')
+          md.append('')
+          md.append(markdown_table(
+              sweep_table,
+              [
+                  'mode',
+                  'requested_component_count',
+                  'component_count_role',
+                  'total_explained_variance_ratio',
+                  'mean_prediction_r2',
+                  'stability_score',
+                  'nonredundancy_score',
+                  'overall_evaluation_score',
+                  'candidate_status',
+              ],
+              limit=80,
+          ))
+          md.append('')
+          md.append('## Static PCA target prediction deltas from 6-axis baseline')
+          md.append('')
+          static_targets = target_prediction_table[target_prediction_table['mode'].astype(str) == 'static_pca']
+          md.append(markdown_table(
+              static_targets,
+              [
+                  'requested_component_count',
+                  'target_short_name',
+                  'r2_vs_mean_baseline',
+                  'r2_delta_from_static_6',
+                  'prediction_status',
+              ],
+              limit=80,
+          ))
+          md.append('')
+          md.append('## Static PCA component details')
+          md.append('')
+          md.append(markdown_table(
+              static_component_table,
+              [
+                  'requested_component_count',
+                  'component_index',
+                  'component_role',
+                  'explained_variance_ratio',
+                  'cumulative_explained_variance_ratio',
+                  'top_feature_keys',
+              ],
+              limit=80,
+          ))
+
+          (out_dir / 'TASK2_8J_3B_COMPONENT_COUNT_SWEEP_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+          print('\n'.join(md[:420]))
+          if errors:
+              raise SystemExit('Task2-8j-3b validation errors')
+          PY
+
+      - name: Upload Task2-8j-3b artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8j-3b-component-count-sweep-rc1
+          path: results/task2_8j_3b_component_count_sweep_rc1/
+          if-no-files-found: error
