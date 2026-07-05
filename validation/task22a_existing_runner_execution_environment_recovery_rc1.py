@@ -11,6 +11,7 @@ import importlib
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,32 @@ REQUIRED_RUNNER_FILES = [
 def _summarize(text: str, limit: int = 1600) -> str:
     compact = "\n".join(line for line in text.splitlines() if line.strip())
     return compact if len(compact) <= limit else compact[:limit] + "...<truncated>"
+
+
+def _redact_sensitive_text(text: str | None) -> str:
+    """Redact common credential forms before persisting environment diagnostics."""
+    if not text:
+        return ""
+    redacted = str(text)
+    redacted = re.sub(
+        r"(?i)(https?://)([^/\s:@]+):([^@\s/]+)@",
+        r"\1<redacted>:<redacted>@",
+        redacted,
+    )
+    redacted = re.sub(
+        r"(?i)\b(token|secret|password|passwd|api[_-]?key|access[_-]?key|client[_-]?secret)\b\s*[:=]\s*[^,\s;]+",
+        r"\1=<redacted>",
+        redacted,
+    )
+    redacted = re.sub(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b", "gh_<redacted>", redacted)
+    redacted = re.sub(r"\bsk-[A-Za-z0-9_-]{20,}\b", "sk-<redacted>", redacted)
+    redacted = re.sub(
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
+        "<redacted-private-key>",
+        redacted,
+        flags=re.DOTALL,
+    )
+    return redacted
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -69,14 +96,18 @@ def _requirements() -> dict[str, Any]:
 def _pip_config() -> dict[str, Any]:
     proc = _run([sys.executable, "-m", "pip", "config", "list"])
     text = f"{proc.stdout}\n{proc.stderr}"
-    env_index = os.environ.get("PIP_INDEX_URL") or os.environ.get("UV_INDEX_URL")
-    no_index = os.environ.get("PIP_NO_INDEX")
+    env_index_present = bool(os.environ.get("PIP_INDEX_URL") or os.environ.get("UV_INDEX_URL"))
+    no_index_present = bool(os.environ.get("PIP_NO_INDEX"))
+    config_has_index_url = "index-url" in text.lower()
+    config_has_no_index = "no-index" in text.lower()
+    pip_version = _run([sys.executable, "-m", "pip", "--version"])
     return {
         "python_version": sys.version.replace("\n", " "),
-        "pip_version": _summarize(_run([sys.executable, "-m", "pip", "--version"]).stdout + _run([sys.executable, "-m", "pip", "--version"]).stderr, 300),
-        "pip_config_summary": _summarize(text, 1000),
-        "pip_index_url_detected": env_index or ("index-url" in text.lower()),
-        "pip_no_index_detected": bool(no_index) or "no-index" in text.lower(),
+        "pip_version": _redact_sensitive_text(_summarize(pip_version.stdout + pip_version.stderr, 300)),
+        "pip_config_summary": "<not persisted: raw pip config may contain environment-specific data>",
+        "pip_index_url_detected": env_index_present or config_has_index_url,
+        "pip_no_index_detected": no_index_present or config_has_no_index,
+        "pip_config_raw_value_persisted": False,
     }
 
 
@@ -133,7 +164,7 @@ def _pandas_check() -> dict[str, Any]:
     return {
         "pandas_importable": proc.returncode == 0,
         "pandas_version": proc.stdout.strip() if proc.returncode == 0 else None,
-        "pandas_import_error": _summarize(proc.stderr or proc.stdout) if proc.returncode != 0 else None,
+        "pandas_import_error": _redact_sensitive_text(_summarize(proc.stderr or proc.stdout)) if proc.returncode != 0 else None,
     }
 
 
@@ -175,7 +206,7 @@ def _smoke_run() -> dict[str, Any]:
                 "smoke_output_summary": {k: {"type": type(v).__name__, "rows": int(len(v)) if hasattr(v, "__len__") else None} for k, v in outputs.items()} if isinstance(outputs, dict) else str(outputs)[:500],
             })
         except BaseException as exc:
-            base.update({"runner_smoke_exit_status": 1, "runner_smoke_error": f"{type(exc).__name__}: {exc}", "runner_traceback": traceback.format_exc(limit=10)})
+            base.update({"runner_smoke_exit_status": 1, "runner_smoke_error": _redact_sensitive_text(f"{type(exc).__name__}: {exc}"), "runner_traceback": _redact_sensitive_text(traceback.format_exc(limit=10))})
         finally:
             try:
                 sys.path.remove(str(Path(tmp) / "DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze"))
@@ -209,8 +240,8 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
         "pip_install_attempted": True,
         "pip_install_command": "python -m pip install -r requirements.txt",
         "pip_install_exit_code": proc.returncode,
-        "pip_install_stdout_or_summary": _summarize(proc.stdout),
-        "pip_install_stderr_or_summary": _summarize(proc.stderr),
+        "pip_install_stdout_or_summary": _redact_sensitive_text(_summarize(proc.stdout)),
+        "pip_install_stderr_or_summary": _redact_sensitive_text(_summarize(proc.stderr)),
         "pip_install_failure_class": _classify_pip_failure(proc.returncode, proc.stdout, proc.stderr),
     })
     summary.update(_pandas_check())
@@ -259,16 +290,18 @@ def _md(summary: dict[str, Any], validation: dict[str, Any]) -> tuple[str, str]:
     return "\n".join(lines) + "\n", "\n".join(vlines) + "\n"
 
 
-def main() -> int:
-    summary, validation = build()
+def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "environment_recovery_summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
-    (OUT_DIR / "environment_recovery_validation.json").write_text(json.dumps(validation, indent=2, sort_keys=True), encoding="utf-8")
-    smd, vmd = _md(summary, validation)
-    (OUT_DIR / "environment_recovery_summary.md").write_text(smd, encoding="utf-8")
-    (OUT_DIR / "environment_recovery_validation.md").write_text(vmd, encoding="utf-8")
-    print(json.dumps({"passed": summary["passed"], "blocker_stage": summary["blocker_stage"], "existing_runner_executed": summary["existing_runner_executed"], "pip_install_exit_code": summary["pip_install_exit_code"], "output_dir": str(OUT_DIR)}, indent=2))
-    return 0
+    summary, validation = build()
+    (OUT_DIR / "environment_recovery_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    (OUT_DIR / "environment_recovery_validation.json").write_text(json.dumps(validation, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    md, vmd = _md(summary, validation)
+    (OUT_DIR / "TASK22A_EXISTING_RUNNER_EXECUTION_ENVIRONMENT_RECOVERY_RC1.md").write_text(md, encoding="utf-8")
+    (OUT_DIR / "TASK22A_EXISTING_RUNNER_EXECUTION_ENVIRONMENT_RECOVERY_VALIDATION.md").write_text(vmd, encoding="utf-8")
+    print(md)
+    if not summary["passed"]:
+        raise SystemExit(1)
+
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
