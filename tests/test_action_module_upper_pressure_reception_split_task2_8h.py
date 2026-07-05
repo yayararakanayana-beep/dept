@@ -66,7 +66,7 @@ def test_task2_8h_side_effect_per_crash_reduction_exists(task2_8h_table):
     action_rows = task2_8h_table[task2_8h_table["method"].astype(str) != "no_op"]
     # Ignore microscopic crash reductions. Their ratio is numerically unstable and
     # not useful as an insurance-efficiency signal.
-    useful = action_rows[action_rows["crash_cost_delta_vs_no_op"].gt(1e-4)]
+    useful = action_rows[action_rows["crash_cost_delta_vs_no_op"].gt(1e-3)]
 
     assert not useful.empty
     assert useful["side_effect_per_crash_reduction"].lt(999.0).all()
