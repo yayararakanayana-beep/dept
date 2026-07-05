@@ -1,0 +1,137 @@
+name: Task2-8b Terrain Reshaping Candidates
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8b.py'
+      - '.github/workflows/task2_8b_terrain_reshaping_candidates.yml'
+
+jobs:
+  task2-8b-terrain-reshaping-candidates:
+    name: Task2-8b terrain reshaping candidates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-8b tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8b.py
+
+      - name: Export Task2-8b terrain reshaping candidates
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8b_terrain_reshaping_candidates import (
+              build_and_validate_demo_terrain_reshaping_candidates,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              headers = list(view.columns)
+              lines = ['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join(['---'] * len(headers)) + ' |']
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      vals.append(f'{v:.6g}' if isinstance(v, float) else str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_8b_terrain_reshaping_candidates_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors, summary = build_and_validate_demo_terrain_reshaping_candidates()
+          table.to_csv(out_dir / 'terrain_reshaping_candidates.csv', index=False)
+
+          ready = table[table['candidate_status'] == 'candidate_ready_for_sandbox'].copy()
+          ready.to_csv(out_dir / 'ready_for_sandbox_candidates.csv', index=False)
+
+          by_action = table.groupby(['terrain_reshaping_action', 'terrain_reshaping_action_ja']).agg(
+              rows=('terrain_reshaping_action', 'size'),
+              ready_rows=('candidate_status', lambda s: int((s == 'candidate_ready_for_sandbox').sum())),
+              mean_score=('candidate_score', 'mean'),
+              max_score=('candidate_score', 'max'),
+              mean_side_effect=('side_effect_estimate', 'mean'),
+              mean_expected_persistence=('expected_persistence_effect', 'mean'),
+          ).reset_index()
+          by_action.to_csv(out_dir / 'candidate_action_summary.csv', index=False)
+
+          summary = dict(summary)
+          summary['validation_errors'] = errors
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-8b Terrain Reshaping Candidates RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Terrain reshaping candidates generated with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Candidate action summary')
+          md.append('')
+          md.append(markdown_table(by_action, list(by_action.columns), limit=20))
+          md.append('')
+          md.append('## Ready for sandbox candidates')
+          md.append('')
+          md.append(markdown_table(
+              ready,
+              [
+                  'terrain_location_id', 'terrain_reshaping_action_ja', 'terrain_target',
+                  'candidate_score', 'activation_threshold_after_pressure',
+                  'expected_slope_effect', 'expected_peak_effect', 'expected_recovery_effect',
+                  'expected_persistence_effect', 'side_effect_estimate', 'micro_audit_required',
+              ],
+              limit=80,
+          ))
+          (out_dir / 'TASK2_8B_TERRAIN_RESHAPING_CANDIDATES_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:220]))
+          if errors:
+              raise SystemExit('Task2-8b terrain reshaping candidate errors')
+          PY
+
+      - name: Upload Task2-8b artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8b-terrain-reshaping-candidates-rc1
+          path: results/task2_8b_terrain_reshaping_candidates_rc1/
+          if-no-files-found: error
