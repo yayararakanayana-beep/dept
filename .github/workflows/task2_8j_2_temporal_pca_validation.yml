@@ -1,0 +1,150 @@
+name: Task2-8j-2 Temporal PCA Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_1_candidate_feature_log.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_2_temporal_pca_validation.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_1.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_2.py'
+      - '.github/workflows/task2_8j_2_temporal_pca_validation.yml'
+
+jobs:
+  task2-8j-2-temporal-pca-validation:
+    name: Task2-8j-2 temporal PCA validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-8j-2 tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_8j_1.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_8j_2.py
+
+      - name: Export Task2-8j-2 temporal PCA validation tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import (
+              CandidateFeatureLogConfig,
+          )
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_2_temporal_pca_validation import (
+              TemporalPCAValidationConfig,
+              build_and_validate_temporal_pca_validation,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              headers = list(view.columns)
+              lines = ['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join(['---'] * len(headers)) + ' |']
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      vals.append(f'{v:.6g}' if isinstance(v, float) else str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_8j_2_temporal_pca_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          feature_cfg = CandidateFeatureLogConfig(steps=24, seeds=(501, 502, 503), window_sizes=(1, 6, 12))
+          pca_cfg = TemporalPCAValidationConfig(n_components=6, sparse_top_k=12, prediction_horizon=3)
+          component_table, model_summary, stability_table, prediction_table, errors, summary = build_and_validate_temporal_pca_validation(feature_cfg, pca_cfg)
+
+          component_table.to_csv(out_dir / 'pca_component_table.csv', index=False)
+          model_summary.to_csv(out_dir / 'pca_model_summary.csv', index=False)
+          stability_table.to_csv(out_dir / 'pca_stability_table.csv', index=False)
+          prediction_table.to_csv(out_dir / 'pca_prediction_table.csv', index=False)
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-8j-2 Temporal PCA / Sparse PCA Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Temporal PCA validation completed with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Model summary')
+          md.append('')
+          md.append(markdown_table(
+              model_summary,
+              ['mode', 'n_samples', 'n_features', 'n_components', 'matrix_rank', 'effective_rank', 'total_explained_variance_ratio', 'reconstruction_error_ratio', 'mean_abs_component_correlation', 'sparse_top_k', 'validation_status'],
+              limit=20,
+          ))
+          md.append('')
+          md.append('## Component summary')
+          md.append('')
+          md.append(markdown_table(
+              component_table,
+              ['mode', 'component_index', 'active_feature_count', 'explained_variance_ratio', 'cumulative_explained_variance_ratio', 'reconstruction_error_ratio', 'top_feature_keys'],
+              limit=40,
+          ))
+          md.append('')
+          md.append('## Stability summary')
+          md.append('')
+          md.append(markdown_table(
+              stability_table,
+              ['mode', 'window_label', 't_min', 't_max', 'n_samples', 'subspace_similarity', 'principal_angle_proxy', 'projection_drift', 'stability_status'],
+              limit=40,
+          ))
+          md.append('')
+          md.append('## Prediction summary')
+          md.append('')
+          md.append(markdown_table(
+              prediction_table,
+              ['mode', 'target_feature_key', 'prediction_horizon', 'train_rows', 'test_rows', 'rmse', 'baseline_rmse', 'r2_vs_mean_baseline', 'prediction_status'],
+              limit=60,
+          ))
+
+          (out_dir / 'TASK2_8J_2_TEMPORAL_PCA_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+          print('\n'.join(md[:420]))
+          if errors:
+              raise SystemExit('Task2-8j-2 validation errors')
+          PY
+
+      - name: Upload Task2-8j-2 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8j-2-temporal-pca-validation-rc1
+          path: results/task2_8j_2_temporal_pca_validation_rc1/
+          if-no-files-found: error
