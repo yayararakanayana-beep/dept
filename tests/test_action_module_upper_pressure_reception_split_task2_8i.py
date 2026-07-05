@@ -1,6 +1,6 @@
 import pytest
 
-from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8i_weighted_method_pattern_validation import (
+from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8i_weighted_method_pattern_validation_rc1 import (
     PREDICTION_ACCURACIES,
     WEIGHT_PATTERNS,
     build_and_validate_weight_pattern_validation_table,
