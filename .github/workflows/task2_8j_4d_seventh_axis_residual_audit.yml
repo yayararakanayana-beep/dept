@@ -1,0 +1,66 @@
+name: Task2-8j-4d Seventh Axis Residual Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  task2-8j-4d-seventh-axis-residual-audit:
+    name: Task2-8j-4d seventh axis residual audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+
+      - name: Run Task2-8j-4d tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_4d.py
+
+      - name: Export Task2-8j-4d artifact
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import CandidateFeatureLogConfig
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_4b_4c_4d_4e_prefreeze_validations import PreFreezeValidationConfig, build_and_validate_4d_seventh_axis_meaning_residual_audit
+
+          out_dir = Path('results/task2_8j_4d_seventh_axis_residual_audit_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+          feature_cfg = CandidateFeatureLogConfig(steps=24, seeds=(501, 502, 503), window_sizes=(1, 6, 12))
+          cfg = PreFreezeValidationConfig(component_counts=(6, 7), standard_component_count=6, shadow_component_count=7)
+          meaning, residual, final, errors, summary = build_and_validate_4d_seventh_axis_meaning_residual_audit(feature_cfg, cfg)
+          meaning.to_csv(out_dir / 'seventh_axis_top_features.csv', index=False)
+          residual.to_csv(out_dir / 'residual_delta_audit.csv', index=False)
+          final.to_csv(out_dir / 'final_summary.csv', index=False)
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          md = ['# Task 2-8j-4d Seventh Axis Residual Audit RC1', '', '## Summary']
+          md += [f'- `{k}`: `{v}`' for k, v in summary.items()]
+          md += ['', '## Final summary', final.to_markdown(index=False), '', '## Seventh-axis top features', meaning.to_markdown(index=False), '', '## Residual delta audit', residual.to_markdown(index=False)]
+          (out_dir / 'TASK2_8J_4D_SEVENTH_AXIS_RESIDUAL_AUDIT_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+          print('\n'.join(md[:80]))
+          if errors:
+              raise SystemExit('Task2-8j-4d validation errors')
+          PY
+
+      - name: Upload Task2-8j-4d artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8j-4d-seventh-axis-residual-audit-rc1
+          path: results/task2_8j_4d_seventh_axis_residual_audit_rc1/
+          if-no-files-found: error
