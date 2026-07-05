@@ -1,7 +1,7 @@
 from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import (
     CandidateFeatureLogConfig,
 )
-from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_4b_4c_4d_4e_prefreeze_validations import (
+from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_4e_negative_control_leakage_audit import (
     PreFreezeValidationConfig,
     build_and_validate_4e_negative_control_leakage_audit,
 )
@@ -49,5 +49,7 @@ def test_task2_8j_4e_reports_negative_controls_and_no_leakage():
     assert set(leakage["component_count"].astype(int)) == {7}
     assert set(leakage["hidden_truth_input_detected"].astype(bool)) == {False}
     assert str(leakage["leakage_audit_status"].iloc[0]) == "pass"
+    assert int(leakage["strict_hidden_feature_count"].iloc[0]) == 0
+    assert int(leakage["strict_future_feature_count"].iloc[0]) == 0
     assert bool(final["hidden_truth_input_detected"].iloc[0]) is False
     assert str(final["next_task"].iloc[0]).startswith("Task 2-8j-5")
