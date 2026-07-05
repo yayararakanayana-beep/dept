@@ -1,0 +1,160 @@
+name: Task2-5b State Modifier Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_4.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5a.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5b.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_5_validation_design.md'
+      - '.github/workflows/task2_5b_state_modifier_validation.yml'
+
+jobs:
+  task2-5b-state-modifier-validation:
+    name: Task2-5b state modifier validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-5b tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5a.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5b.py
+
+      - name: Export Task2-5b state modifier validation table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_5b_state_modifier_validation import (
+              build_and_validate_state_modifier_validation_table,
+          )
+
+          def markdown_table(df, columns, limit=36):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_5b_state_modifier_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_state_modifier_validation_table()
+          table.to_csv(out_dir / 'state_modifier_validation.csv', index=False)
+
+          summary_by_axis = (
+              table.groupby(['state_axis_ja', 'modifier_class'], dropna=False)
+              .size()
+              .reset_index(name='rows')
+              if not table.empty else pd.DataFrame()
+          )
+          summary_by_axis.to_csv(out_dir / 'summary_by_state_axis.csv', index=False)
+
+          lower_layer_connections = (
+              table[['state_axis', 'state_axis_ja', 'required_lower_layer_signal', 'expected_source_layer', 'expected_source_artifact', 'missing_signal_behavior']]
+              .drop_duplicates()
+              if not table.empty else pd.DataFrame()
+          )
+          lower_layer_connections.to_csv(out_dir / 'lower_layer_connection_requirements.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'state_axes': int(table['state_axis'].nunique()) if not table.empty else 0,
+              'state_levels': sorted(table['state_level'].astype(str).unique().tolist()) if not table.empty else [],
+              'actions': sorted(table['action_channel'].astype(str).unique().tolist()) if not table.empty else [],
+              'boost_rows': int(table['boost_flag'].astype(bool).sum()) if not table.empty else 0,
+              'dampen_rows': int(table['dampen_flag'].astype(bool).sum()) if not table.empty else 0,
+              'defer_rows': int(table['defer_flag'].astype(bool).sum()) if not table.empty else 0,
+              'block_rows': int(table['block_flag'].astype(bool).sum()) if not table.empty else 0,
+              'runtime_policy_input': bool(table['runtime_policy_input'].astype(bool).any()) if not table.empty else False,
+              'state_detector_created': bool(table['state_detector_created'].astype(bool).any()) if not table.empty else False,
+              'lower_layer_state_connected': bool(table['lower_layer_state_connected'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-5b State Modifier Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('State modifier validation table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Lower-layer connection requirements')
+          md.append('')
+          cols = ['state_axis_ja', 'required_lower_layer_signal', 'expected_source_layer', 'missing_signal_behavior']
+          md.append(markdown_table(lower_layer_connections, cols, limit=20))
+          md.append('')
+          md.append('## High / limit modifier examples')
+          md.append('')
+          examples = table[table['state_level'].isin(['high', 'limit'])].sort_values(['state_axis', 'state_level', 'action_channel'])
+          cols = ['state_axis_ja', 'state_level_ja', 'action_name_ja', 'state_modifier', 'modifier_class', 'modifier_reason']
+          md.append(markdown_table(examples, cols, limit=48))
+          md.append('')
+          (out_dir / 'TASK2_5B_STATE_MODIFIER_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:120]))
+          if errors:
+              raise SystemExit('Task2-5b table contained structural errors')
+          PY
+
+      - name: Upload Task2-5b artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-5b-state-modifier-validation-rc1
+          path: results/task2_5b_state_modifier_validation_rc1/
+          if-no-files-found: error

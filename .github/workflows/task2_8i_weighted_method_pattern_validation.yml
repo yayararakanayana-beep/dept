@@ -1,0 +1,181 @@
+name: Task2-8i Weighted Method Pattern Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8i.py'
+      - '.github/workflows/task2_8i_weighted_method_pattern_validation.yml'
+
+jobs:
+  task2-8i-weighted-method-pattern-validation:
+    name: Task2-8i weighted method pattern validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-8i tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8i.py
+
+      - name: Export Task2-8i weighted pattern tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8i_weighted_method_pattern_validation_rc1 import (
+              build_and_validate_weight_pattern_validation_table,
+              build_pattern_recommendation_table,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              headers = list(view.columns)
+              lines = ['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join(['---'] * len(headers)) + ' |']
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      vals.append(f'{v:.6g}' if isinstance(v, float) else str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_8i_weighted_method_pattern_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors, summary = build_and_validate_weight_pattern_validation_table()
+          table.to_csv(out_dir / 'weighted_method_pattern_validation.csv', index=False)
+
+          positive = table[table['positive_weight_pattern_condition'].astype(bool)].sort_values('long_term_net_benefit', ascending=False)
+          positive.to_csv(out_dir / 'positive_weight_pattern_conditions.csv', index=False)
+
+          recommendation = build_pattern_recommendation_table(table)
+          recommendation.to_csv(out_dir / 'best_pattern_by_dynamics_risk_accuracy.csv', index=False)
+
+          pattern_summary = table.groupby('pattern').agg(
+              rows=('pattern', 'size'),
+              positive_rows=('positive_weight_pattern_condition', lambda s: int(pd.Series(s).astype(bool).sum())),
+              positive_rate=('positive_weight_pattern_condition', lambda s: float(pd.Series(s).astype(bool).mean())),
+              mean_net=('long_term_net_benefit', 'mean'),
+              mean_crash_delta=('crash_cost_delta_vs_no_op', 'mean'),
+              mean_irreversibility_delta=('irreversibility_delta_vs_no_op', 'mean'),
+              mean_side_delta=('side_effect_delta_vs_no_op', 'mean'),
+              mean_side_per_crash=('side_effect_per_crash_reduction', lambda s: float(pd.Series(s)[pd.Series(s) < 900.0].mean()) if bool((pd.Series(s) < 900.0).any()) else 999.0),
+          ).reset_index()
+          pattern_summary.to_csv(out_dir / 'pattern_summary.csv', index=False)
+
+          accuracy_pattern_summary = table.groupby(['prediction_accuracy', 'pattern']).agg(
+              rows=('pattern', 'size'),
+              positive_rows=('positive_weight_pattern_condition', lambda s: int(pd.Series(s).astype(bool).sum())),
+              positive_rate=('positive_weight_pattern_condition', lambda s: float(pd.Series(s).astype(bool).mean())),
+              mean_net=('long_term_net_benefit', 'mean'),
+              mean_side_delta=('side_effect_delta_vs_no_op', 'mean'),
+              mean_crash_delta=('crash_cost_delta_vs_no_op', 'mean'),
+          ).reset_index()
+          accuracy_pattern_summary.to_csv(out_dir / 'accuracy_pattern_summary.csv', index=False)
+
+          risk_accuracy_summary = table.groupby(['initial_risk_level', 'prediction_accuracy', 'pattern']).agg(
+              rows=('pattern', 'size'),
+              positive_rate=('positive_weight_pattern_condition', lambda s: float(pd.Series(s).astype(bool).mean())),
+              mean_net=('long_term_net_benefit', 'mean'),
+              mean_side_delta=('side_effect_delta_vs_no_op', 'mean'),
+              mean_crash_delta=('crash_cost_delta_vs_no_op', 'mean'),
+          ).reset_index()
+          risk_accuracy_summary.to_csv(out_dir / 'risk_accuracy_pattern_summary.csv', index=False)
+
+          dynamics_pattern_summary = table.groupby(['risk_dynamics_type', 'pattern']).agg(
+              rows=('pattern', 'size'),
+              positive_rate=('positive_weight_pattern_condition', lambda s: float(pd.Series(s).astype(bool).mean())),
+              mean_net=('long_term_net_benefit', 'mean'),
+              mean_side_delta=('side_effect_delta_vs_no_op', 'mean'),
+              mean_crash_delta=('crash_cost_delta_vs_no_op', 'mean'),
+          ).reset_index()
+          dynamics_pattern_summary.to_csv(out_dir / 'dynamics_pattern_summary.csv', index=False)
+
+          summary = dict(summary)
+          summary['validation_errors'] = errors
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-8i Weighted Method Pattern Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Weighted method pattern validation completed with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              if key not in {'by_pattern', 'by_accuracy'}:
+                  md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Pattern summary')
+          md.append('')
+          md.append(markdown_table(pattern_summary, list(pattern_summary.columns), limit=20))
+          md.append('')
+          md.append('## Accuracy x pattern summary')
+          md.append('')
+          md.append(markdown_table(accuracy_pattern_summary, list(accuracy_pattern_summary.columns), limit=40))
+          md.append('')
+          md.append('## Best pattern by dynamics / risk / accuracy')
+          md.append('')
+          md.append(markdown_table(recommendation, list(recommendation.columns), limit=80))
+          md.append('')
+          md.append('## Top positive weighted pattern conditions')
+          md.append('')
+          md.append(markdown_table(
+              positive,
+              [
+                  'risk_dynamics_type', 'risk_dynamics_ja', 'initial_risk_level', 'prediction_accuracy',
+                  'crash_threshold', 'pattern_ja', 'direction_weight', 'state_dependence_weight',
+                  'release_weight', 'long_term_net_benefit', 'crash_cost_delta_vs_no_op',
+                  'irreversibility_delta_vs_no_op', 'side_effect_delta_vs_no_op',
+                  'side_effect_per_crash_reduction', 'region_class',
+              ],
+              limit=50,
+          ))
+          (out_dir / 'TASK2_8I_WEIGHTED_METHOD_PATTERN_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:380]))
+          if errors:
+              raise SystemExit('Task2-8i validation errors')
+          PY
+
+      - name: Upload Task2-8i artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8i-weighted-method-pattern-validation-rc1
+          path: results/task2_8i_weighted_method_pattern_validation_rc1/
+          if-no-files-found: error

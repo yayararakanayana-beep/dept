@@ -1,0 +1,144 @@
+name: Task2-6 Converter Validity Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_6.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_6_validity.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_6_conversion_design.md'
+      - '.github/workflows/task2_6_converter_validity_validation.yml'
+
+jobs:
+  task2-6-converter-validity-validation:
+    name: Task2-6 converter validity validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-6 validity tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_6.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_6_validity.py
+
+      - name: Export Task2-6 converter validity validation table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_6_validity_validation import (
+              build_and_validate_pressure_action_converter_validity_validation_table,
+          )
+
+          def markdown_table(df, columns, limit=60):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_6_converter_validity_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_pressure_action_converter_validity_validation_table()
+          table.to_csv(out_dir / 'pressure_action_converter_validity_validation.csv', index=False)
+
+          unresolved = table[table['unresolved_intent_audit_active'].astype(bool)].copy() if not table.empty else pd.DataFrame()
+          unresolved.to_csv(out_dir / 'unresolved_intent_active_rows.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'pressure_direction_pairs': int(table[['pressure_component', 'component_direction']].drop_duplicates().shape[0]) if not table.empty else 0,
+              'state_cases': sorted(table['state_case_id'].astype(str).unique().tolist()) if not table.empty else [],
+              'all_validity_pass': bool((table['validity_status'].astype(str) == 'pass').all()) if not table.empty else False,
+              'unresolved_audit_active_rows': int(table['unresolved_intent_audit_active'].astype(bool).sum()) if not table.empty else 0,
+              'downstream_gate_review_case_rows': int((table['downstream_gate_review_rows'] > 0).sum()) if not table.empty else 0,
+              'max_pressure_result_gap': float(table['max_pressure_result_gap'].max()) if not table.empty else 0.0,
+              'strength_correction_applied': bool(table['action_strength_correction_applied'].astype(bool).any()) if not table.empty else False,
+              'pressure_matching_boost_applied': bool(table['pressure_matching_boost_applied'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-6 Converter Validity Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Converter validity validation table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Validity rows')
+          md.append('')
+          cols = [
+              'pressure_component', 'component_direction', 'semantic_effect', 'state_case_id',
+              'candidate_actions_ja_json', 'candidate_rows_total', 'no_strength_boost_invariant_pass',
+              'gap_preserved_invariant_pass', 'monotonic_pressure_signal_pass',
+              'unresolved_intent_audit_active', 'downstream_gate_review_rows',
+              'validity_status', 'validity_notes',
+          ]
+          md.append(markdown_table(table, cols, limit=80))
+          md.append('')
+          (out_dir / 'TASK2_6_CONVERTER_VALIDITY_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:180]))
+          if errors:
+              raise SystemExit('Task2-6 converter validity validation contained structural errors')
+          PY
+
+      - name: Upload Task2-6 validity artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-6-converter-validity-validation-rc1
+          path: results/task2_6_converter_validity_validation_rc1/
+          if-no-files-found: error

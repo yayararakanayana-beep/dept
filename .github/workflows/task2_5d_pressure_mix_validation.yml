@@ -1,0 +1,167 @@
+name: Task2-5d Pressure Mix Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_4.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5a.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5b.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5c.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5d.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_5_validation_design.md'
+      - '.github/workflows/task2_5d_pressure_mix_validation.yml'
+
+jobs:
+  task2-5d-pressure-mix-validation:
+    name: Task2-5d pressure mix validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-5d tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5a.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5b.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5c.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5d.py
+
+      - name: Export Task2-5d pressure mix validation table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_5d_pressure_mix_validation import (
+              build_and_validate_pressure_mix_validation_table,
+          )
+
+          def markdown_table(df, columns, limit=40):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_5d_pressure_mix_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_pressure_mix_validation_table()
+          table.to_csv(out_dir / 'pressure_mix_validation.csv', index=False)
+
+          risky = table[(table['unsafe_combination_score'] > 0) | (table['action_overcrowding_score'] > 0)].copy() if not table.empty else pd.DataFrame()
+          risky.to_csv(out_dir / 'risky_or_overcrowded_pressure_mixes.csv', index=False)
+
+          summary_by_mix = (
+              table.groupby(['pressure_mix_id', 'pressure_mix_ja'], dropna=False)
+              .agg(
+                  rows=('pressure_mix_id', 'count'),
+                  mean_coverage=('intended_pressure_coverage', 'mean'),
+                  max_conflict=('pressure_conflict_score', 'max'),
+                  max_unsafe=('unsafe_combination_score', 'max'),
+                  max_overcrowding=('action_overcrowding_score', 'max'),
+                  strength_review_rows=('requires_task2_5e_strength_review', lambda s: int(s.astype(bool).sum())),
+              )
+              .reset_index()
+              if not table.empty else pd.DataFrame()
+          )
+          summary_by_mix.to_csv(out_dir / 'summary_by_pressure_mix.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'pressure_mixes': int(table['pressure_mix_id'].nunique()) if not table.empty else 0,
+              'state_bands': sorted(table['scenario_or_state_band'].astype(str).unique().tolist()) if not table.empty else [],
+              'unsafe_rows': int((table['unsafe_combination_score'] > 0).sum()) if not table.empty else 0,
+              'overcrowded_rows': int((table['action_overcrowding_score'] > 0).sum()) if not table.empty else 0,
+              'safe_action_mixing_required_rows': int(table['safe_action_mixing_required'].astype(bool).sum()) if not table.empty else 0,
+              'strength_review_rows': int(table['requires_task2_5e_strength_review'].astype(bool).sum()) if not table.empty else 0,
+              'runtime_policy_input': bool(table['runtime_policy_input'].astype(bool).any()) if not table.empty else False,
+              'converter_created': bool(table['pressure_to_action_converter_created'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-5d Pressure Mix Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Pressure mix validation table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Summary by pressure mix')
+          md.append('')
+          md.append(markdown_table(summary_by_mix, ['pressure_mix_ja', 'mean_coverage', 'max_conflict', 'max_unsafe', 'max_overcrowding', 'strength_review_rows'], limit=20))
+          md.append('')
+          md.append('## Risky or overcrowded pressure mix rows')
+          md.append('')
+          cols = [
+              'pressure_mix_ja', 'state_band_ja', 'candidate_action_set_ja',
+              'candidate_action_count', 'pressure_conflict_score', 'unsafe_combination_score',
+              'action_overcrowding_score', 'recommended_candidate_filtering',
+          ]
+          md.append(markdown_table(risky.sort_values(['unsafe_combination_score', 'action_overcrowding_score'], ascending=False), cols, limit=40))
+          md.append('')
+          (out_dir / 'TASK2_5D_PRESSURE_MIX_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:160]))
+          if errors:
+              raise SystemExit('Task2-5d table contained structural errors')
+          PY
+
+      - name: Upload Task2-5d artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-5d-pressure-mix-validation-rc1
+          path: results/task2_5d_pressure_mix_validation_rc1/
+          if-no-files-found: error

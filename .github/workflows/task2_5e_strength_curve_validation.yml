@@ -1,0 +1,177 @@
+name: Task2-5e Strength Curve Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_4.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5a.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5b.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5c.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5d.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_5e.py'
+      - 'docs/action_module_upper_pressure_reception_split_task2_5_validation_design.md'
+      - '.github/workflows/task2_5e_strength_curve_validation.yml'
+
+jobs:
+  task2-5e-strength-curve-validation:
+    name: Task2-5e strength curve validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-5e tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q \
+            tests/test_action_module_upper_pressure_reception_split_task2_4.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5a.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5b.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5c.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5d.py \
+            tests/test_action_module_upper_pressure_reception_split_task2_5e.py
+
+      - name: Export Task2-5e strength curve validation table
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_5e_strength_curve_validation import (
+              build_and_validate_action_strength_curve_validation_table,
+          )
+
+          def markdown_table(df, columns, limit=40):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              if view.empty:
+                  return '_No displayable columns._'
+              headers = list(view.columns)
+              lines = []
+              lines.append('| ' + ' | '.join(headers) + ' |')
+              lines.append('| ' + ' | '.join(['---'] * len(headers)) + ' |')
+              for _, row in view.iterrows():
+                  values = []
+                  for h in headers:
+                      value = row[h]
+                      if isinstance(value, float):
+                          values.append(f'{value:.6g}')
+                      else:
+                          values.append(str(value).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(values) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_5e_strength_curve_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors = build_and_validate_action_strength_curve_validation_table()
+          table.to_csv(out_dir / 'action_strength_curve_validation.csv', index=False)
+
+          flagged = table[
+              table['clipping_required'].astype(bool)
+              | table['saturation_flag'].astype(bool)
+              | table['safe_action_mixing_required'].astype(bool)
+              | table['requires_task2_5f_inverse_validation'].astype(bool)
+          ].copy() if not table.empty else pd.DataFrame()
+          flagged.to_csv(out_dir / 'flagged_strength_curve_rows.csv', index=False)
+
+          summary_by_action = (
+              table.groupby(['action_channel', 'action_name_ja'], dropna=False)
+              .agg(
+                  rows=('action_channel', 'count'),
+                  mean_recommended_strength=('recommended_action_strength', 'mean'),
+                  max_recommended_strength=('recommended_action_strength', 'max'),
+                  clipping_rows=('clipping_required', lambda s: int(s.astype(bool).sum())),
+                  saturation_rows=('saturation_flag', lambda s: int(s.astype(bool).sum())),
+                  safe_mix_rows=('safe_action_mixing_required', lambda s: int(s.astype(bool).sum())),
+                  inverse_validation_rows=('requires_task2_5f_inverse_validation', lambda s: int(s.astype(bool).sum())),
+              )
+              .reset_index()
+              if not table.empty else pd.DataFrame()
+          )
+          summary_by_action.to_csv(out_dir / 'summary_by_action.csv', index=False)
+
+          summary = {
+              'validation_errors': errors,
+              'rows': int(len(table)),
+              'actions': sorted(table['action_channel'].astype(str).unique().tolist()) if not table.empty else [],
+              'pressure_strength_bands': sorted(table['pressure_strength_band'].astype(str).unique().tolist()) if not table.empty else [],
+              'state_bands': sorted(table['scenario_or_state_band'].astype(str).unique().tolist()) if not table.empty else [],
+              'clipping_rows': int(table['clipping_required'].astype(bool).sum()) if not table.empty else 0,
+              'saturation_rows': int(table['saturation_flag'].astype(bool).sum()) if not table.empty else 0,
+              'safe_action_mixing_required_rows': int(table['safe_action_mixing_required'].astype(bool).sum()) if not table.empty else 0,
+              'inverse_validation_rows': int(table['requires_task2_5f_inverse_validation'].astype(bool).sum()) if not table.empty else 0,
+              'runtime_policy_input': bool(table['runtime_policy_input'].astype(bool).any()) if not table.empty else False,
+              'converter_created': bool(table['pressure_to_action_converter_created'].astype(bool).any()) if not table.empty else False,
+          }
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-5e Strength Curve Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Strength curve validation table generated with no structural validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Summary by action')
+          md.append('')
+          md.append(markdown_table(summary_by_action, ['action_name_ja', 'mean_recommended_strength', 'max_recommended_strength', 'clipping_rows', 'saturation_rows', 'safe_mix_rows', 'inverse_validation_rows'], limit=20))
+          md.append('')
+          md.append('## Flagged strength curve rows')
+          md.append('')
+          cols = [
+              'state_band_ja', 'pressure_strength_band_ja', 'pressure_intent_ja', 'action_name_ja',
+              'recommended_action_strength', 'action_strength_cap', 'recommended_strength_curve',
+              'clipping_required', 'saturation_flag', 'safe_action_mixing_required',
+              'requires_task2_5f_inverse_validation',
+          ]
+          md.append(markdown_table(flagged.sort_values(['requires_task2_5f_inverse_validation', 'safe_action_mixing_required', 'clipping_required'], ascending=False), cols, limit=50))
+          md.append('')
+          (out_dir / 'TASK2_5E_STRENGTH_CURVE_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:180]))
+          if errors:
+              raise SystemExit('Task2-5e table contained structural errors')
+          PY
+
+      - name: Upload Task2-5e artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-5e-strength-curve-validation-rc1
+          path: results/task2_5e_strength_curve_validation_rc1/
+          if-no-files-found: error

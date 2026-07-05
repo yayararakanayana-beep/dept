@@ -51,12 +51,24 @@ jobs:
           PYTHONPATH: localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: pytest -q
 
+      - name: Print FullSpec-v2 connection audit summary
+        if: always()
+        run: |
+          if [ -f results/fullspec_v2_connection_audit_rc1/FULLSPEC_V2_CONNECTION_AUDIT_RC1.md ]; then
+            cat results/fullspec_v2_connection_audit_rc1/FULLSPEC_V2_CONNECTION_AUDIT_RC1.md
+          fi
+          if [ -f results/fullspec_v2_connection_audit_rc1/summary.json ]; then
+            cat results/fullspec_v2_connection_audit_rc1/summary.json
+          fi
+
       - name: Upload Task22A result artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: task22a-existing-runner-execution-environment-recovery-rc1
-          path: results/task22a_existing_runner_execution_environment_recovery_rc1/
+          path: |
+            results/task22a_existing_runner_execution_environment_recovery_rc1/
+            results/fullspec_v2_connection_audit_rc1/
           if-no-files-found: warn
 
       - name: Enforce Task22A pass criteria

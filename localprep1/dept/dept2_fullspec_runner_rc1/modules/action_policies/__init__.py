@@ -1,0 +1,183 @@
+"""Action policy package for FullSpec runner RC1.
+
+This package separates legacy diagnostic/compatibility policies from the
+FullSpec primary upper-pressure reception policy introduced by the action
+module upper-pressure reception split work.
+"""
+
+from .diagnostic_compat_policy import (
+    DIAGNOSTIC_COMPAT_POLICY_PROFILE,
+    DiagnosticCompatPolicy,
+)
+from .pressure_action_calibration_rc1 import (
+    TASK2_2_CALIBRATION_VERSION,
+    REQUIRED_CALIBRATED_MAP_COLUMNS,
+    build_and_validate_calibrated_pressure_action_map,
+    build_single_action_probe_response_map,
+    calibrate_pressure_action_map,
+    validate_calibrated_pressure_action_map,
+)
+from .pressure_action_map_rc1 import (
+    PRESSURE_ACTION_MAP_VERSION,
+    REQUIRED_PRESSURE_ACTION_MAP_COLUMNS,
+    build_and_validate_initial_pressure_action_map,
+    build_initial_pressure_action_map,
+    validate_initial_pressure_action_map,
+)
+from .pressure_action_task2_5a_single_action_correspondence import (
+    TASK2_5A_VERSION,
+    REQUIRED_TASK2_5A_COLUMNS,
+    build_and_validate_single_action_to_pressure_correspondence_table,
+    build_single_action_to_pressure_correspondence_table,
+    validate_single_action_to_pressure_correspondence_table,
+)
+from .pressure_action_task2_5b_state_modifier_validation import (
+    TASK2_5B_VERSION,
+    REQUIRED_TASK2_5B_COLUMNS,
+    build_and_validate_state_modifier_validation_table,
+    build_state_modifier_validation_table,
+    validate_state_modifier_validation_table,
+)
+from .pressure_action_task2_5c_interaction_modifier_validation import (
+    TASK2_5C_VERSION,
+    REQUIRED_TASK2_5C_COLUMNS,
+    build_and_validate_interaction_modifier_validation_table,
+    build_interaction_modifier_validation_table,
+    validate_interaction_modifier_validation_table,
+)
+from .pressure_action_task2_5d_pressure_mix_validation import (
+    TASK2_5D_VERSION,
+    REQUIRED_TASK2_5D_COLUMNS,
+    build_and_validate_pressure_mix_validation_table,
+    build_pressure_mix_validation_table,
+    validate_pressure_mix_validation_table,
+)
+from .pressure_action_task2_5e_strength_curve_validation import (
+    TASK2_5E_VERSION,
+    REQUIRED_TASK2_5E_COLUMNS,
+    build_action_strength_curve_validation_table,
+    build_and_validate_action_strength_curve_validation_table,
+    validate_action_strength_curve_validation_table,
+)
+from .pressure_action_task2_5f_inverse_validation import (
+    TASK2_5F_VERSION,
+    REQUIRED_TASK2_5F_COLUMNS,
+    build_and_validate_inverse_pressure_action_validation_table,
+    build_inverse_pressure_action_validation_table,
+    validate_inverse_pressure_action_validation_table,
+)
+from .pressure_action_task2_6_converter_rc1 import (
+    TASK2_6_CONVERTER_VERSION,
+    REQUIRED_TASK2_6_COLUMNS,
+    PressureActionConversionConfig,
+    build_and_validate_demo_pressure_action_candidates,
+    build_demo_pressure_inputs,
+    convert_pressure_inputs_to_action_candidates,
+    validate_pressure_action_candidates_no_strength_boost,
+)
+from .pressure_action_task2_7_insurance_terrain_gate import (
+    TASK2_7_INSURANCE_GATE_VERSION,
+    REQUIRED_TASK2_7_COLUMNS,
+    InsuranceTerrainGateConfig,
+    build_and_validate_demo_insurance_terrain_action_gate_table,
+    build_demo_pressure_inputs_for_insurance_gate,
+    build_demo_terrain_map,
+    build_insurance_terrain_action_gate_table,
+    compute_terrain_gain,
+    compute_terrain_risk,
+    validate_insurance_terrain_action_gate_table,
+)
+from .pressure_action_validation_suite_rc1 import (
+    TASK2_4_VALIDATION_VERSION,
+    build_action_combination_additivity_validation,
+    build_pressure_action_validation_report,
+    build_single_action_pressure_alignment_validation,
+    summarize_pressure_action_validation_report,
+    summarize_state_dependence,
+    validate_pressure_action_validation_report,
+)
+from .pressure_intent_to_action_candidate_adapter import (
+    TASK2_3_ADAPTER_PROFILE,
+    REQUIRED_ACTION_CANDIDATE_COLUMNS,
+    CandidateStrengthConfig,
+    PressureIntentToActionCandidateAdapter,
+    build_and_validate_pressure_intent_action_candidates,
+    build_basic_action_correspondence_map,
+    validate_pressure_intent_action_candidates,
+)
+
+__all__ = [
+    "DIAGNOSTIC_COMPAT_POLICY_PROFILE",
+    "DiagnosticCompatPolicy",
+    "PRESSURE_ACTION_MAP_VERSION",
+    "REQUIRED_PRESSURE_ACTION_MAP_COLUMNS",
+    "build_and_validate_initial_pressure_action_map",
+    "build_initial_pressure_action_map",
+    "validate_initial_pressure_action_map",
+    "TASK2_2_CALIBRATION_VERSION",
+    "REQUIRED_CALIBRATED_MAP_COLUMNS",
+    "build_and_validate_calibrated_pressure_action_map",
+    "build_single_action_probe_response_map",
+    "calibrate_pressure_action_map",
+    "validate_calibrated_pressure_action_map",
+    "TASK2_3_ADAPTER_PROFILE",
+    "REQUIRED_ACTION_CANDIDATE_COLUMNS",
+    "CandidateStrengthConfig",
+    "PressureIntentToActionCandidateAdapter",
+    "build_and_validate_pressure_intent_action_candidates",
+    "build_basic_action_correspondence_map",
+    "validate_pressure_intent_action_candidates",
+    "TASK2_4_VALIDATION_VERSION",
+    "build_action_combination_additivity_validation",
+    "build_pressure_action_validation_report",
+    "build_single_action_pressure_alignment_validation",
+    "summarize_pressure_action_validation_report",
+    "validate_pressure_action_validation_report",
+    "TASK2_5A_VERSION",
+    "REQUIRED_TASK2_5A_COLUMNS",
+    "build_and_validate_single_action_to_pressure_correspondence_table",
+    "build_single_action_to_pressure_correspondence_table",
+    "validate_single_action_to_pressure_correspondence_table",
+    "TASK2_5B_VERSION",
+    "REQUIRED_TASK2_5B_COLUMNS",
+    "build_and_validate_state_modifier_validation_table",
+    "build_state_modifier_validation_table",
+    "validate_state_modifier_validation_table",
+    "TASK2_5C_VERSION",
+    "REQUIRED_TASK2_5C_COLUMNS",
+    "build_and_validate_interaction_modifier_validation_table",
+    "build_interaction_modifier_validation_table",
+    "validate_interaction_modifier_validation_table",
+    "TASK2_5D_VERSION",
+    "REQUIRED_TASK2_5D_COLUMNS",
+    "build_and_validate_pressure_mix_validation_table",
+    "build_pressure_mix_validation_table",
+    "validate_pressure_mix_validation_table",
+    "TASK2_5E_VERSION",
+    "REQUIRED_TASK2_5E_COLUMNS",
+    "build_action_strength_curve_validation_table",
+    "build_and_validate_action_strength_curve_validation_table",
+    "validate_action_strength_curve_validation_table",
+    "TASK2_5F_VERSION",
+    "REQUIRED_TASK2_5F_COLUMNS",
+    "build_and_validate_inverse_pressure_action_validation_table",
+    "build_inverse_pressure_action_validation_table",
+    "validate_inverse_pressure_action_validation_table",
+    "TASK2_6_CONVERTER_VERSION",
+    "REQUIRED_TASK2_6_COLUMNS",
+    "PressureActionConversionConfig",
+    "build_and_validate_demo_pressure_action_candidates",
+    "build_demo_pressure_inputs",
+    "convert_pressure_inputs_to_action_candidates",
+    "validate_pressure_action_candidates_no_strength_boost",
+    "TASK2_7_INSURANCE_GATE_VERSION",
+    "REQUIRED_TASK2_7_COLUMNS",
+    "InsuranceTerrainGateConfig",
+    "build_and_validate_demo_insurance_terrain_action_gate_table",
+    "build_demo_pressure_inputs_for_insurance_gate",
+    "build_demo_terrain_map",
+    "build_insurance_terrain_action_gate_table",
+    "compute_terrain_gain",
+    "compute_terrain_risk",
+    "validate_insurance_terrain_action_gate_table",
+]
