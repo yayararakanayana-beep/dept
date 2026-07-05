@@ -28,7 +28,7 @@ jobs:
           from pathlib import Path
           import json
           from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import CandidateFeatureLogConfig
-          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_4b_4c_4d_4e_prefreeze_validations import PreFreezeValidationConfig, build_and_validate_4e_negative_control_leakage_audit
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_4e_negative_control_leakage_audit import PreFreezeValidationConfig, build_and_validate_4e_negative_control_leakage_audit
           out = Path('results/task2_8j_4e_negative_control_leakage_rc1')
           out.mkdir(parents=True, exist_ok=True)
           feature_cfg = CandidateFeatureLogConfig(steps=24, seeds=(501, 502, 503), window_sizes=(1, 6, 12))
