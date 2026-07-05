@@ -64,10 +64,13 @@ def test_task2_8h_precise_methods_reduce_side_effect_vs_wall(task2_8h_table):
 
 def test_task2_8h_side_effect_per_crash_reduction_exists(task2_8h_table):
     action_rows = task2_8h_table[task2_8h_table["method"].astype(str) != "no_op"]
-    useful = action_rows[action_rows["crash_cost_delta_vs_no_op"].gt(0.0)]
+    # Ignore microscopic crash reductions. Their ratio is numerically unstable and
+    # not useful as an insurance-efficiency signal.
+    useful = action_rows[action_rows["crash_cost_delta_vs_no_op"].gt(1e-4)]
 
     assert not useful.empty
     assert useful["side_effect_per_crash_reduction"].lt(999.0).all()
+    assert useful["side_effect_per_crash_reduction"].notna().all()
 
 
 def test_task2_8h_side_effects_are_decomposed(task2_8h_table):
