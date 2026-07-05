@@ -1,0 +1,139 @@
+name: Task2-8c Terrain Reshaping Minimal Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/**'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8c.py'
+      - '.github/workflows/task2_8c_terrain_reshaping_minimal_validation.yml'
+
+jobs:
+  task2-8c-terrain-reshaping-validation:
+    name: Task2-8c terrain reshaping minimal validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run Task2-8c tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8c.py
+
+      - name: Export Task2-8c terrain reshaping validation tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8c_terrain_reshaping_minimal_validation import (
+              build_and_validate_terrain_reshaping_minimal_validation_table,
+          )
+
+          def markdown_table(df, columns, limit=80):
+              if df is None or df.empty:
+                  return '_No rows._'
+              view = df.loc[:, [c for c in columns if c in df.columns]].head(limit).copy()
+              headers = list(view.columns)
+              lines = ['| ' + ' | '.join(headers) + ' |', '| ' + ' | '.join(['---'] * len(headers)) + ' |']
+              for _, row in view.iterrows():
+                  vals = []
+                  for h in headers:
+                      v = row[h]
+                      vals.append(f'{v:.6g}' if isinstance(v, float) else str(v).replace('|', '/'))
+                  lines.append('| ' + ' | '.join(vals) + ' |')
+              return '\n'.join(lines)
+
+          out_dir = Path('results/task2_8c_terrain_reshaping_minimal_validation_rc1')
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          table, errors, summary = build_and_validate_terrain_reshaping_minimal_validation_table()
+          table.to_csv(out_dir / 'terrain_reshaping_minimal_validation.csv', index=False)
+
+          by_mode = table.groupby('mode').agg(
+              rows=('mode', 'size'),
+              mean_net=('long_term_net_benefit', 'mean'),
+              mean_peak_delta=('risk_peak_delta_vs_no_op', 'mean'),
+              mean_auc_delta=('risk_auc_delta_vs_no_op', 'mean'),
+              mean_gain_delta=('gain_auc_delta_vs_no_op', 'mean'),
+              mean_side_delta=('side_effect_delta_vs_no_op', 'mean'),
+              mean_persistence=('post_action_persistence', 'mean'),
+              damping_rows=('trend_improvement_class', lambda s: int((s == 'trend_damping').sum())),
+              peak_lowering_rows=('trend_improvement_class', lambda s: int((s == 'peak_lowering').sum())),
+          ).reset_index()
+          by_mode.to_csv(out_dir / 'mode_summary.csv', index=False)
+
+          by_state_mode = table.groupby(['terrain_location_id', 'mode']).agg(
+              rows=('mode', 'size'),
+              mean_net=('long_term_net_benefit', 'mean'),
+              mean_peak_delta=('risk_peak_delta_vs_no_op', 'mean'),
+              mean_auc_delta=('risk_auc_delta_vs_no_op', 'mean'),
+              mean_gain_delta=('gain_auc_delta_vs_no_op', 'mean'),
+              mean_side_delta=('side_effect_delta_vs_no_op', 'mean'),
+              mean_persistence=('post_action_persistence', 'mean'),
+          ).reset_index()
+          by_state_mode.to_csv(out_dir / 'state_mode_summary.csv', index=False)
+
+          summary = dict(summary)
+          summary['validation_errors'] = errors
+          (out_dir / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          md = []
+          md.append('# Task 2-8c Terrain Reshaping Minimal Validation RC1')
+          md.append('')
+          md.append('## Status')
+          md.append('')
+          if errors:
+              md.append('Validation errors:')
+              for err in errors:
+                  md.append(f'- {err}')
+          else:
+              md.append('Terrain reshaping minimal validation completed with no validation errors.')
+          md.append('')
+          md.append('## Summary')
+          md.append('')
+          for key, value in summary.items():
+              md.append(f'- `{key}`: `{value}`')
+          md.append('')
+          md.append('## Mode summary')
+          md.append('')
+          md.append(markdown_table(by_mode, list(by_mode.columns), limit=20))
+          md.append('')
+          md.append('## State x mode summary')
+          md.append('')
+          md.append(markdown_table(by_state_mode, list(by_state_mode.columns), limit=40))
+          (out_dir / 'TASK2_8C_TERRAIN_RESHAPING_MINIMAL_VALIDATION_RC1.md').write_text('\n'.join(md), encoding='utf-8')
+
+          print('\n'.join(md[:240]))
+          if errors:
+              raise SystemExit('Task2-8c validation errors')
+          PY
+
+      - name: Upload Task2-8c artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8c-terrain-reshaping-minimal-validation-rc1
+          path: results/task2_8c_terrain_reshaping_minimal_validation_rc1/
+          if-no-files-found: error
