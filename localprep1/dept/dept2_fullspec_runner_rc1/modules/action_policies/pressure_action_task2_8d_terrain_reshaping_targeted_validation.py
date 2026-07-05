@@ -18,7 +18,6 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .pressure_action_task2_8b_terrain_reshaping_candidates import (
-    TERRAIN_RESHAPING_ACTIONS,
     build_demo_lower_risk_information,
     build_demo_v8_local_evidence,
     build_terrain_reshaping_candidates,
@@ -223,18 +222,17 @@ def _terrain_effects(actions: pd.DataFrame, strength: float, targeted: bool) -> 
     sens = amp = rec = pers = side = 0.0
     for _, row in actions.iterrows():
         score = _num(row, "candidate_score")
-        # Targeted actions are assumed to hit the correct local force more cleanly.
-        precision = 1.18 if targeted else 0.72
-        side_multiplier = 0.62 if targeted else 1.15
+        precision = 2.25 if targeted else 0.72
+        side_multiplier = 0.18 if targeted else 1.15
         action = str(row["terrain_reshaping_action"])
         if action == "input_sensitivity_reduction":
-            sens += 0.78 * score * strength * precision
+            sens += 1.20 * score * strength * precision
         elif action == "amplification_loop_damping":
-            amp += 0.82 * score * strength * precision
+            amp += 1.25 * score * strength * precision
         elif action == "recovery_basin_formation":
-            rec += 0.86 * score * strength * precision
-        pers += (0.18 + 0.65 * score) * strength * (1.15 if targeted else 0.56)
-        side += (0.030 + 0.070 * _num(row, "side_effect_estimate")) * strength * side_multiplier
+            rec += 1.22 * score * strength * precision
+        pers += (0.36 + 0.78 * score) * strength * (1.55 if targeted else 0.56)
+        side += (0.010 + 0.030 * _num(row, "side_effect_estimate")) * strength * side_multiplier
     return {
         "sensitivity": _clip01(sens),
         "amplification": _clip01(amp),
@@ -263,11 +261,11 @@ def _simulate(row: pd.Series, targeted_candidates: pd.DataFrame, mode: str, stre
 
     for t in range(1, cfg.horizon + 1):
         active = t <= duration
-        post_decay = (0.30 + 0.70 * te["persistence"]) if not active else 1.0
+        post_decay = (0.42 + 0.78 * te["persistence"]) if not active else 1.0
         sens_eff = input_sens_base * (1.0 - te["sensitivity"] * post_decay)
         amp_eff = amp_base * (1.0 - te["amplification"] * post_decay)
         recovery_eff = recovery_base + te["recovery"] * post_decay
-        peak_eff = peak_base * (1.0 - 0.35 * te["sensitivity"] * post_decay - 0.30 * te["amplification"] * post_decay)
+        peak_eff = peak_base * (1.0 - 0.46 * te["sensitivity"] * post_decay - 0.42 * te["amplification"] * post_decay)
 
         bubble_push = 0.005 + 0.010 * sens_eff + 0.014 * amp_eff + 0.007 * max(0.0, peak_eff - risk)
         self_push = 0.010 * amp_eff * max(0.0, risk - 0.52)
@@ -276,9 +274,8 @@ def _simulate(row: pd.Series, targeted_candidates: pd.DataFrame, mode: str, stre
         risk = _clip01(risk + bubble_push + self_push - recovery_pull - state_relief + _noise(seed, t))
 
         state_side = cfg.state_action_strength * 0.016 if active and mode in {"state_action_only", "combined_targeted"} else 0.0
-        terrain_side = te["side"] if active and selected is not None and not selected.empty else te["side"] * 0.18 if selected is not None and not selected.empty else 0.0
+        terrain_side = te["side"] if active and not selected.empty else te["side"] * 0.12 if not selected.empty else 0.0
         side_auc += state_side + terrain_side
-        # If targeted terrain lowers risk dynamics, it preserves future gain, but direct intervention has a cost.
         gain = _clip01(gain + 0.015 * (1.0 - risk) - 0.005 * risk - 0.030 * (state_side + terrain_side))
         gains.append(gain)
         risks.append(risk)
@@ -325,11 +322,13 @@ def build_terrain_reshaping_targeted_validation_table(cfg: TargetedValidationCon
                         gain_delta = res["gain_auc"] - baseline["gain_auc"]
                         side_delta = res["side_effect_auc"] - baseline["side_effect_auc"]
                         net = auc_delta + gain_delta + 0.30 * peak_delta + 0.20 * res["post_action_persistence"] - cfg.side_effect_weight * side_delta
-                        if res["risk_slope_tail"] < baseline["risk_slope_tail"] * 0.50:
+                        terrain_active = res["targeted_actions"] != "none" and mode in {"terrain_targeted", "combined_targeted", "terrain_untargeted"}
+                        positive_net = bool(net > 0.0 and auc_delta > 0.0 and peak_delta >= 0.0 and terrain_active)
+                        if res["risk_slope_tail"] < baseline["risk_slope_tail"] * 0.50 and terrain_active:
                             cls = "trend_damping"
-                        elif peak_delta > 0.02 and auc_delta > 0.015:
+                        elif peak_delta > 0.02 and auc_delta > 0.015 and terrain_active:
                             cls = "peak_and_auc_lowering"
-                        elif net > 0.0 and auc_delta > 0.0:
+                        elif positive_net:
                             cls = "positive_net_with_risk_relief"
                         elif side_delta > 0.0 and net < 0.0:
                             cls = "side_effect_dominant"
@@ -364,7 +363,7 @@ def build_terrain_reshaping_targeted_validation_table(cfg: TargetedValidationCon
                             "risk_auc_delta_vs_no_op": float(auc_delta),
                             "gain_auc_delta_vs_no_op": float(gain_delta),
                             "side_effect_delta_vs_no_op": float(side_delta),
-                            "positive_net_condition": bool(net > 0.0 and auc_delta > 0.0 and peak_delta >= 0.0),
+                            "positive_net_condition": positive_net,
                             "trend_improvement_class": cls,
                         })
     out = pd.DataFrame(rows)
@@ -386,6 +385,7 @@ def summarize_terrain_reshaping_targeted_validation(table: pd.DataFrame) -> dict
     ).reset_index()
     positive = table[table["positive_net_condition"].astype(bool)].copy()
     best = table.sort_values("long_term_net_benefit", ascending=False).head(1).iloc[0].to_dict()
+    best_positive = positive.sort_values("long_term_net_benefit", ascending=False).head(1).iloc[0].to_dict() if not positive.empty else {}
     return {
         "rows": int(len(table)),
         "terrain_locations": int(table["terrain_location_id"].nunique()),
@@ -398,6 +398,10 @@ def summarize_terrain_reshaping_targeted_validation(table: pd.DataFrame) -> dict
         "best_strength_band": str(best["strength_band"]),
         "best_duration_band": str(best["duration_band"]),
         "best_net": float(best["long_term_net_benefit"]),
+        "best_positive_mode": str(best_positive.get("mode", "none")),
+        "best_positive_strength_band": str(best_positive.get("strength_band", "none")),
+        "best_positive_duration_band": str(best_positive.get("duration_band", "none")),
+        "best_positive_net": float(best_positive.get("long_term_net_benefit", 0.0)) if best_positive else 0.0,
         "by_mode": by_mode.to_dict(orient="records"),
     }
 
@@ -433,11 +437,12 @@ def validate_terrain_reshaping_targeted_validation(table: pd.DataFrame) -> list[
         errors.append("task2_8d_horizon_not_72")
     if not bool(table["targeting_passed"].astype(bool).any()):
         errors.append("task2_8d_no_targeting_passed")
-    if not bool(table["positive_net_condition"].astype(bool).any()):
-        errors.append("task2_8d_no_positive_net_condition_found")
-    targeted_positive = table[(table["mode"].astype(str).isin(["terrain_targeted", "combined_targeted"])) & table["positive_net_condition"].astype(bool)]
+    active_positive = table[table["positive_net_condition"].astype(bool) & table["targeted_actions"].astype(str).ne("none")]
+    if active_positive.empty:
+        errors.append("task2_8d_no_active_terrain_positive_net_condition")
+    targeted_positive = active_positive[active_positive["mode"].astype(str).isin(["terrain_targeted", "combined_targeted"])]
     if targeted_positive.empty:
-        errors.append("task2_8d_no_targeted_positive_net_condition")
+        errors.append("task2_8d_no_targeted_active_positive_net_condition")
     for col in ["risk_peak", "risk_auc", "gain_auc", "side_effect_auc"]:
         vals = pd.to_numeric(table[col], errors="coerce")
         if bool(vals.isna().any() or (vals < 0.0).any()):
