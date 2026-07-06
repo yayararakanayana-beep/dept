@@ -1,0 +1,52 @@
+name: Task2-8j-6b V2 State Relation Field Reproduction
+
+on:
+  workflow_dispatch:
+
+jobs:
+  task2-8j-6b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_6b.py
+      - name: Export tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_1_candidate_feature_log import CandidateFeatureLogConfig
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_6_macro_game_relation_field_validation import MacroGameRelationFieldConfig
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_6b_v2_state_relation_field_reproduction import V2StateRelationFieldReproductionConfig, build_and_validate_v2_state_relation_field_reproduction
+          out = Path('results/task2_8j_6b_v2_state_relation_field_reproduction_rc1')
+          out.mkdir(parents=True, exist_ok=True)
+          feature_cfg = CandidateFeatureLogConfig(steps=24, seeds=(501, 502, 503), window_sizes=(1, 6, 12))
+          state_metrics, assignment, transition, edge_consistency, final_summary, errors, summary = build_and_validate_v2_state_relation_field_reproduction(feature_cfg, MacroGameRelationFieldConfig(), V2StateRelationFieldReproductionConfig())
+          state_metrics.to_csv(out / 'v2_state_reproduction.csv', index=False)
+          assignment.to_csv(out / 'v2_state_assignment.csv', index=False)
+          transition.to_csv(out / 'v2_transition_reproduction.csv', index=False)
+          edge_consistency.to_csv(out / 'relation_field_edge_consistency.csv', index=False)
+          final_summary.to_csv(out / 'final_summary.csv', index=False)
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'TASK2_8J_6B_V2_STATE_RELATION_FIELD_REPRODUCTION_RC1.md').write_text('# Task 2-8j-6b\n\n' + json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          if errors:
+              raise SystemExit('Task2-8j-6b validation errors')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task2-8j-6b-v2-state-relation-field-reproduction-rc1
+          path: results/task2_8j_6b_v2_state_relation_field_reproduction_rc1/
+          if-no-files-found: error
