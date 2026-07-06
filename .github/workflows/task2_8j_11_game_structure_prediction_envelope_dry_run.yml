@@ -1,0 +1,48 @@
+name: Task2-8j-11 Game Structure Prediction Envelope Dry Run
+
+on:
+  workflow_dispatch:
+
+jobs:
+  task2-8j-11:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_11.py
+      - name: Export tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_11_game_structure_prediction_envelope_dry_run import build_and_validate_game_structure_prediction_envelope_dry_run
+          out = Path('results/task2_8j_11_game_structure_prediction_envelope_dry_run_rc1')
+          out.mkdir(parents=True, exist_ok=True)
+          envelopes, source_trace, checks, final_summary, errors, summary = build_and_validate_game_structure_prediction_envelope_dry_run()
+          envelopes.to_csv(out / 'game_structure_prediction_envelopes.csv', index=False)
+          source_trace.to_csv(out / 'game_structure_prediction_source_trace.csv', index=False)
+          checks.to_csv(out / 'game_structure_prediction_envelope_checks.csv', index=False)
+          final_summary.to_csv(out / 'final_summary.csv', index=False)
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'TASK2_8J_11_GAME_STRUCTURE_PREDICTION_ENVELOPE_DRY_RUN_RC1.md').write_text('# Task 2-8j-11\n\n' + json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          if errors:
+              raise SystemExit('Task2-8j-11 validation errors')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task2-8j-11-game-structure-prediction-envelope-dry-run-rc1
+          path: results/task2_8j_11_game_structure_prediction_envelope_dry_run_rc1/
+          if-no-files-found: error
