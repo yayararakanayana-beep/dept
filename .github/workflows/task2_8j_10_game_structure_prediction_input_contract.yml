@@ -1,0 +1,56 @@
+name: Task2-8j-10 Game Structure Prediction Input Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_10_game_structure_prediction_input_contract.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_10.py'
+      - '.github/workflows/task2_8j_10_game_structure_prediction_input_contract.yml'
+
+jobs:
+  task2-8j-10:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_10.py
+      - name: Export tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_10_game_structure_prediction_input_contract import build_and_validate_game_structure_prediction_input_contract
+          out = Path('results/task2_8j_10_game_structure_prediction_input_contract_rc1')
+          out.mkdir(parents=True, exist_ok=True)
+          contract, scope, features, readiness, final_summary, errors, summary = build_and_validate_game_structure_prediction_input_contract()
+          contract.to_csv(out / 'game_structure_prediction_input_contract.csv', index=False)
+          scope.to_csv(out / 'game_structure_prediction_scope_contract.csv', index=False)
+          features.to_csv(out / 'game_structure_prediction_feature_sources.csv', index=False)
+          readiness.to_csv(out / 'game_structure_prediction_readiness.csv', index=False)
+          final_summary.to_csv(out / 'final_summary.csv', index=False)
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'TASK2_8J_10_GAME_STRUCTURE_PREDICTION_INPUT_CONTRACT_RC1.md').write_text('# Task 2-8j-10\n\n' + json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          if errors:
+              raise SystemExit('Task2-8j-10 validation errors')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task2-8j-10-game-structure-prediction-input-contract-rc1
+          path: results/task2_8j_10_game_structure_prediction_input_contract_rc1/
+          if-no-files-found: error
