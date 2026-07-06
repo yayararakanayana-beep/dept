@@ -93,3 +93,6 @@ def test_task2_8j_6b_validator_detects_axis_mutation():
         final_summary,
     )
     assert "task2_8j_6b_forbidden_true:state_reproduction:axis_mutation_performed" in errors
+
+
+# Touch marker: rerun after stale pre-fix workflow attempt.
