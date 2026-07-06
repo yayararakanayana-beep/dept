@@ -1,0 +1,56 @@
+name: Task2-8j-12 New G_t Upper Layer Revalidation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_12_new_gt_upper_layer_revalidation.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_12.py'
+      - '.github/workflows/task2_8j_12_new_gt_upper_layer_revalidation.yml'
+
+jobs:
+  task2-8j-12:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_12.py
+      - name: Export tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_12_new_gt_upper_layer_revalidation import build_and_validate_new_gt_upper_layer_revalidation
+          out = Path('results/task2_8j_12_new_gt_upper_layer_revalidation_rc1')
+          out.mkdir(parents=True, exist_ok=True)
+          gk_input, mt_table, pressure_table, safety_table, final_summary, errors, summary = build_and_validate_new_gt_upper_layer_revalidation()
+          gk_input.to_csv(out / 'gt_kt_global_input_acceptance.csv', index=False)
+          mt_table.to_csv(out / 'mt15_compatibility_projection.csv', index=False)
+          pressure_table.to_csv(out / 'bounded_upper_pressure_candidates.csv', index=False)
+          safety_table.to_csv(out / 'upper_pressure_safety_checks.csv', index=False)
+          final_summary.to_csv(out / 'final_summary.csv', index=False)
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'TASK2_8J_12_NEW_GT_UPPER_LAYER_REVALIDATION_RC1.md').write_text('# Task 2-8j-12\n\n' + json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          if errors:
+              raise SystemExit('Task2-8j-12 validation errors')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task2-8j-12-new-gt-upper-layer-revalidation-rc1
+          path: results/task2_8j_12_new_gt_upper_layer_revalidation_rc1/
+          if-no-files-found: error
