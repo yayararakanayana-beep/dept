@@ -2,6 +2,13 @@ name: Task2-8j-5b Gt Information Ingestion Contract
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_5b_gt_information_ingestion_contract.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_5b.py'
+      - '.github/workflows/task2_8j_5b_gt_information_ingestion_contract.yml'
 
 jobs:
   task2-8j-5b:
