@@ -212,9 +212,10 @@ class DEPTPredictionModule:
         residual_context = self._mean_context(ot_context, "ot_residual_score")
         unresolved_context = self._mean_context(ot_context, "ot_unresolved_score")
         mismatch_context = self._mean_context(ot_context, "ot_macro_micro_mismatch_score")
+        residual_excess = max(0.0, max(residual_context, unresolved_context, mismatch_context) - 0.12)
         low_motion = max(0.0, 1.0 - min(1.0, projected_delta_intensity * 4.0))
         over = _mean([_pos(-e("entropy")), _pos(-e("exploration")), _pos(-e("reversibility")), _pos(e("relation_lock")), _pos(r("relation_rigidity")), _pos(-r("flow"))])
-        fix = _mean([_pos(e("relation_lock")), _pos(r("relation_rigidity")), _pos(-r("flow")), _pos(-e("reversibility")), max(residual_context, unresolved_context, mismatch_context) * low_motion])
+        fix = _mean([_pos(e("relation_lock")), _pos(r("relation_rigidity")), _pos(-r("flow")), _pos(-e("reversibility")), residual_excess * low_motion])
         div = _mean([_pos(e("volatility")), _pos(e("uncertainty")), _pos(e("activity")), _pos(e("entropy")), _pos(r("flow")), max(0.0, mismatch_context - residual_context * 0.25)])
         strengths = {"overconvergence": min(1.0, over), "fixation": min(1.0, fix), "divergence": min(1.0, div)}
         ordered = sorted(strengths.items(), key=lambda kv: kv[1], reverse=True)
