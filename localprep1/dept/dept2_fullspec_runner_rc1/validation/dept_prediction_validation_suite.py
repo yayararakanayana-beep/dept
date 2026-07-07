@@ -1,22 +1,26 @@
 """DEPT prediction validation suite.
 
-This validation is action-free.  It checks two things separately:
+This validation is action-free. It checks three things separately:
 
 1. Activation response accuracy:
    whether the low-cost activation controller responds to target dynamics
    patterns such as overconvergence, fixation, divergence, sudden angle change,
    and sudden intensity change.
 
-2. Projection packaging accuracy:
+2. Dynamics projection accuracy:
+   whether supplied no-action future traces are translated into the expected
+   dynamics direction and nonzero direction strength.
+
+3. Projection packaging accuracy:
    whether the prediction module correctly preserves supplied no-action future
-   values and deltas over multiple horizons.  This is not yet a full self-
+   values and deltas over multiple horizons. This is not yet a full self-
    generated multi-step forecaster; it validates the projection packet layer
    given synthetic no-action future traces.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable
+from typing import Dict
 
 import pandas as pd
 
@@ -27,16 +31,10 @@ from dept2_fullspec_runner_rc1.modules.dept_prediction_activation_module import 
 from dept2_fullspec_runner_rc1.modules.dept_prediction_module import DEPTPredictionModule
 
 
-PATTERNS = [
-    "stable",
-    "overconvergence",
-    "fixation",
-    "divergence",
-    "sudden_angle",
-    "sudden_intensity",
-]
+PATTERNS = ["stable", "overconvergence", "fixation", "divergence", "sudden_angle", "sudden_intensity"]
 HORIZONS = [1, 2, 3, 5]
 ENTITY_IDS = ["E1", "E2", "E3"]
+CORE_DIRECTION_PATTERNS = ["overconvergence", "fixation", "divergence"]
 
 
 @dataclass(frozen=True)
@@ -78,13 +76,14 @@ def _apply_pattern(row: dict, pattern: str, t: int) -> dict:
         out["reversibility"] -= slow * 0.8
         out["relation_lock"] += slow
     elif pattern == "fixation":
-        out["relation_lock"] += slow
-        out["reversibility"] -= slow * 0.7
+        out["relation_lock"] += slow * 1.6
+        out["reversibility"] -= slow * 0.9
         out["volatility"] *= 0.9
         out["activity"] -= slow * 0.2
+        out["exploration"] -= slow * 0.3
     elif pattern == "divergence":
-        out["volatility"] += slow * 1.5
-        out["uncertainty"] += slow
+        out["volatility"] += slow * 1.7
+        out["uncertainty"] += slow * 1.2
         out["activity"] += slow * 0.8
         out["entropy"] += slow * 0.7
     elif pattern == "sudden_angle":
@@ -120,10 +119,10 @@ def build_v2_pattern_trace(pattern: str, t: int) -> Dict[str, pd.DataFrame]:
             relation_rigidity += slow
             flow -= slow
         elif pattern == "fixation":
-            relation_rigidity += slow * 1.4
-            flow -= slow * 1.2
+            relation_rigidity += slow * 1.8
+            flow -= slow * 1.4
         elif pattern == "divergence":
-            flow += slow * 1.8
+            flow += slow * 1.9
             relation_strength -= slow * 0.4
         elif pattern == "sudden_angle" and t >= 5:
             relation_rigidity += 0.05 * (t - 4)
@@ -141,10 +140,7 @@ def build_v2_pattern_trace(pattern: str, t: int) -> Dict[str, pd.DataFrame]:
             "scenario": "prediction_validation",
             "seed": 101,
         })
-    return {
-        "entity_trace": pd.DataFrame(entity_rows),
-        "relation_trace": pd.DataFrame(relation_rows),
-    }
+    return {"entity_trace": pd.DataFrame(entity_rows), "relation_trace": pd.DataFrame(relation_rows)}
 
 
 def build_ot_tables(trace: Dict[str, pd.DataFrame], pattern: str, t: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -236,6 +232,18 @@ def expected_pattern_response(pattern: str) -> dict[str, str | bool]:
     return mapping[pattern]
 
 
+def expected_dynamics_direction(pattern: str) -> str:
+    mapping = {
+        "stable": "neutral",
+        "overconvergence": "overconvergence",
+        "fixation": "fixation",
+        "divergence": "divergence",
+        "sudden_angle": "overconvergence",
+        "sudden_intensity": "divergence",
+    }
+    return mapping[pattern]
+
+
 def dominant_activation_channel(row: pd.Series) -> str:
     candidates = {
         "short_intensity": float(row.get("short_intensity_change", 0.0)),
@@ -258,44 +266,23 @@ def _future_trace_error(predicted: pd.DataFrame, future_trace: Dict[str, pd.Data
             continue
         expected_value = float(entity_future.loc[entity_id, metric])
         predicted_value = float(pred["projected_no_action_value"])
-        rows.append({
-            "entity_id": entity_id,
-            "metric_name": metric,
-            "predicted_value": predicted_value,
-            "expected_value": expected_value,
-            "abs_error": abs(predicted_value - expected_value),
-        })
+        rows.append({"entity_id": entity_id, "metric_name": metric, "predicted_value": predicted_value, "expected_value": expected_value, "abs_error": abs(predicted_value - expected_value)})
     return pd.DataFrame(rows)
 
 
-def validate_pattern(pattern: str, cfg: PredictionValidationConfig | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def validate_pattern(pattern: str, cfg: PredictionValidationConfig | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     cfg = cfg or PredictionValidationConfig()
-    activation = DEPTPredictionActivationModule(PredictionActivationConfig(
-        initial_reference_score=0.0,
-        standard_threshold=cfg.activation_threshold,
-        deep_threshold=cfg.deep_threshold,
-        short_window=3,
-        mid_window=8,
-    ))
+    activation = DEPTPredictionActivationModule(PredictionActivationConfig(initial_reference_score=0.0, standard_threshold=cfg.activation_threshold, deep_threshold=cfg.deep_threshold, short_window=3, mid_window=8))
     activation_rows = []
     projection_rows = []
     projection_error_rows = []
+    dynamics_rows = []
     module = DEPTPredictionModule()
     for t in range(cfg.steps):
         trace = build_v2_pattern_trace(pattern, t)
         ot_native, ot_action_view, residual = build_ot_tables(trace, pattern, t)
         gt, kt = _empty_gk(t)
-        activation_state = activation.build(
-            world_trace_before=trace,
-            gt=gt,
-            kt=kt,
-            ot_native=ot_native,
-            ot_action_view=ot_action_view,
-            residual_noise_log=residual,
-            loop_step=t,
-            seed=101,
-            scenario=pattern,
-        )
+        activation_state = activation.build(world_trace_before=trace, gt=gt, kt=kt, ot_native=ot_native, ot_action_view=ot_action_view, residual_noise_log=residual, loop_step=t, seed=101, scenario=pattern)
         row = activation_state.iloc[0].to_dict()
         row["pattern"] = pattern
         row["dominant_activation_channel"] = dominant_activation_channel(activation_state.iloc[0])
@@ -308,23 +295,19 @@ def validate_pattern(pattern: str, cfg: PredictionValidationConfig | None = None
         if bool(row["standard_projection_requested"]):
             for horizon in HORIZONS:
                 future = build_v2_pattern_trace(pattern, t + horizon)
-                pred = module.build(
-                    world_trace_before=trace,
-                    baseline_trace_after=future,
-                    gt=gt,
-                    kt=kt,
-                    ot_native=ot_native,
-                    ot_action_view=ot_action_view,
-                    residual_noise_log=residual,
-                    loop_step=t,
-                    seed=101,
-                    scenario=pattern,
-                )
+                pred = module.build(world_trace_before=trace, baseline_trace_after=future, gt=gt, kt=kt, ot_native=ot_native, ot_action_view=ot_action_view, residual_noise_log=residual, loop_step=t, seed=101, scenario=pattern)
                 entity_projection = pred["dept_prediction_entity_projection"].copy()
                 entity_projection["pattern"] = pattern
                 entity_projection["source_step"] = t
                 entity_projection["horizon"] = horizon
                 projection_rows.append(entity_projection)
+                dynamics = pred["dept_prediction_dynamics_projection"].copy()
+                dynamics["pattern"] = pattern
+                dynamics["source_step"] = t
+                dynamics["horizon"] = horizon
+                dynamics["expected_dynamics_direction"] = expected_dynamics_direction(pattern)
+                dynamics["dynamics_direction_match"] = dynamics["predicted_dynamics_direction"].astype(str) == dynamics["expected_dynamics_direction"].astype(str)
+                dynamics_rows.append(dynamics)
                 errors = _future_trace_error(entity_projection, future)
                 if not errors.empty:
                     errors["pattern"] = pattern
@@ -335,6 +318,7 @@ def validate_pattern(pattern: str, cfg: PredictionValidationConfig | None = None
         pd.DataFrame(activation_rows),
         pd.concat(projection_rows, ignore_index=True) if projection_rows else pd.DataFrame(),
         pd.concat(projection_error_rows, ignore_index=True) if projection_error_rows else pd.DataFrame(),
+        pd.concat(dynamics_rows, ignore_index=True) if dynamics_rows else pd.DataFrame(),
     )
 
 
@@ -343,16 +327,20 @@ def run_dept_prediction_validation(cfg: PredictionValidationConfig | None = None
     activation_tables = []
     projection_tables = []
     error_tables = []
+    dynamics_tables = []
     for pattern in PATTERNS:
-        activation, projection, errors = validate_pattern(pattern, cfg)
+        activation, projection, errors, dynamics = validate_pattern(pattern, cfg)
         activation_tables.append(activation)
         if not projection.empty:
             projection_tables.append(projection)
         if not errors.empty:
             error_tables.append(errors)
+        if not dynamics.empty:
+            dynamics_tables.append(dynamics)
     activation_all = pd.concat(activation_tables, ignore_index=True)
     projection_all = pd.concat(projection_tables, ignore_index=True) if projection_tables else pd.DataFrame()
     error_all = pd.concat(error_tables, ignore_index=True) if error_tables else pd.DataFrame()
+    dynamics_all = pd.concat(dynamics_tables, ignore_index=True) if dynamics_tables else pd.DataFrame()
     summary_rows = []
     for pattern, group in activation_all.groupby("pattern"):
         expected = expected_pattern_response(pattern)
@@ -375,16 +363,23 @@ def run_dept_prediction_validation(cfg: PredictionValidationConfig | None = None
     activation_summary = pd.DataFrame(summary_rows)
     horizon_summary = pd.DataFrame()
     if not error_all.empty:
-        horizon_summary = error_all.groupby(["pattern", "horizon"], as_index=False).agg(
-            mean_abs_error=("abs_error", "mean"),
-            max_abs_error=("abs_error", "max"),
-            rows=("abs_error", "size"),
-        )
+        horizon_summary = error_all.groupby(["pattern", "horizon"], as_index=False).agg(mean_abs_error=("abs_error", "mean"), max_abs_error=("abs_error", "max"), rows=("abs_error", "size"))
         horizon_summary["projection_packaging_within_tolerance"] = horizon_summary["max_abs_error"] <= cfg.projection_error_tolerance
+    dynamics_summary = pd.DataFrame()
+    if not dynamics_all.empty:
+        dynamics_summary = dynamics_all.groupby(["pattern", "horizon"], as_index=False).agg(
+            dynamics_direction_match_rate=("dynamics_direction_match", "mean"),
+            mean_predicted_dynamics_strength=("predicted_dynamics_strength", "mean"),
+            max_predicted_dynamics_strength=("predicted_dynamics_strength", "max"),
+            mean_predicted_direction_margin=("predicted_direction_margin", "mean"),
+            rows=("predicted_dynamics_strength", "size"),
+        )
     return {
         "prediction_activation_validation": activation_all,
         "prediction_activation_summary": activation_summary,
         "prediction_projection_rows": projection_all,
         "prediction_projection_error_rows": error_all,
         "prediction_horizon_summary": horizon_summary,
+        "prediction_dynamics_rows": dynamics_all,
+        "prediction_dynamics_summary": dynamics_summary,
     }
