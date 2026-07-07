@@ -4,7 +4,7 @@ This module reads DEPT-owned observation/log artifacts and emits prediction
 values only: current values, projected no-action values, deltas, dynamics
 direction/strength, uncertainty/context signals, and source lineage.
 
-The central prediction product is not a full future-state oracle.  It is the
+The central prediction product is not a full future-state oracle. It is the
 projected dynamics direction and strength that downstream modules may use as
 input material without the prediction module making an action decision.
 """
@@ -31,6 +31,9 @@ class PredictionModuleConfig:
     max_unmapped_columns_recorded: int = 64
     include_entity_metric_rows: bool = True
     include_relation_metric_rows: bool = True
+    neutral_delta_buffer: float = 0.006
+    neutral_strength_buffer: float = 0.004
+    neutral_margin_buffer: float = 0.0015
 
 
 def _empty(columns: Iterable[str]) -> pd.DataFrame:
@@ -84,6 +87,10 @@ def _pos(value: float) -> float:
 
 def _mean(values: list[float]) -> float:
     return float(sum(values) / max(1, len(values)))
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
 
 
 class DEPTPredictionModule:
@@ -189,40 +196,133 @@ class DEPTPredictionModule:
         return pd.DataFrame(rows, columns=columns)
 
     def build_dynamics_projection(self, *, entity_projection: pd.DataFrame, relation_projection: pd.DataFrame, ot_context: pd.DataFrame, loop_step: int, seed: int, scenario: str) -> pd.DataFrame:
-        columns = ["loop_step", "run_seed", "run_scenario", "prediction_focus", "projection_horizon_steps", "predicted_dynamics_direction", "predicted_dynamics_strength", "predicted_direction_margin", "projected_delta_intensity", "overconvergence_direction_strength", "fixation_direction_strength", "divergence_direction_strength", "direction_strength_json", "dynamics_projection_role"]
+        columns = ["loop_step", "run_seed", "run_scenario", "prediction_focus", "projection_horizon_steps", "predicted_dynamics_direction", "predicted_dynamics_strength", "predicted_direction_margin", "projected_delta_intensity", "overconvergence_direction_strength", "fixation_direction_strength", "divergence_direction_strength", "neutral_buffer_distance", "neutral_buffer_applied", "shrink_equilibrium_measure", "bias_concentration_measure", "divergence_release_measure", "direction_strength_json", "dynamics_projection_role"]
         if entity_projection is None or entity_projection.empty:
             return _empty(columns)
         horizon = int(entity_projection["projection_horizon_steps"].max()) if "projection_horizon_steps" in entity_projection.columns else 0
+
         def e(metric: str) -> float:
-            rows = entity_projection[entity_projection["metric_name"].astype(str) == metric]
-            if rows.empty:
-                return 0.0
-            return float(pd.to_numeric(rows["projected_no_action_delta_per_step"], errors="coerce").fillna(0.0).mean())
+            return self._mean_entity_delta(entity_projection, metric)
+
         def r(metric: str) -> float:
-            if relation_projection is None or relation_projection.empty:
-                return 0.0
-            rows = relation_projection[relation_projection["relation_metric_name"].astype(str) == metric]
-            if rows.empty:
-                return 0.0
-            return float(pd.to_numeric(rows["projected_no_action_delta_per_step"], errors="coerce").fillna(0.0).mean())
+            return self._mean_relation_delta(relation_projection, metric)
+
+        def es(metric: str) -> float:
+            return self._entity_spread_delta(entity_projection, metric)
+
+        def rs(metric: str) -> float:
+            return self._relation_spread_delta(relation_projection, metric)
+
         deltas = [float(v) for v in pd.to_numeric(entity_projection.get("projected_no_action_delta_per_step", pd.Series(dtype=float)), errors="coerce").fillna(0.0).to_list()]
         if relation_projection is not None and not relation_projection.empty:
             deltas += [float(v) for v in pd.to_numeric(relation_projection.get("projected_no_action_delta_per_step", pd.Series(dtype=float)), errors="coerce").fillna(0.0).to_list()]
         projected_delta_intensity = min(1.0, sqrt(sum(v * v for v in deltas)) / max(1.0, sqrt(len(deltas)))) if deltas else 0.0
+
         residual_context = self._mean_context(ot_context, "ot_residual_score")
         unresolved_context = self._mean_context(ot_context, "ot_unresolved_score")
         mismatch_context = self._mean_context(ot_context, "ot_macro_micro_mismatch_score")
         residual_excess = max(0.0, max(residual_context, unresolved_context, mismatch_context) - 0.12)
-        low_motion = max(0.0, 1.0 - min(1.0, projected_delta_intensity * 4.0))
-        over = _mean([_pos(-e("entropy")), _pos(-e("exploration")), _pos(-e("reversibility")), _pos(e("relation_lock")), _pos(r("relation_rigidity")), _pos(-r("flow"))])
-        fix = _mean([_pos(e("relation_lock")), _pos(r("relation_rigidity")), _pos(-r("flow")), _pos(-e("reversibility")), residual_excess * low_motion])
-        div = _mean([_pos(e("volatility")), _pos(e("uncertainty")), _pos(e("activity")), _pos(e("entropy")), _pos(r("flow")), max(0.0, mismatch_context - residual_context * 0.25)])
-        strengths = {"overconvergence": min(1.0, over), "fixation": min(1.0, fix), "divergence": min(1.0, div)}
+
+        activity = e("activity")
+        volatility = e("volatility")
+        uncertainty = e("uncertainty")
+        exploration = e("exploration")
+        lock = e("relation_lock")
+        reversibility = e("reversibility")
+        entropy = e("entropy")
+        rigidity = r("relation_rigidity")
+        relation_strength = r("relation_strength")
+        flow = r("flow")
+
+        shrink_equilibrium_measure = _mean([
+            _pos(-activity),
+            _pos(-exploration),
+            _pos(-reversibility),
+            _pos(-entropy),
+            _pos(lock),
+            _pos(rigidity),
+            _pos(-flow),
+            _pos(-volatility),
+        ])
+        bias_concentration_measure = _mean([
+            _pos(es("exploration")),
+            _pos(es("entropy")),
+            _pos(es("relation_lock")),
+            _pos(rs("relation_rigidity")),
+            _pos(-rs("flow")),
+            _pos(-exploration),
+            _pos(-entropy),
+            _pos(lock) * 0.5,
+            _pos(rigidity) * 0.5,
+        ])
+        divergence_release_measure = _mean([
+            _pos(volatility),
+            _pos(uncertainty),
+            _pos(activity),
+            _pos(entropy),
+            _pos(exploration),
+            _pos(flow),
+            _pos(-rigidity),
+            _pos(-lock),
+            _pos(-relation_strength),
+        ])
+
+        residual_fixation_support = residual_excess * min(1.0, shrink_equilibrium_measure * 18.0)
+        fixation = _mean([
+            _pos(lock),
+            _pos(rigidity),
+            _pos(-flow),
+            _pos(-reversibility),
+            _pos(-activity) * 1.4,
+            _pos(-volatility) * 0.8,
+            residual_fixation_support,
+        ])
+        overconvergence = max(0.0, _mean([
+            _pos(-exploration),
+            _pos(-entropy),
+            _pos(-reversibility) * 0.7,
+            _pos(lock) * 0.55,
+            _pos(rigidity) * 0.55,
+            _pos(-flow) * 0.55,
+            bias_concentration_measure * 1.6,
+        ]) - _pos(-activity) * 0.35 - _pos(-volatility) * 0.15)
+        divergence = _mean([
+            _pos(volatility),
+            _pos(uncertainty),
+            _pos(activity),
+            _pos(entropy),
+            _pos(exploration),
+            _pos(flow),
+            _pos(-rigidity) * 1.2,
+            _pos(-lock) * 1.2,
+            _pos(-relation_strength) * 0.8,
+            max(0.0, mismatch_context - residual_context * 0.25),
+            divergence_release_measure,
+        ])
+
+        strengths = {
+            "overconvergence": _clamp01(overconvergence),
+            "fixation": _clamp01(fixation),
+            "divergence": _clamp01(divergence),
+        }
         ordered = sorted(strengths.items(), key=lambda kv: kv[1], reverse=True)
-        direction = ordered[0][0] if ordered and ordered[0][1] > 0.0 else "neutral"
-        strength = float(ordered[0][1]) if ordered else 0.0
-        margin = float(ordered[0][1] - ordered[1][1]) if len(ordered) > 1 else strength
-        row = {"loop_step": int(loop_step), "run_seed": int(seed), "run_scenario": str(scenario), "prediction_focus": "dynamics_direction_and_strength", "projection_horizon_steps": int(horizon), "predicted_dynamics_direction": direction, "predicted_dynamics_strength": strength, "predicted_direction_margin": margin, "projected_delta_intensity": float(projected_delta_intensity), "overconvergence_direction_strength": strengths["overconvergence"], "fixation_direction_strength": strengths["fixation"], "divergence_direction_strength": strengths["divergence"], "direction_strength_json": _json_dict(strengths), "dynamics_projection_role": "direction_strength_only"}
+        top_strength = float(ordered[0][1]) if ordered else 0.0
+        second_strength = float(ordered[1][1]) if len(ordered) > 1 else 0.0
+        margin = top_strength - second_strength
+        neutral_buffer_distance = projected_delta_intensity
+        neutral_buffer_applied = (
+            neutral_buffer_distance <= self.cfg.neutral_delta_buffer
+            or top_strength <= self.cfg.neutral_strength_buffer
+            or (margin <= self.cfg.neutral_margin_buffer and neutral_buffer_distance <= self.cfg.neutral_delta_buffer * 2.0)
+        )
+        if neutral_buffer_applied:
+            direction = "neutral"
+            strength = 0.0
+            margin = 0.0
+        else:
+            direction = ordered[0][0] if ordered else "neutral"
+            strength = top_strength
+        row = {"loop_step": int(loop_step), "run_seed": int(seed), "run_scenario": str(scenario), "prediction_focus": "dynamics_direction_and_strength", "projection_horizon_steps": int(horizon), "predicted_dynamics_direction": direction, "predicted_dynamics_strength": float(strength), "predicted_direction_margin": float(margin), "projected_delta_intensity": float(projected_delta_intensity), "overconvergence_direction_strength": strengths["overconvergence"], "fixation_direction_strength": strengths["fixation"], "divergence_direction_strength": strengths["divergence"], "neutral_buffer_distance": float(neutral_buffer_distance), "neutral_buffer_applied": bool(neutral_buffer_applied), "shrink_equilibrium_measure": float(shrink_equilibrium_measure), "bias_concentration_measure": float(bias_concentration_measure), "divergence_release_measure": float(divergence_release_measure), "direction_strength_json": _json_dict(strengths), "dynamics_projection_role": "direction_strength_only"}
         return pd.DataFrame([row], columns=columns)
 
     def build_global_prediction_summary(self, *, world_trace_before, baseline_trace_after, gt, kt, ot_native, ot_action_view, residual_noise_log, entity_projection, relation_projection, ot_context, dynamics_projection, loop_step: int, seed: int, scenario: str) -> pd.DataFrame:
@@ -234,11 +334,13 @@ class DEPTPredictionModule:
         numeric_relation_cols = _numeric_columns(relation, exclude=IDENTITY_COLS)
         gt_numeric_cols = _numeric_columns(gt if gt is not None else pd.DataFrame())
         kt_numeric_cols = _numeric_columns(kt if kt is not None else pd.DataFrame())
+
         def unmapped_cols(df, numeric_cols, extra_exclude=None):
             extra_exclude = extra_exclude or set()
             if df is None or df.empty:
                 return []
             return [str(c) for c in df.columns if c not in extra_exclude and c not in numeric_cols and not _is_decision_name(c)][: self.cfg.max_unmapped_columns_recorded]
+
         dyn = dynamics_projection.iloc[0] if dynamics_projection is not None and not dynamics_projection.empty else {}
         unmapped = {"entity_columns": unmapped_cols(entity, numeric_entity_cols, IDENTITY_COLS), "relation_columns": unmapped_cols(relation, numeric_relation_cols, IDENTITY_COLS), "gt_columns": unmapped_cols(gt, gt_numeric_cols), "kt_columns": unmapped_cols(kt, kt_numeric_cols)}
         row = {"loop_step": int(loop_step), "run_seed": int(seed), "run_scenario": str(scenario), "prediction_module_name": self.name, "prediction_build_status": "pass", "source_trace_fingerprint_current": trace_fingerprint(world_trace_before) if world_trace_before else "missing", "source_trace_fingerprint_projection": trace_fingerprint(baseline_trace_after) if baseline_trace_after else "missing", "world_t_current": _first_world_t(world_trace_before), "world_t_projection": _first_world_t(baseline_trace_after), "entity_rows_current": int(len(entity)), "entity_rows_projection": int(len(baseline_entity)), "relation_rows_current": int(len(relation)), "relation_rows_projection": int(len(baseline_relation)), "gt_rows": int(len(gt)) if gt is not None else 0, "kt_rows": int(len(kt)) if kt is not None else 0, "ot_native_rows": int(len(ot_native)) if ot_native is not None else 0, "ot_action_view_rows": int(len(ot_action_view)) if ot_action_view is not None else 0, "residual_noise_log_rows": int(len(residual_noise_log)) if residual_noise_log is not None else 0, "entity_projection_rows": int(len(entity_projection)), "relation_projection_rows": int(len(relation_projection)), "ot_context_rows": int(len(ot_context)), "dynamics_projection_rows": int(len(dynamics_projection)) if dynamics_projection is not None else 0, "mean_entity_projected_abs_delta": float(entity_projection["projected_no_action_delta"].abs().mean()) if not entity_projection.empty else 0.0, "mean_relation_projected_abs_delta": float(relation_projection["projected_no_action_delta"].abs().mean()) if not relation_projection.empty else 0.0, "mean_observation_uncertainty": self._mean_ot_metric(ot_context, "uncertainty"), "mean_residual_score": self._mean_ot_metric(ot_context, "ot_residual_score"), "mean_unresolved_score": self._mean_ot_metric(ot_context, "ot_unresolved_score"), "mean_ambiguity_score": self._mean_ot_metric(ot_context, "ot_ambiguity_score"), "mean_macro_micro_mismatch_score": self._mean_ot_metric(ot_context, "ot_macro_micro_mismatch_score"), "predicted_dynamics_direction": str(dyn.get("predicted_dynamics_direction", "neutral")) if hasattr(dyn, "get") else "neutral", "predicted_dynamics_strength": float(dyn.get("predicted_dynamics_strength", 0.0)) if hasattr(dyn, "get") else 0.0, "predicted_direction_margin": float(dyn.get("predicted_direction_margin", 0.0)) if hasattr(dyn, "get") else 0.0, "unmapped_information_json": _json_dict(unmapped)}
@@ -282,6 +384,46 @@ class DEPTPredictionModule:
     @staticmethod
     def _mean_context(ot_context: pd.DataFrame, metric_name: str) -> float:
         return DEPTPredictionModule._mean_ot_metric(ot_context, metric_name)
+
+    @staticmethod
+    def _mean_entity_delta(entity_projection: pd.DataFrame, metric_name: str) -> float:
+        if entity_projection is None or entity_projection.empty:
+            return 0.0
+        rows = entity_projection[entity_projection["metric_name"].astype(str) == str(metric_name)]
+        if rows.empty:
+            return 0.0
+        return float(pd.to_numeric(rows["projected_no_action_delta_per_step"], errors="coerce").fillna(0.0).mean())
+
+    @staticmethod
+    def _mean_relation_delta(relation_projection: pd.DataFrame, metric_name: str) -> float:
+        if relation_projection is None or relation_projection.empty:
+            return 0.0
+        rows = relation_projection[relation_projection["relation_metric_name"].astype(str) == str(metric_name)]
+        if rows.empty:
+            return 0.0
+        return float(pd.to_numeric(rows["projected_no_action_delta_per_step"], errors="coerce").fillna(0.0).mean())
+
+    @staticmethod
+    def _entity_spread_delta(entity_projection: pd.DataFrame, metric_name: str) -> float:
+        if entity_projection is None or entity_projection.empty:
+            return 0.0
+        rows = entity_projection[entity_projection["metric_name"].astype(str) == str(metric_name)]
+        if rows.empty:
+            return 0.0
+        current = pd.to_numeric(rows["current_value"], errors="coerce").fillna(0.0)
+        projected = pd.to_numeric(rows["projected_no_action_value"], errors="coerce").fillna(0.0)
+        return float(projected.std(ddof=0) - current.std(ddof=0))
+
+    @staticmethod
+    def _relation_spread_delta(relation_projection: pd.DataFrame, metric_name: str) -> float:
+        if relation_projection is None or relation_projection.empty:
+            return 0.0
+        rows = relation_projection[relation_projection["relation_metric_name"].astype(str) == str(metric_name)]
+        if rows.empty:
+            return 0.0
+        current = pd.to_numeric(rows["current_value"], errors="coerce").fillna(0.0)
+        projected = pd.to_numeric(rows["projected_no_action_value"], errors="coerce").fillna(0.0)
+        return float(projected.std(ddof=0) - current.std(ddof=0))
 
 
 def output_contains_judgment_terms(outputs: dict[str, pd.DataFrame]) -> bool:
