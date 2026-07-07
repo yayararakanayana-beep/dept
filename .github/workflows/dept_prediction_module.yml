@@ -6,6 +6,7 @@ on:
     branches:
       - action-upper-pressure-reception-split-rc1
     paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/dept_prediction_activation_module.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/dept_prediction_module.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/contracts/cycle_state.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/runner/fullspec_integrated_closed_loop_runner.py'
