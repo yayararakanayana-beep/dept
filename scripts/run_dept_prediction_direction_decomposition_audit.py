@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run prediction direction decomposition audit and write measurement reports."""
+"""Run prediction direction decomposition audit and write reports."""
 from __future__ import annotations
 
 import argparse
@@ -27,8 +27,7 @@ def _parse_strings(value: str) -> tuple[str, ...]:
 def _show(df: pd.DataFrame, cols: list[str]) -> str:
     if df.empty:
         return "No rows."
-    cols = [c for c in cols if c in df.columns]
-    return df[cols].to_markdown(index=False)
+    return df[[c for c in cols if c in df.columns]].to_markdown(index=False)
 
 
 def _write_report(outputs: dict[str, pd.DataFrame], out_dir: Path, cfg: PredictionDirectionDecompositionAuditConfig) -> Path:
@@ -38,11 +37,10 @@ def _write_report(outputs: dict[str, pd.DataFrame], out_dir: Path, cfg: Predicti
     confusion = outputs["prediction_direction_decomposition_confusion"]
     component = outputs["prediction_direction_decomposition_component_summary"]
     boundary = outputs["prediction_direction_decomposition_boundary"]
-
     lines = [
         "# Task2-8j-24e Prediction Direction Decomposition Audit",
         "",
-        "Measurement-only report. This audit explains direction components and does not change prediction behavior.",
+        "Measurement-only report. CSV files contain the full row-level logs.",
         "",
         "## Boundary contract measurement",
         boundary.to_markdown(index=False) if not boundary.empty else "No boundary rows.",
@@ -57,25 +55,27 @@ def _write_report(outputs: dict[str, pd.DataFrame], out_dir: Path, cfg: Predicti
         "",
         "## Direction confusion measurement",
         _show(confusion, [
-            "actual_direction", "predicted_direction", "rows", "mean_strength_abs_error", "max_strength_abs_error",
-            "mean_neutral_buffer_distance", "mean_shrink_equilibrium_measure",
-            "mean_bias_concentration_measure", "mean_divergence_release_measure",
+            "actual_direction", "predicted_direction", "rows", "raw_direction_match_rate", "neutral_buffer_rate",
+            "mean_strength_abs_error", "max_strength_abs_error", "mean_neutral_buffer_distance",
+            "mean_shrink_equilibrium_measure", "mean_bias_concentration_measure", "mean_divergence_release_measure",
+            "mean_gradual_degradation_measure_model", "mean_gradual_degradation_measure_observed",
         ]),
         "",
         "## Component summary by actual direction",
         _show(component, [
-            "actual_direction", "pattern", "rows", "direction_match_rate",
+            "actual_direction", "pattern", "rows", "direction_match_rate", "raw_direction_match_rate", "neutral_buffer_rate",
             "mean_predicted_overconvergence_strength", "mean_predicted_fixation_strength", "mean_predicted_divergence_strength",
             "mean_neutral_buffer_distance", "mean_shrink_equilibrium_measure", "mean_bias_concentration_measure", "mean_divergence_release_measure",
-            "mean_relation_lock_delta", "mean_relation_rigidity_delta", "mean_flow_delta",
-            "mean_exploration_delta", "mean_uncertainty_delta", "mean_volatility_delta",
+            "mean_gradual_degradation_measure_model", "mean_gradual_degradation_measure_observed",
         ]),
         "",
         "## Group summary",
         _show(group, [
-            "actual_direction", "predicted_direction", "pattern", "noise_level", "horizon", "rows", "direction_match_rate",
-            "mean_neutral_buffer_distance", "mean_shrink_equilibrium_measure", "mean_bias_concentration_measure", "mean_divergence_release_measure",
-            "mean_predicted_overconvergence_strength", "mean_predicted_fixation_strength", "mean_predicted_divergence_strength", "mean_predicted_direction_margin",
+            "actual_direction", "predicted_direction", "pattern", "noise_level", "horizon", "rows",
+            "direction_match_rate", "raw_direction_match_rate", "neutral_buffer_rate",
+            "mean_neutral_buffer_distance", "mean_neutral_buffer_distance_model",
+            "mean_gradual_degradation_measure_model", "mean_gradual_degradation_measure_observed",
+            "mean_raw_predicted_strength", "mean_raw_predicted_direction_margin",
         ]),
         "",
         "## Row counts",
