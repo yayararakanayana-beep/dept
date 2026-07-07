@@ -65,9 +65,9 @@ def _ot(trace):
     return ot.copy(), ot, pd.DataFrame(residual)
 
 
-def _predict(current, projected):
+def _build(current, projected):
     ot_native, ot_action_view, residual = _ot(current)
-    outputs = DEPTPredictionModule().build(
+    return DEPTPredictionModule().build(
         world_trace_before=current,
         baseline_trace_after=projected,
         gt=pd.DataFrame(),
@@ -79,7 +79,10 @@ def _predict(current, projected):
         seed=1,
         scenario="revision",
     )
-    return outputs["dept_prediction_dynamics_projection"].iloc[0]
+
+
+def _predict(current, projected):
+    return _build(current, projected)["dept_prediction_dynamics_projection"].iloc[0]
 
 
 def _tiny_shift(trace):
@@ -93,10 +96,18 @@ def _tiny_shift(trace):
     return out
 
 
-def test_tiny_shift_stays_neutral_with_buffer():
-    dyn = _predict(_base_trace(0), _tiny_shift(_base_trace(0)))
+def test_tiny_shift_stays_neutral_with_buffer_and_keeps_raw_log():
+    outputs = _build(_base_trace(0), _tiny_shift(_base_trace(0)))
+    dyn = outputs["dept_prediction_dynamics_projection"].iloc[0]
+    packet = outputs["dept_prediction_output_packet"].iloc[0]
     assert dyn["predicted_dynamics_direction"] == "neutral"
     assert bool(dyn["neutral_buffer_applied"]) is True
+    assert dyn["raw_predicted_dynamics_direction"] in {"overconvergence", "fixation", "divergence"}
+    assert float(dyn["raw_predicted_dynamics_strength"]) >= 0.0
+    assert "small_delta" in str(dyn["neutral_buffer_reason"])
+    assert float(dyn["gradual_degradation_measure"]) >= 0.0
+    assert packet["raw_predicted_dynamics_direction"] == dyn["raw_predicted_dynamics_direction"]
+    assert float(packet["gradual_degradation_measure"]) == float(dyn["gradual_degradation_measure"])
 
 
 def test_relation_release_pattern_predicts_divergence():
@@ -130,6 +141,7 @@ def test_shrinking_equilibrium_pattern_predicts_fixation():
     dyn = _predict(current, projected)
     assert dyn["predicted_dynamics_direction"] == "fixation"
     assert float(dyn["fixation_direction_strength"]) >= float(dyn["overconvergence_direction_strength"])
+    assert float(dyn["gradual_degradation_measure"]) > 0.0
 
 
 def test_concentration_pattern_predicts_overconvergence():
