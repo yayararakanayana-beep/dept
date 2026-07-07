@@ -9,10 +9,12 @@ on:
       - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/dept_prediction_activation_module.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/dept_prediction_module.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/validation/dept_prediction_validation_suite.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/validation/dept_prediction_v2_validation_bench.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/contracts/cycle_state.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/runner/fullspec_integrated_closed_loop_runner.py'
       - 'tests/test_dept_prediction_module.py'
       - 'tests/test_dept_prediction_validation_suite.py'
+      - 'tests/test_dept_prediction_v2_validation_bench.py'
       - '.github/workflows/dept_prediction_module.yml'
 
 jobs:
@@ -34,3 +36,4 @@ jobs:
         run: |
           pytest -q tests/test_dept_prediction_module.py
           pytest -q tests/test_dept_prediction_validation_suite.py
+          pytest -q tests/test_dept_prediction_v2_validation_bench.py
