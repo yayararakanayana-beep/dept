@@ -1,6 +1,10 @@
 import pandas as pd
 
 from dept2_fullspec_runner_rc1.contracts import FullSpecRunnerConfig
+from dept2_fullspec_runner_rc1.modules.dept_prediction_activation_module import (
+    DEPTPredictionActivationModule,
+    PredictionActivationConfig,
+)
 from dept2_fullspec_runner_rc1.modules.dept_prediction_module import (
     DEPTPredictionModule,
     output_contains_judgment_terms,
@@ -57,6 +61,21 @@ def _trace(t: int, value_shift: float = 0.0):
         }
     ])
     return {"entity_trace": entity, "relation_trace": relation}
+
+
+def _direction_trace(t: int, drift: float = 0.0):
+    trace = _trace(t, 0.0)
+    e = trace["entity_trace"].copy()
+    r = trace["relation_trace"].copy()
+    e["exploration"] = e["exploration"] - drift
+    e["entropy"] = e["entropy"] - drift
+    e["reversibility"] = e["reversibility"] - drift
+    e["relation_lock"] = e["relation_lock"] + drift
+    r["relation_rigidity"] = r["relation_rigidity"] + drift
+    r["flow"] = r["flow"] - drift
+    trace["entity_trace"] = e
+    trace["relation_trace"] = r
+    return trace
 
 
 def _ot_tables():
@@ -129,6 +148,61 @@ def _ot_tables():
     return ot_action_view.copy(), ot_action_view, residual
 
 
+def test_prediction_activation_short_spike_requests_projection():
+    activation = DEPTPredictionActivationModule(
+        PredictionActivationConfig(initial_reference_score=0.0, standard_threshold=0.05, deep_threshold=0.20)
+    )
+    ot_native, ot_action_view, residual = _ot_tables()
+    first = activation.build(
+        world_trace_before=_trace(0, 0.0),
+        gt=pd.DataFrame(),
+        kt=pd.DataFrame(),
+        ot_native=ot_native,
+        ot_action_view=ot_action_view,
+        residual_noise_log=residual,
+        loop_step=0,
+        seed=7,
+        scenario="unit",
+    )
+    assert bool(first["standard_projection_requested"].iloc[0]) is False
+    second = activation.build(
+        world_trace_before=_trace(1, 0.35),
+        gt=pd.DataFrame(),
+        kt=pd.DataFrame(),
+        ot_native=ot_native,
+        ot_action_view=ot_action_view,
+        residual_noise_log=residual,
+        loop_step=1,
+        seed=7,
+        scenario="unit",
+    )
+    assert float(second["short_intensity_change"].iloc[0]) > 0.05
+    assert bool(second["standard_projection_requested"].iloc[0]) is True
+
+
+def test_prediction_activation_integrates_directional_drift():
+    activation = DEPTPredictionActivationModule(
+        PredictionActivationConfig(initial_reference_score=0.0, standard_threshold=0.004, deep_threshold=0.99, short_window=3, mid_window=6)
+    )
+    ot_native, ot_action_view, residual = _ot_tables()
+    last = pd.DataFrame()
+    for step in range(7):
+        last = activation.build(
+            world_trace_before=_direction_trace(step, drift=0.015 * step),
+            gt=pd.DataFrame(),
+            kt=pd.DataFrame(),
+            ot_native=ot_native,
+            ot_action_view=ot_action_view,
+            residual_noise_log=residual,
+            loop_step=step,
+            seed=7,
+            scenario="unit",
+        )
+    assert float(last["overconvergence_integral_mid"].iloc[0]) > 0.0
+    assert float(last["fixation_integral_mid"].iloc[0]) > 0.0
+    assert bool(last["standard_projection_requested"].iloc[0]) is True
+
+
 def test_prediction_module_emits_values_without_judgment_terms():
     module = DEPTPredictionModule()
     ot_native, ot_action_view, residual = _ot_tables()
@@ -187,6 +261,9 @@ def test_prediction_module_uses_baseline_trace_as_no_action_projection():
 def test_prediction_module_runner_integration_outputs_prediction_tables():
     cfg = FullSpecRunnerConfig(steps=1, seed=11, n_entities=8, run_baseline_shadow=True)
     outputs = run_fullspec_task16(cfg)
+    assert "dept_prediction_activation_state" in outputs
+    assert not outputs["dept_prediction_activation_state"].empty
+    assert bool(outputs["dept_prediction_activation_state"]["standard_projection_requested"].iloc[0]) is True
     for name in [
         "dept_prediction_entity_projection",
         "dept_prediction_relation_projection",
@@ -205,10 +282,10 @@ def test_prediction_module_is_dept_side_not_actionmodule_pull():
     runner = FullSpecIntegratedClosedLoopRunner(cfg)
     trace = runner.world_adapter.snapshot()
     artifacts = runner.run_cycle(0, trace)
+    assert artifacts.dept_prediction_activation_state is not None
+    assert not artifacts.dept_prediction_activation_state.empty
     assert artifacts.dept_prediction_output_packet is not None
     assert not artifacts.dept_prediction_output_packet.empty
     assert artifacts.baseline_trace_after is not None
     assert "prediction_packet_id" in artifacts.dept_prediction_output_packet.columns
-    # The prediction packet exists before action execution audit is constructed.
-    # It is built on the DEPT side from existing artifacts, not by the action module pulling internals.
     assert not artifacts.dept_prediction_global_summary.empty
