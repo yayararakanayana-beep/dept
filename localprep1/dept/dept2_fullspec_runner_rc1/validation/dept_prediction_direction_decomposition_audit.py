@@ -3,14 +3,8 @@
 Measurement-only audit for Task2-8j-24e.
 
 This audit does not change prediction behavior and does not define performance
-pass/fail thresholds. It exposes the internal and observed components behind
-prediction direction errors:
-
-- neutral buffer distance: how small the observed movement is,
-- shrink equilibrium measure: fixed/shrinking movement,
-- bias concentration measure: uneven concentration / skew proxy,
-- divergence release measure: loosening / expansion movement,
-- predicted direction strengths and margin.
+thresholds. It exposes the internal and observed components behind prediction
+direction errors, including the raw direction before neutral buffering.
 """
 from __future__ import annotations
 
@@ -46,15 +40,7 @@ class PredictionDirectionDecompositionAuditConfig:
     source_steps: int = 5
 
 
-ENTITY_METRICS = [
-    "activity",
-    "volatility",
-    "uncertainty",
-    "exploration",
-    "relation_lock",
-    "reversibility",
-    "entropy",
-]
+ENTITY_METRICS = ["activity", "volatility", "uncertainty", "exploration", "relation_lock", "reversibility", "entropy"]
 RELATION_METRICS = ["relation_strength", "relation_rigidity", "flow"]
 
 
@@ -99,7 +85,6 @@ def _trace_measurements(current: Dict[str, pd.DataFrame], future: Dict[str, pd.D
     e_future = future.get("entity_trace", pd.DataFrame())
     r_df = current.get("relation_trace", pd.DataFrame())
     r_future = future.get("relation_trace", pd.DataFrame())
-
     e_delta = {f"entity_{m}_delta_per_step": _mean_delta(e_df, e_future, ["entity_id"], m, horizon) for m in ENTITY_METRICS}
     r_delta = {f"relation_{m}_delta_per_step": _mean_delta(r_df, r_future, ["source", "target"], m, horizon) for m in RELATION_METRICS}
     e_std = {f"entity_{m}_spread_delta": _std_delta(e_df, e_future, m) for m in ENTITY_METRICS}
@@ -116,34 +101,11 @@ def _trace_measurements(current: Dict[str, pd.DataFrame], future: Dict[str, pd.D
     flow = r_delta["relation_flow_delta_per_step"]
 
     neutral_buffer_distance_measure = _rms(list(e_delta.values()) + list(r_delta.values()))
-    shrink_equilibrium_measure = _mean([
-        _pos(-activity),
-        _pos(-exploration),
-        _pos(-reversibility),
-        _pos(-entropy),
-        _pos(lock),
-        _pos(rigidity),
-        _pos(-flow),
-    ])
-    bias_concentration_measure = _mean([
-        _pos(e_std["entity_exploration_spread_delta"]),
-        _pos(e_std["entity_entropy_spread_delta"]),
-        _pos(e_std["entity_relation_lock_spread_delta"]),
-        _pos(r_std["relation_relation_rigidity_spread_delta"]),
-        _pos(-r_std["relation_flow_spread_delta"]),
-    ])
-    divergence_release_measure = _mean([
-        _pos(volatility),
-        _pos(uncertainty),
-        _pos(activity),
-        _pos(entropy),
-        _pos(exploration),
-        _pos(flow),
-        _pos(-rigidity),
-        _pos(-lock),
-    ])
+    shrink_equilibrium_measure = _mean([_pos(-activity), _pos(-exploration), _pos(-reversibility), _pos(-entropy), _pos(lock), _pos(rigidity), _pos(-flow)])
+    bias_concentration_measure = _mean([_pos(e_std["entity_exploration_spread_delta"]), _pos(e_std["entity_entropy_spread_delta"]), _pos(e_std["entity_relation_lock_spread_delta"]), _pos(r_std["relation_relation_rigidity_spread_delta"]), _pos(-r_std["relation_flow_spread_delta"])])
+    divergence_release_measure = _mean([_pos(volatility), _pos(uncertainty), _pos(activity), _pos(entropy), _pos(exploration), _pos(flow), _pos(-rigidity), _pos(-lock)])
+    gradual_degradation_measure = _mean([_pos(-exploration), _pos(-reversibility), _pos(-entropy), _pos(lock), _pos(rigidity), _pos(-flow), _pos(-activity) * 0.5])
     overconvergence_fixation_overlap_measure = min(shrink_equilibrium_measure, bias_concentration_measure)
-
     out = {}
     out.update(e_delta)
     out.update(r_delta)
@@ -154,6 +116,7 @@ def _trace_measurements(current: Dict[str, pd.DataFrame], future: Dict[str, pd.D
         "shrink_equilibrium_measure": shrink_equilibrium_measure,
         "bias_concentration_measure": bias_concentration_measure,
         "divergence_release_measure": divergence_release_measure,
+        "gradual_degradation_measure_observed": gradual_degradation_measure,
         "overconvergence_fixation_overlap_measure": overconvergence_fixation_overlap_measure,
     })
     return out
@@ -181,6 +144,13 @@ def _prediction_outputs(history: list[Dict[str, pd.DataFrame]], horizon: int, se
         "predicted_direction": str(dyn["predicted_dynamics_direction"]),
         "predicted_strength": float(dyn["predicted_dynamics_strength"]),
         "predicted_direction_margin": float(dyn["predicted_direction_margin"]),
+        "raw_predicted_direction": str(dyn.get("raw_predicted_dynamics_direction", dyn["predicted_dynamics_direction"])),
+        "raw_predicted_strength": float(dyn.get("raw_predicted_dynamics_strength", dyn["predicted_dynamics_strength"])),
+        "raw_predicted_direction_margin": float(dyn.get("raw_predicted_direction_margin", dyn["predicted_direction_margin"])),
+        "neutral_buffer_applied": bool(dyn.get("neutral_buffer_applied", False)),
+        "neutral_buffer_reason": str(dyn.get("neutral_buffer_reason", "")),
+        "neutral_buffer_distance_model": float(dyn.get("neutral_buffer_distance", 0.0)),
+        "gradual_degradation_measure_model": float(dyn.get("gradual_degradation_measure", 0.0)),
         "predicted_delta_intensity": float(dyn["projected_delta_intensity"]),
         "predicted_overconvergence_strength": float(dyn["overconvergence_direction_strength"]),
         "predicted_fixation_strength": float(dyn["fixation_direction_strength"]),
@@ -188,12 +158,7 @@ def _prediction_outputs(history: list[Dict[str, pd.DataFrame]], horizon: int, se
     }
 
 
-def run_direction_decomposition_case(
-    pattern: str,
-    seed: int,
-    noise_level: float,
-    cfg: PredictionDirectionDecompositionAuditConfig,
-) -> pd.DataFrame:
+def run_direction_decomposition_case(pattern: str, seed: int, noise_level: float, cfg: PredictionDirectionDecompositionAuditConfig) -> pd.DataFrame:
     total_steps = cfg.history_steps + cfg.source_steps + max(cfg.horizons) + 1
     traces = build_objective_trace_series(pattern, seed, noise_level, total_steps)
     rows: list[dict[str, object]] = []
@@ -219,6 +184,7 @@ def run_direction_decomposition_case(
                 "actual_divergence_score": float(actual_scores.get("divergence", 0.0)),
                 **predicted,
                 "direction_match": str(predicted["predicted_direction"]) == str(actual_direction),
+                "raw_direction_match": str(predicted["raw_predicted_direction"]) == str(actual_direction),
                 "strength_abs_error": abs(float(predicted["predicted_strength"]) - float(actual_strength)),
                 **measurements,
                 "future_usage": "heldout_answer_key_only",
@@ -233,16 +199,23 @@ def _group_summary(rows: pd.DataFrame) -> pd.DataFrame:
     return rows.groupby(["actual_direction", "predicted_direction", "pattern", "noise_level", "horizon"], as_index=False).agg(
         rows=("direction_match", "size"),
         direction_match_rate=("direction_match", "mean"),
+        raw_direction_match_rate=("raw_direction_match", "mean"),
+        neutral_buffer_rate=("neutral_buffer_applied", "mean"),
         mean_strength_abs_error=("strength_abs_error", "mean"),
         max_strength_abs_error=("strength_abs_error", "max"),
         mean_neutral_buffer_distance=("neutral_buffer_distance_measure", "mean"),
+        mean_neutral_buffer_distance_model=("neutral_buffer_distance_model", "mean"),
         mean_shrink_equilibrium_measure=("shrink_equilibrium_measure", "mean"),
         mean_bias_concentration_measure=("bias_concentration_measure", "mean"),
         mean_divergence_release_measure=("divergence_release_measure", "mean"),
+        mean_gradual_degradation_measure_model=("gradual_degradation_measure_model", "mean"),
+        mean_gradual_degradation_measure_observed=("gradual_degradation_measure_observed", "mean"),
         mean_predicted_overconvergence_strength=("predicted_overconvergence_strength", "mean"),
         mean_predicted_fixation_strength=("predicted_fixation_strength", "mean"),
         mean_predicted_divergence_strength=("predicted_divergence_strength", "mean"),
+        mean_raw_predicted_strength=("raw_predicted_strength", "mean"),
         mean_predicted_direction_margin=("predicted_direction_margin", "mean"),
+        mean_raw_predicted_direction_margin=("raw_predicted_direction_margin", "mean"),
     )
 
 
@@ -251,12 +224,16 @@ def _direction_confusion(rows: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     return rows.groupby(["actual_direction", "predicted_direction"], as_index=False).agg(
         rows=("direction_match", "size"),
+        raw_direction_match_rate=("raw_direction_match", "mean"),
+        neutral_buffer_rate=("neutral_buffer_applied", "mean"),
         mean_strength_abs_error=("strength_abs_error", "mean"),
         max_strength_abs_error=("strength_abs_error", "max"),
         mean_neutral_buffer_distance=("neutral_buffer_distance_measure", "mean"),
         mean_shrink_equilibrium_measure=("shrink_equilibrium_measure", "mean"),
         mean_bias_concentration_measure=("bias_concentration_measure", "mean"),
         mean_divergence_release_measure=("divergence_release_measure", "mean"),
+        mean_gradual_degradation_measure_model=("gradual_degradation_measure_model", "mean"),
+        mean_gradual_degradation_measure_observed=("gradual_degradation_measure_observed", "mean"),
     )
 
 
@@ -266,6 +243,8 @@ def _component_summary(rows: pd.DataFrame) -> pd.DataFrame:
     return rows.groupby(["actual_direction", "pattern"], as_index=False).agg(
         rows=("direction_match", "size"),
         direction_match_rate=("direction_match", "mean"),
+        raw_direction_match_rate=("raw_direction_match", "mean"),
+        neutral_buffer_rate=("neutral_buffer_applied", "mean"),
         mean_predicted_overconvergence_strength=("predicted_overconvergence_strength", "mean"),
         mean_predicted_fixation_strength=("predicted_fixation_strength", "mean"),
         mean_predicted_divergence_strength=("predicted_divergence_strength", "mean"),
@@ -273,6 +252,8 @@ def _component_summary(rows: pd.DataFrame) -> pd.DataFrame:
         mean_shrink_equilibrium_measure=("shrink_equilibrium_measure", "mean"),
         mean_bias_concentration_measure=("bias_concentration_measure", "mean"),
         mean_divergence_release_measure=("divergence_release_measure", "mean"),
+        mean_gradual_degradation_measure_model=("gradual_degradation_measure_model", "mean"),
+        mean_gradual_degradation_measure_observed=("gradual_degradation_measure_observed", "mean"),
         mean_relation_lock_delta=("entity_relation_lock_delta_per_step", "mean"),
         mean_relation_rigidity_delta=("relation_relation_rigidity_delta_per_step", "mean"),
         mean_flow_delta=("relation_flow_delta_per_step", "mean"),
@@ -298,9 +279,7 @@ def _boundary(rows: pd.DataFrame, cfg: PredictionDirectionDecompositionAuditConf
     }])
 
 
-def run_prediction_direction_decomposition_audit(
-    cfg: PredictionDirectionDecompositionAuditConfig | None = None,
-) -> dict[str, pd.DataFrame]:
+def run_prediction_direction_decomposition_audit(cfg: PredictionDirectionDecompositionAuditConfig | None = None) -> dict[str, pd.DataFrame]:
     cfg = cfg or PredictionDirectionDecompositionAuditConfig()
     parts: list[pd.DataFrame] = []
     for seed in cfg.seeds:
