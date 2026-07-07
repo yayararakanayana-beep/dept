@@ -2,6 +2,13 @@ name: Task2-8j-7b O_t Audit Layering
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_7b_ot_audit_layering.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_7b.py'
+      - '.github/workflows/task2_8j_7b_ot_audit_layering.yml'
 
 jobs:
   task2-8j-7b:

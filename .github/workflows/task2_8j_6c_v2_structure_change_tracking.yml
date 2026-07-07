@@ -2,6 +2,13 @@ name: Task2-8j-6c V2 Structure Change Tracking
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_6c_v2_structure_change_relation_field_tracking.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_6c.py'
+      - '.github/workflows/task2_8j_6c_v2_structure_change_tracking.yml'
 
 jobs:
   task2-8j-6c:
