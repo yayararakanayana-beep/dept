@@ -86,6 +86,7 @@ class CycleArtifacts:
     ot_observation_audit: pd.DataFrame = field(default_factory=pd.DataFrame)
     residual_noise_log: pd.DataFrame = field(default_factory=pd.DataFrame)
     residual_noise_ledger_audit: pd.DataFrame = field(default_factory=pd.DataFrame)
+    dept_prediction_activation_state: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_entity_projection: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_relation_projection: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_ot_context: pd.DataFrame = field(default_factory=pd.DataFrame)
