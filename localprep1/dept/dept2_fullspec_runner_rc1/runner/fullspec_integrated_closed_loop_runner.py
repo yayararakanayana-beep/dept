@@ -30,6 +30,14 @@ from dept2_fullspec_runner_rc1.modules.action_execution_module import ActionExec
 from dept2_fullspec_runner_rc1.modules.audit_ledger_module import AuditLedgerModule
 from dept2_fullspec_runner_rc1.modules.boundary_guard import BoundaryGuard
 
+PREDICTION_OUTPUT_NAMES = [
+    "dept_prediction_entity_projection",
+    "dept_prediction_relation_projection",
+    "dept_prediction_ot_context",
+    "dept_prediction_global_summary",
+    "dept_prediction_output_packet",
+]
+
 
 class FullSpecIntegratedClosedLoopRunner:
     """13-module runner through Task12 coactivation-gate integration."""
@@ -61,38 +69,25 @@ class FullSpecIntegratedClosedLoopRunner:
         for step in range(self.cfg.steps):
             artifacts = self.run_cycle(step=step, trace=trace)
             artifacts.cycle_audit_row = self.audit_ledger_module.build_cycle_row(artifacts)
-
-            # Task15: first-class unified boundary guard after all per-module
-            # audits exist.  The guard is diagnostic-only and emits its own
-            # audit table plus an optional violation report.
-            artifacts.boundary_guard_audit = self.boundary_guard.build_boundary_guard_audit(
-                artifacts, artifacts.cycle_audit_row
-            )
-            artifacts.boundary_violations.extend(
-                self.boundary_guard.validate_boundary_guard_audit(artifacts.boundary_guard_audit)
-            )
+            artifacts.boundary_guard_audit = self.boundary_guard.build_boundary_guard_audit(artifacts, artifacts.cycle_audit_row)
+            artifacts.boundary_violations.extend(self.boundary_guard.validate_boundary_guard_audit(artifacts.boundary_guard_audit))
             artifacts.boundary_violations.extend(self.boundary_guard.validate_audit_row(artifacts.cycle_audit_row))
-            artifacts.boundary_violation_report = self.boundary_guard.build_boundary_violation_report(
-                artifacts.boundary_guard_audit, artifacts.boundary_violations
-            )
-
-            # Rebuild row after guard validation so cycle-level violation counts
-            # include Task15 guard findings.
+            artifacts.boundary_violation_report = self.boundary_guard.build_boundary_violation_report(artifacts.boundary_guard_audit, artifacts.boundary_violations)
             artifacts.cycle_audit_row = self.audit_ledger_module.build_cycle_row(artifacts)
             cycles.append(artifacts)
             trace = artifacts.world_trace_after
 
-        return self.audit_ledger_module.collect_outputs(cycles)
+        outputs = self.audit_ledger_module.collect_outputs(cycles)
+        outputs.update(self._collect_prediction_outputs(cycles))
+        return outputs
 
     def run_cycle(self, step: int, trace) -> CycleArtifacts:
         artifacts = CycleArtifacts(step=step, seed=self.cfg.seed, scenario=self.cfg.scenario)
         artifacts.world_trace_before = trace
 
-        # 1. World trace boundary audit before any DEPT-side derivation.
         artifacts.world_trace_audit = self._tag(self.world_adapter.audit_trace(trace, step, phase="before_gk_build"), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_world_trace_audit(artifacts.world_trace_audit))
 
-        # 2. World trace -> G/K with read-only fingerprint audit.
         gk_out = self.gk_builder.build(trace, loop_step=step)
         artifacts.gt = self._tag(gk_out["gt"], step)
         artifacts.kt = self._tag(gk_out["kt"], step)
@@ -101,7 +96,6 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.boundary_violations.extend(self.boundary_guard.validate_formal_packet(artifacts.formal_packet))
         artifacts.boundary_violations.extend(self.boundary_guard.validate_gk_build_audit(artifacts.gk_build_audit))
 
-        # 3. O_t lower local surface and residual/noise ledger.
         ot_out = self.ot_observation_module.build(trace, artifacts.gt, artifacts.kt)
         artifacts.ot_native = self._tag(ot_out["ot_native"], step)
         artifacts.ot_action_view = self._tag(ot_out["ot_action_view"], step)
@@ -115,9 +109,6 @@ class FullSpecIntegratedClosedLoopRunner:
             artifacts.ot_observation_audit, artifacts.residual_noise_log, artifacts.residual_noise_ledger_audit,
         ))
 
-        # 3.5. DEPT-side prediction values.  This belongs before action planning:
-        # the action module must not fetch DEPT internals by itself.  The output
-        # remains prediction values only and does not contain risk/safe judgment.
         if self.cfg.run_baseline_shadow:
             artifacts.baseline_trace_after = self.world_adapter.baseline_step()
         prediction_out = self.dept_prediction_module.build(
@@ -138,15 +129,12 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.dept_prediction_global_summary = self._tag(prediction_out["dept_prediction_global_summary"], step)
         artifacts.dept_prediction_output_packet = self._tag(prediction_out["dept_prediction_output_packet"], step)
 
-        # 4. Upper pressure from formal G/K only.
         upper_out = self.upper_pressure_module.compute(artifacts.formal_packet, loop_step=step)
         artifacts.m_observation = self._tag(upper_out["m_observation"], step)
         artifacts.weak_pressure = self._tag(upper_out["weak_pressure"], step)
         artifacts.upper_pressure_audit = self._tag(upper_out["upper_pressure_audit"], step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_upper_pressure_audit(artifacts.upper_pressure_audit))
 
-        # 8 then 5 in execution order: existing RC1 parameter box needs H11 field.
-        # This preserves the user's conceptual boundary while binding to current code.
         trans_out = self.pressure_translation_module.translate(artifacts.m_observation, artifacts.weak_pressure, loop_step=step)
         artifacts.h11_local_pressure_field = self._tag(trans_out["h11_local_pressure_field"], step)
         artifacts.pressure_intent_bundle = self._tag(trans_out["pressure_intent_bundle"], step)
@@ -162,7 +150,6 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.boundary_violations.extend(self.boundary_guard.validate_parameter_shadow_audit(artifacts.parameter_shadow_audit))
         shadow_params = self.parameter_shadow_box.current_params()
 
-        # Task22C-Rev1-Q8: controlled canonical update boundary.
         canonical_out = self.canonical_update_module.evaluate(
             shadow_parameter_state=artifacts.shadow_parameter_state,
             parameter_shadow_audit=artifacts.parameter_shadow_audit,
@@ -179,17 +166,12 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.canonical_parameter_state = self._tag(canonical_out["canonical_parameter_state"], step)
         artifacts.canonical_write_audit = self._tag(canonical_out["canonical_write_audit"], step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_canonical_update(
-            artifacts.commit_gate_audit,
-            artifacts.rollback_snapshot,
-            artifacts.canonical_parameter_state,
-            artifacts.canonical_write_audit,
+            artifacts.commit_gate_audit, artifacts.rollback_snapshot, artifacts.canonical_parameter_state, artifacts.canonical_write_audit,
         ))
 
         binding_params = shadow_params
         if str(self.cfg.canonical_binding_source) == "canonical":
             binding_params = canonical_out["canonical_current_params"]
-
-        # Task22C-Rev1-Q2-U/Q8: bind ParameterBox values to module-owned parameter windows.
         binding_out = self.parameter_window_binder.bind(
             binding_params,
             artifacts.shadow_parameter_state,
@@ -200,7 +182,6 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.shadow_parameter_state = self._tag(binding_out["shadow_parameter_state"], step)
         artifacts.parameter_window_binding_audit = self._tag(binding_out["parameter_window_binding_audit"], step)
 
-        # 6. Exploration candidate generation + sandbox + decision.
         exp_out = self.exploration_module.run(
             artifacts.gt,
             artifacts.kt,
@@ -213,11 +194,8 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.exploration_sandbox = self._tag(exp_out["exploration_sandbox"], step)
         artifacts.exploration_decision = self._tag(exp_out["exploration_decision"], step)
 
-        # 7. Exploration local audit using v8-style support.
-        # Task8 made this a first-class persisted artifact; Task10 uses it to validate projection eligibility.
         artifacts.exploration_local_audit = self._tag(
-            self.local_audit_module.audit_exploration(artifacts.exploration_candidates, artifacts.ot_exploration_view, module_windows.get("local_audit", binding_params)),
-            step,
+            self.local_audit_module.audit_exploration(artifacts.exploration_candidates, artifacts.ot_exploration_view, module_windows.get("local_audit", binding_params)), step,
         )
         artifacts.boundary_violations.extend(self.boundary_guard.validate_local_audit_outputs(artifacts.exploration_local_audit, role="exploration_v8_audit"))
         bridge_out = self.exploration_bridge_module.project(artifacts.exploration_decision, artifacts.exploration_sandbox, artifacts.exploration_local_audit, module_windows.get("bridge", {}))
@@ -225,7 +203,6 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.exploration_sidecar = self._tag(bridge_out["exploration_sidecar"], step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_exploration_bridge(artifacts.exploration_sidecar, artifacts.exploration_projection))
 
-        # 9. Action surface planning: affordance + action candidates.
         action_out = self.action_surface_planning_module.plan(
             graph_objects=graph_objects,
             pressure_intents=artifacts.pressure_intent_bundle,
@@ -242,20 +219,14 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.local_observation_needs = self._tag(action_out["local_observation_needs"], step)
         artifacts.action_surface_planning_audit = self._tag(action_out["action_surface_planning_audit"], step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_surface_planning_audit(artifacts.action_surface_planning_audit))
-        artifacts.boundary_violations.extend(self.boundary_guard.validate_action_surface_outputs(
-            artifacts.action_affordance, artifacts.action_candidates, artifacts.local_observation_needs
-        ))
-        # sequence_events are retained as action_result side-channel in Task11.
+        artifacts.boundary_violations.extend(self.boundary_guard.validate_action_surface_outputs(artifacts.action_affordance, artifacts.action_candidates, artifacts.local_observation_needs))
         artifacts.action_result = self._tag(action_out["sequence_events"], step)
 
-        # 7. Action candidate local audit using v8 support.
         artifacts.action_local_audit = self._tag(
-            self.local_audit_module.audit_action(artifacts.action_candidates, graph_objects, module_windows.get("local_audit", binding_params)),
-            step,
+            self.local_audit_module.audit_action(artifacts.action_candidates, graph_objects, module_windows.get("local_audit", binding_params)), step,
         )
         artifacts.boundary_violations.extend(self.boundary_guard.validate_local_audit_outputs(artifacts.action_local_audit, role="action_v8_check"))
 
-        # 11. Coactivation gate.
         artifacts.coactivation_gate = self._tag(
             self.coactivation_gate_module.evaluate(
                 artifacts.weak_pressure,
@@ -265,12 +236,10 @@ class FullSpecIntegratedClosedLoopRunner:
                 artifacts.shadow_parameter_state,
                 artifacts.residual_noise_log,
                 module_windows.get("gate", {}),
-            ),
-            step,
+            ), step,
         )
         artifacts.boundary_violations.extend(self.boundary_guard.validate_coactivation_gate(artifacts.coactivation_gate))
 
-        # 12. Build ActionFrame only after gate, then apply through adapter.
         artifacts.action_frame = self._tag(
             self.action_execution_module.build_action_frame(
                 artifacts.action_candidates,
@@ -278,8 +247,7 @@ class FullSpecIntegratedClosedLoopRunner:
                 artifacts.action_local_audit,
                 artifacts.shadow_parameter_state,
                 artifacts.exploration_projection,
-            ),
-            step,
+            ), step,
         )
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_frame(artifacts.action_frame, artifacts.coactivation_gate))
 
@@ -303,8 +271,7 @@ class FullSpecIntegratedClosedLoopRunner:
                 exploration_sidecar=artifacts.exploration_sidecar,
                 world_trace_before=artifacts.world_trace_before,
                 world_trace_after=artifacts.world_trace_after,
-            ),
-            step,
+            ), step,
         )
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_execution_audit(artifacts.action_execution_audit))
         artifacts.world_transition_audit = self._tag(self.world_adapter.audit_transition(artifacts.world_trace_before, artifacts.world_trace_after, step), step)
@@ -316,6 +283,15 @@ class FullSpecIntegratedClosedLoopRunner:
     def write_outputs(self, out_dir: Path) -> dict:
         outputs = self.run()
         return self.audit_ledger_module.write_outputs(outputs, out_dir, self.cfg)
+
+    def _collect_prediction_outputs(self, cycles: List[CycleArtifacts]) -> Dict[str, pd.DataFrame]:
+        buckets: Dict[str, list[pd.DataFrame]] = {name: [] for name in PREDICTION_OUTPUT_NAMES}
+        for c in cycles:
+            for name in PREDICTION_OUTPUT_NAMES:
+                df = getattr(c, name)
+                if df is not None and not df.empty:
+                    buckets[name].append(df.copy())
+        return {name: pd.concat(frames, ignore_index=True) if frames else pd.DataFrame() for name, frames in buckets.items()}
 
     def _tag(self, df: pd.DataFrame, step: int) -> pd.DataFrame:
         if df is None or df.empty:
@@ -333,25 +309,20 @@ def run_fullspec_task16(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str,
 
 
 def run_fullspec_task10(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str, pd.DataFrame]:
-    # Backward-compatible alias for Task10 scripts.
     return run_fullspec_task16(cfg)
 
 
 def run_fullspec_task7(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str, pd.DataFrame]:
-    # Backward-compatible alias for Task7 scripts.
     return run_fullspec_task16(cfg)
 
 
 def run_fullspec_task15(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str, pd.DataFrame]:
-    # Backward-compatible alias for Task7 scripts.
     return run_fullspec_task16(cfg)
 
 
 def run_fullspec_task14(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str, pd.DataFrame]:
-    # Backward-compatible alias for Task7 scripts.
     return run_fullspec_task16(cfg)
 
 
 def run_fullspec_task8(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str, pd.DataFrame]:
-    # Backward-compatible alias for Task8 scripts.
     return run_fullspec_task16(cfg)
