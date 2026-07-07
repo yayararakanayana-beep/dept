@@ -20,6 +20,7 @@ on:
       - 'scripts/run_dept_prediction_objective_challenge_validation.py'
       - 'scripts/run_dept_prediction_direction_decomposition_audit.py'
       - 'tests/test_dept_prediction_module.py'
+      - 'tests/test_dept_prediction_module_direction_revision.py'
       - 'tests/test_dept_prediction_validation_suite.py'
       - 'tests/test_dept_prediction_v2_validation_bench.py'
       - 'tests/test_dept_prediction_full_validation_phase1.py'
@@ -45,6 +46,11 @@ jobs:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: |
           pytest -q --tb=short --disable-warnings tests/test_dept_prediction_module.py
+      - name: Run direction revision behavior tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q --tb=short --disable-warnings tests/test_dept_prediction_module_direction_revision.py
       - name: Run prediction validation suite tests
         env:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
