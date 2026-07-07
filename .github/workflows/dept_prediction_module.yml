@@ -11,14 +11,17 @@ on:
       - 'localprep1/dept/dept2_fullspec_runner_rc1/validation/dept_prediction_validation_suite.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/validation/dept_prediction_v2_validation_bench.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/validation/dept_prediction_full_validation_phase1.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/validation/dept_prediction_objective_challenge_validation.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/contracts/cycle_state.py'
       - 'localprep1/dept/dept2_fullspec_runner_rc1/runner/fullspec_integrated_closed_loop_runner.py'
       - 'scripts/run_dept_prediction_v2_validation_bench.py'
       - 'scripts/run_dept_prediction_full_validation_phase1.py'
+      - 'scripts/run_dept_prediction_objective_challenge_validation.py'
       - 'tests/test_dept_prediction_module.py'
       - 'tests/test_dept_prediction_validation_suite.py'
       - 'tests/test_dept_prediction_v2_validation_bench.py'
       - 'tests/test_dept_prediction_full_validation_phase1.py'
+      - 'tests/test_dept_prediction_objective_challenge_validation.py'
       - '.github/workflows/dept_prediction_module.yml'
 
 jobs:
@@ -54,6 +57,11 @@ jobs:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: |
           pytest -q --tb=short --disable-warnings tests/test_dept_prediction_full_validation_phase1.py
+      - name: Run objective challenge validation tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q --tb=short --disable-warnings tests/test_dept_prediction_objective_challenge_validation.py
       - name: Generate v2 heldout validation report
         env:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
@@ -64,6 +72,11 @@ jobs:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: |
           python scripts/run_dept_prediction_full_validation_phase1.py --out-dir artifacts/dept_prediction_full_validation_phase1
+      - name: Generate objective challenge validation report
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python scripts/run_dept_prediction_objective_challenge_validation.py --out-dir artifacts/dept_prediction_objective_challenge
       - name: Upload v2 prediction validation artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -74,3 +87,8 @@ jobs:
         with:
           name: dept-prediction-full-validation-phase1
           path: artifacts/dept_prediction_full_validation_phase1
+      - name: Upload objective challenge validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dept-prediction-objective-challenge
+          path: artifacts/dept_prediction_objective_challenge
