@@ -31,13 +31,21 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install pytest tabulate
-      - name: Run prediction module tests
+      - name: Run prediction module unit tests
         env:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
         run: |
-          pytest -q tests/test_dept_prediction_module.py
-          pytest -q tests/test_dept_prediction_validation_suite.py
-          pytest -q tests/test_dept_prediction_v2_validation_bench.py
+          pytest -q --tb=short --disable-warnings tests/test_dept_prediction_module.py
+      - name: Run prediction validation suite tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q --tb=short --disable-warnings tests/test_dept_prediction_validation_suite.py
+      - name: Run v2 prediction validation bench tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          pytest -q --tb=short --disable-warnings tests/test_dept_prediction_v2_validation_bench.py
       - name: Generate v2 heldout validation report
         env:
           PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
