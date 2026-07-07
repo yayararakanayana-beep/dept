@@ -90,6 +90,7 @@ class CycleArtifacts:
     dept_prediction_entity_projection: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_relation_projection: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_ot_context: pd.DataFrame = field(default_factory=pd.DataFrame)
+    dept_prediction_dynamics_projection: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_global_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
     dept_prediction_output_packet: pd.DataFrame = field(default_factory=pd.DataFrame)
     m_observation: pd.DataFrame = field(default_factory=pd.DataFrame)
