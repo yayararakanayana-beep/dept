@@ -1,6 +1,7 @@
 from dept2_fullspec_runner_rc1.validation.dept_prediction_validation_suite import (
     PredictionValidationConfig,
     PATTERNS,
+    CORE_DIRECTION_PATTERNS,
     run_dept_prediction_validation,
 )
 
@@ -13,9 +14,13 @@ def test_prediction_validation_suite_outputs_core_tables():
         "prediction_projection_rows",
         "prediction_projection_error_rows",
         "prediction_horizon_summary",
+        "prediction_dynamics_rows",
+        "prediction_dynamics_summary",
     }
     assert not outputs["prediction_activation_validation"].empty
     assert not outputs["prediction_activation_summary"].empty
+    assert not outputs["prediction_dynamics_rows"].empty
+    assert not outputs["prediction_dynamics_summary"].empty
     assert set(outputs["prediction_activation_summary"]["pattern"]) == set(PATTERNS)
 
 
@@ -36,6 +41,16 @@ def test_prediction_activation_channels_are_visible_for_core_patterns():
     assert summary.loc["divergence", "max_divergence_integral_mid"] > 0.0
     assert summary.loc["sudden_intensity", "max_short_intensity_change"] > 0.0
     assert summary.loc["sudden_angle", "max_short_angle_change"] > 0.0
+
+
+def test_dynamics_direction_accuracy_for_core_patterns():
+    outputs = run_dept_prediction_validation(PredictionValidationConfig(steps=8, activation_threshold=0.004, deep_threshold=0.99))
+    dynamics = outputs["prediction_dynamics_summary"]
+    assert not dynamics.empty
+    core = dynamics[dynamics["pattern"].isin(CORE_DIRECTION_PATTERNS)]
+    assert not core.empty
+    assert float(core["dynamics_direction_match_rate"].min()) >= 0.80
+    assert float(core["mean_predicted_dynamics_strength"].min()) > 0.0
 
 
 def test_projection_packaging_accuracy_by_horizon_when_future_trace_supplied():
