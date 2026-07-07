@@ -1,0 +1,31 @@
+name: DEPT Prediction Module
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/dept_prediction_module.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/contracts/cycle_state.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/runner/fullspec_integrated_closed_loop_runner.py'
+      - 'tests/test_dept_prediction_module.py'
+      - '.github/workflows/dept_prediction_module.yml'
+
+jobs:
+  dept-prediction-module:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run prediction module tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_dept_prediction_module.py
