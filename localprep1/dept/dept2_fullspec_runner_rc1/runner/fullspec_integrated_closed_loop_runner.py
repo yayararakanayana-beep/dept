@@ -1,10 +1,4 @@
-"""Modular FullSpec Integrated Closed Loop Runner - Task12 Coactivation Gate RC1.
-
-Task12 goal:
-  - Keep Task7 exploration, Task8 local audit, and Task10 exploration bridge.
-  - Strengthen coactivation_gate_module so pressure / exploration / action / shadow / noise coactivation is classified before ActionFrame.
-  - Preserve the gate as a bounded pre-ActionFrame safety valve, not a full combined-interference solution.
-"""
+"""Modular FullSpec Integrated Closed Loop Runner - Task12 Coactivation Gate RC1."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -15,6 +9,7 @@ from dept2_fullspec_runner_rc1.contracts import FullSpecRunnerConfig, CycleArtif
 from dept2_fullspec_runner_rc1.modules.world_adapter import WorldAdapter
 from dept2_fullspec_runner_rc1.modules.gk_builder import GKBuilderModule
 from dept2_fullspec_runner_rc1.modules.ot_observation_module import OtObservationModule
+from dept2_fullspec_runner_rc1.modules.dept_prediction_activation_module import DEPTPredictionActivationModule
 from dept2_fullspec_runner_rc1.modules.dept_prediction_module import DEPTPredictionModule
 from dept2_fullspec_runner_rc1.modules.upper_pressure_module import UpperPressureModule
 from dept2_fullspec_runner_rc1.modules.pressure_translation_module import PressureTranslationModule
@@ -31,6 +26,7 @@ from dept2_fullspec_runner_rc1.modules.audit_ledger_module import AuditLedgerMod
 from dept2_fullspec_runner_rc1.modules.boundary_guard import BoundaryGuard
 
 PREDICTION_OUTPUT_NAMES = [
+    "dept_prediction_activation_state",
     "dept_prediction_entity_projection",
     "dept_prediction_relation_projection",
     "dept_prediction_ot_context",
@@ -47,6 +43,7 @@ class FullSpecIntegratedClosedLoopRunner:
         self.world_adapter = WorldAdapter(cfg)
         self.gk_builder = GKBuilderModule(cfg)
         self.ot_observation_module = OtObservationModule()
+        self.dept_prediction_activation_module = DEPTPredictionActivationModule()
         self.dept_prediction_module = DEPTPredictionModule()
         self.upper_pressure_module = UpperPressureModule()
         self.pressure_translation_module = PressureTranslationModule()
@@ -65,7 +62,6 @@ class FullSpecIntegratedClosedLoopRunner:
     def run(self) -> Dict[str, pd.DataFrame]:
         cycles: List[CycleArtifacts] = []
         trace = self.world_adapter.snapshot()
-
         for step in range(self.cfg.steps):
             artifacts = self.run_cycle(step=step, trace=trace)
             artifacts.cycle_audit_row = self.audit_ledger_module.build_cycle_row(artifacts)
@@ -76,7 +72,6 @@ class FullSpecIntegratedClosedLoopRunner:
             artifacts.cycle_audit_row = self.audit_ledger_module.build_cycle_row(artifacts)
             cycles.append(artifacts)
             trace = artifacts.world_trace_after
-
         outputs = self.audit_ledger_module.collect_outputs(cycles)
         outputs.update(self._collect_prediction_outputs(cycles))
         return outputs
@@ -109,11 +104,8 @@ class FullSpecIntegratedClosedLoopRunner:
             artifacts.ot_observation_audit, artifacts.residual_noise_log, artifacts.residual_noise_ledger_audit,
         ))
 
-        if self.cfg.run_baseline_shadow:
-            artifacts.baseline_trace_after = self.world_adapter.baseline_step()
-        prediction_out = self.dept_prediction_module.build(
+        activation = self.dept_prediction_activation_module.build(
             world_trace_before=artifacts.world_trace_before,
-            baseline_trace_after=artifacts.baseline_trace_after,
             gt=artifacts.gt,
             kt=artifacts.kt,
             ot_native=artifacts.ot_native,
@@ -123,11 +115,28 @@ class FullSpecIntegratedClosedLoopRunner:
             seed=self.cfg.seed,
             scenario=self.cfg.scenario,
         )
-        artifacts.dept_prediction_entity_projection = self._tag(prediction_out["dept_prediction_entity_projection"], step)
-        artifacts.dept_prediction_relation_projection = self._tag(prediction_out["dept_prediction_relation_projection"], step)
-        artifacts.dept_prediction_ot_context = self._tag(prediction_out["dept_prediction_ot_context"], step)
-        artifacts.dept_prediction_global_summary = self._tag(prediction_out["dept_prediction_global_summary"], step)
-        artifacts.dept_prediction_output_packet = self._tag(prediction_out["dept_prediction_output_packet"], step)
+        artifacts.dept_prediction_activation_state = self._tag(activation, step)
+        projection_requested = bool(activation.get("standard_projection_requested", pd.Series([False])).iloc[0]) if not activation.empty else False
+        if projection_requested and self.cfg.run_baseline_shadow:
+            artifacts.baseline_trace_after = self.world_adapter.baseline_step()
+        if projection_requested:
+            prediction_out = self.dept_prediction_module.build(
+                world_trace_before=artifacts.world_trace_before,
+                baseline_trace_after=artifacts.baseline_trace_after,
+                gt=artifacts.gt,
+                kt=artifacts.kt,
+                ot_native=artifacts.ot_native,
+                ot_action_view=artifacts.ot_action_view,
+                residual_noise_log=artifacts.residual_noise_log,
+                loop_step=step,
+                seed=self.cfg.seed,
+                scenario=self.cfg.scenario,
+            )
+            artifacts.dept_prediction_entity_projection = self._tag(prediction_out["dept_prediction_entity_projection"], step)
+            artifacts.dept_prediction_relation_projection = self._tag(prediction_out["dept_prediction_relation_projection"], step)
+            artifacts.dept_prediction_ot_context = self._tag(prediction_out["dept_prediction_ot_context"], step)
+            artifacts.dept_prediction_global_summary = self._tag(prediction_out["dept_prediction_global_summary"], step)
+            artifacts.dept_prediction_output_packet = self._tag(prediction_out["dept_prediction_output_packet"], step)
 
         upper_out = self.upper_pressure_module.compute(artifacts.formal_packet, loop_step=step)
         artifacts.m_observation = self._tag(upper_out["m_observation"], step)
@@ -165,38 +174,22 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.rollback_snapshot = self._tag(canonical_out["rollback_snapshot"], step)
         artifacts.canonical_parameter_state = self._tag(canonical_out["canonical_parameter_state"], step)
         artifacts.canonical_write_audit = self._tag(canonical_out["canonical_write_audit"], step)
-        artifacts.boundary_violations.extend(self.boundary_guard.validate_canonical_update(
-            artifacts.commit_gate_audit, artifacts.rollback_snapshot, artifacts.canonical_parameter_state, artifacts.canonical_write_audit,
-        ))
+        artifacts.boundary_violations.extend(self.boundary_guard.validate_canonical_update(artifacts.commit_gate_audit, artifacts.rollback_snapshot, artifacts.canonical_parameter_state, artifacts.canonical_write_audit))
 
         binding_params = shadow_params
         if str(self.cfg.canonical_binding_source) == "canonical":
             binding_params = canonical_out["canonical_current_params"]
-        binding_out = self.parameter_window_binder.bind(
-            binding_params,
-            artifacts.shadow_parameter_state,
-            loop_step=step,
-            intermediate_conservatism_mode=self.cfg.intermediate_conservatism_mode,
-        )
+        binding_out = self.parameter_window_binder.bind(binding_params, artifacts.shadow_parameter_state, loop_step=step, intermediate_conservatism_mode=self.cfg.intermediate_conservatism_mode)
         module_windows = binding_out["module_window_values"]
         artifacts.shadow_parameter_state = self._tag(binding_out["shadow_parameter_state"], step)
         artifacts.parameter_window_binding_audit = self._tag(binding_out["parameter_window_binding_audit"], step)
 
-        exp_out = self.exploration_module.run(
-            artifacts.gt,
-            artifacts.kt,
-            artifacts.ot_exploration_view,
-            artifacts.residual_noise_log,
-            artifacts.shadow_parameter_state,
-            module_windows.get("exploration", {}),
-        )
+        exp_out = self.exploration_module.run(artifacts.gt, artifacts.kt, artifacts.ot_exploration_view, artifacts.residual_noise_log, artifacts.shadow_parameter_state, module_windows.get("exploration", {}))
         artifacts.exploration_candidates = self._tag(exp_out["exploration_candidates"], step)
         artifacts.exploration_sandbox = self._tag(exp_out["exploration_sandbox"], step)
         artifacts.exploration_decision = self._tag(exp_out["exploration_decision"], step)
 
-        artifacts.exploration_local_audit = self._tag(
-            self.local_audit_module.audit_exploration(artifacts.exploration_candidates, artifacts.ot_exploration_view, module_windows.get("local_audit", binding_params)), step,
-        )
+        artifacts.exploration_local_audit = self._tag(self.local_audit_module.audit_exploration(artifacts.exploration_candidates, artifacts.ot_exploration_view, module_windows.get("local_audit", binding_params)), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_local_audit_outputs(artifacts.exploration_local_audit, role="exploration_v8_audit"))
         bridge_out = self.exploration_bridge_module.project(artifacts.exploration_decision, artifacts.exploration_sandbox, artifacts.exploration_local_audit, module_windows.get("bridge", {}))
         artifacts.exploration_projection = self._tag(bridge_out["exploration_projection"], step)
@@ -222,33 +215,13 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_surface_outputs(artifacts.action_affordance, artifacts.action_candidates, artifacts.local_observation_needs))
         artifacts.action_result = self._tag(action_out["sequence_events"], step)
 
-        artifacts.action_local_audit = self._tag(
-            self.local_audit_module.audit_action(artifacts.action_candidates, graph_objects, module_windows.get("local_audit", binding_params)), step,
-        )
+        artifacts.action_local_audit = self._tag(self.local_audit_module.audit_action(artifacts.action_candidates, graph_objects, module_windows.get("local_audit", binding_params)), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_local_audit_outputs(artifacts.action_local_audit, role="action_v8_check"))
 
-        artifacts.coactivation_gate = self._tag(
-            self.coactivation_gate_module.evaluate(
-                artifacts.weak_pressure,
-                artifacts.exploration_projection,
-                artifacts.action_candidates,
-                artifacts.action_local_audit,
-                artifacts.shadow_parameter_state,
-                artifacts.residual_noise_log,
-                module_windows.get("gate", {}),
-            ), step,
-        )
+        artifacts.coactivation_gate = self._tag(self.coactivation_gate_module.evaluate(artifacts.weak_pressure, artifacts.exploration_projection, artifacts.action_candidates, artifacts.action_local_audit, artifacts.shadow_parameter_state, artifacts.residual_noise_log, module_windows.get("gate", {})), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_coactivation_gate(artifacts.coactivation_gate))
 
-        artifacts.action_frame = self._tag(
-            self.action_execution_module.build_action_frame(
-                artifacts.action_candidates,
-                artifacts.coactivation_gate,
-                artifacts.action_local_audit,
-                artifacts.shadow_parameter_state,
-                artifacts.exploration_projection,
-            ), step,
-        )
+        artifacts.action_frame = self._tag(self.action_execution_module.build_action_frame(artifacts.action_candidates, artifacts.coactivation_gate, artifacts.action_local_audit, artifacts.shadow_parameter_state, artifacts.exploration_projection), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_frame(artifacts.action_frame, artifacts.coactivation_gate))
 
         artifacts.world_trace_after = self.action_execution_module.apply(self.world_adapter, artifacts.action_frame)
@@ -260,24 +233,10 @@ class FullSpecIntegratedClosedLoopRunner:
             artifacts.v2_resource_trace = self._tag(artifacts.world_trace_after.get("v2_resource_trace", pd.DataFrame()), step)
             artifacts.v2_information_trace = self._tag(artifacts.world_trace_after.get("v2_information_trace", pd.DataFrame()), step)
             artifacts.v2_action_effect_trace = self._tag(artifacts.world_trace_after.get("v2_action_effect_trace", pd.DataFrame()), step)
-        artifacts.action_execution_audit = self._tag(
-            self.action_execution_module.audit_execution_boundary(
-                action_candidates=artifacts.action_candidates,
-                gate_decision=artifacts.coactivation_gate,
-                action_frame=artifacts.action_frame,
-                action_local_audit=artifacts.action_local_audit,
-                shadow_params=artifacts.shadow_parameter_state,
-                exploration_projection=artifacts.exploration_projection,
-                exploration_sidecar=artifacts.exploration_sidecar,
-                world_trace_before=artifacts.world_trace_before,
-                world_trace_after=artifacts.world_trace_after,
-            ), step,
-        )
+        artifacts.action_execution_audit = self._tag(self.action_execution_module.audit_execution_boundary(action_candidates=artifacts.action_candidates, gate_decision=artifacts.coactivation_gate, action_frame=artifacts.action_frame, action_local_audit=artifacts.action_local_audit, shadow_params=artifacts.shadow_parameter_state, exploration_projection=artifacts.exploration_projection, exploration_sidecar=artifacts.exploration_sidecar, world_trace_before=artifacts.world_trace_before, world_trace_after=artifacts.world_trace_after), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_execution_audit(artifacts.action_execution_audit))
         artifacts.world_transition_audit = self._tag(self.world_adapter.audit_transition(artifacts.world_trace_before, artifacts.world_trace_after, step), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_world_transition_audit(artifacts.world_transition_audit))
-        if self.cfg.run_baseline_shadow and artifacts.baseline_trace_after is None:
-            artifacts.baseline_trace_after = self.world_adapter.baseline_step()
         return artifacts
 
     def write_outputs(self, out_dir: Path) -> dict:
