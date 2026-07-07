@@ -1,8 +1,12 @@
 """Prediction Module Full Validation Phase 1.
 
 Purpose:
-  Measure whether the prediction module can estimate future dynamics direction
-  and strength from allowed public-history inputs only.
+  Measure prediction behavior, error size, baseline difference, and stability.
+
+This module intentionally does not define performance pass/fail thresholds.
+At this stage the validation output is descriptive: mean error, max error,
+p95 error, direction match rate, baseline deltas, seed stability, and boundary
+contract state.
 
 Boundary:
   - v2 is used only as a heldout answer generator by the validation layer.
@@ -10,18 +14,10 @@ Boundary:
     projected trace only.
   - v2 hidden/game/resource/information/action-effect traces are not passed to
     the prediction module.
-
-Phase 1 adds:
-  - multi-seed validation,
-  - profile/horizon summaries,
-  - neutral and previous-step baseline comparison,
-  - seed-stability summary,
-  - usable horizon estimates by profile and method.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
 
 import pandas as pd
 
@@ -53,8 +49,6 @@ class PredictionFullValidationPhase1Config:
     warmup_steps: int = 3
     source_steps: int = 8
     max_horizon: int = 5
-    direction_match_floor: float = 0.25
-    strength_abs_error_ceiling: float = 0.25
 
 
 def _bench_cfg(seed: int, cfg: PredictionFullValidationPhase1Config) -> V2PredictionBenchConfig:
@@ -64,9 +58,11 @@ def _bench_cfg(seed: int, cfg: PredictionFullValidationPhase1Config) -> V2Predic
         warmup_steps=cfg.warmup_steps,
         source_steps=cfg.source_steps,
         max_horizon=cfg.max_horizon,
-        direction_match_floor=cfg.direction_match_floor,
-        strength_abs_error_ceiling=cfg.strength_abs_error_ceiling,
     )
+
+
+def _p95(series: pd.Series) -> float:
+    return float(pd.to_numeric(series, errors="coerce").fillna(0.0).quantile(0.95))
 
 
 def _prediction_rows(profile: str, seed: int, cfg: PredictionFullValidationPhase1Config) -> pd.DataFrame:
@@ -157,21 +153,16 @@ def run_profile_seed_phase1(
 def _method_summary(rows: pd.DataFrame, cfg: PredictionFullValidationPhase1Config) -> pd.DataFrame:
     if rows.empty:
         return pd.DataFrame()
-    summary = rows.groupby(["method", "profile", "horizon"], as_index=False).agg(
+    return rows.groupby(["method", "profile", "horizon"], as_index=False).agg(
         direction_match_rate=("direction_match", "mean"),
         mean_strength_abs_error=("strength_abs_error", "mean"),
         max_strength_abs_error=("strength_abs_error", "max"),
+        p95_strength_abs_error=("strength_abs_error", _p95),
         mean_predicted_strength=("predicted_strength", "mean"),
         mean_actual_strength=("actual_strength", "mean"),
         rows=("direction_match", "size"),
         seeds=("seed", "nunique"),
     )
-    summary["usable_direction_match_floor"] = float(cfg.direction_match_floor)
-    summary["usable_strength_error_ceiling"] = float(cfg.strength_abs_error_ceiling)
-    summary["direction_floor_pass"] = summary["direction_match_rate"] >= cfg.direction_match_floor
-    summary["strength_error_pass"] = summary["mean_strength_abs_error"] <= cfg.strength_abs_error_ceiling
-    summary["usable_horizon_pass"] = summary["direction_floor_pass"] & summary["strength_error_pass"]
-    return summary
 
 
 def _seed_stability_summary(rows: pd.DataFrame) -> pd.DataFrame:
@@ -180,6 +171,7 @@ def _seed_stability_summary(rows: pd.DataFrame) -> pd.DataFrame:
     per_seed = rows.groupby(["method", "profile", "horizon", "seed"], as_index=False).agg(
         seed_direction_match_rate=("direction_match", "mean"),
         seed_mean_strength_abs_error=("strength_abs_error", "mean"),
+        seed_max_strength_abs_error=("strength_abs_error", "max"),
         rows=("direction_match", "size"),
     )
     return per_seed.groupby(["method", "profile", "horizon"], as_index=False).agg(
@@ -189,6 +181,7 @@ def _seed_stability_summary(rows: pd.DataFrame) -> pd.DataFrame:
         std_seed_direction_match_rate=("seed_direction_match_rate", "std"),
         mean_seed_strength_abs_error=("seed_mean_strength_abs_error", "mean"),
         max_seed_strength_abs_error=("seed_mean_strength_abs_error", "max"),
+        worst_seed_max_strength_abs_error=("seed_max_strength_abs_error", "max"),
         seeds=("seed_direction_match_rate", "size"),
     ).fillna(0.0)
 
@@ -206,6 +199,8 @@ def _comparison_summary(method_summary: pd.DataFrame) -> pd.DataFrame:
             "horizon",
             "direction_match_rate",
             "mean_strength_abs_error",
+            "max_strength_abs_error",
+            "p95_strength_abs_error",
             "rows",
             "seeds",
         ]
@@ -213,6 +208,8 @@ def _comparison_summary(method_summary: pd.DataFrame) -> pd.DataFrame:
         columns={
             "direction_match_rate": "prediction_direction_match_rate",
             "mean_strength_abs_error": "prediction_mean_strength_abs_error",
+            "max_strength_abs_error": "prediction_max_strength_abs_error",
+            "p95_strength_abs_error": "prediction_p95_strength_abs_error",
             "rows": "prediction_rows",
             "seeds": "prediction_seeds",
         }
@@ -224,6 +221,8 @@ def _comparison_summary(method_summary: pd.DataFrame) -> pd.DataFrame:
             "horizon",
             "direction_match_rate",
             "mean_strength_abs_error",
+            "max_strength_abs_error",
+            "p95_strength_abs_error",
             "rows",
             "seeds",
         ]
@@ -232,30 +231,35 @@ def _comparison_summary(method_summary: pd.DataFrame) -> pd.DataFrame:
             "method": "baseline_method",
             "direction_match_rate": "baseline_direction_match_rate",
             "mean_strength_abs_error": "baseline_mean_strength_abs_error",
+            "max_strength_abs_error": "baseline_max_strength_abs_error",
+            "p95_strength_abs_error": "baseline_p95_strength_abs_error",
             "rows": "baseline_rows",
             "seeds": "baseline_seeds",
         }
     )
     merged = base_cols.merge(pred_cols, on=["profile", "horizon"], how="left")
     merged["direction_match_lift"] = merged["prediction_direction_match_rate"] - merged["baseline_direction_match_rate"]
-    merged["strength_error_reduction"] = merged["baseline_mean_strength_abs_error"] - merged["prediction_mean_strength_abs_error"]
-    merged["prediction_beats_baseline_direction"] = merged["direction_match_lift"] > 0.0
-    merged["prediction_beats_baseline_strength"] = merged["strength_error_reduction"] > 0.0
+    merged["mean_strength_error_delta_vs_baseline"] = merged["prediction_mean_strength_abs_error"] - merged["baseline_mean_strength_abs_error"]
+    merged["max_strength_error_delta_vs_baseline"] = merged["prediction_max_strength_abs_error"] - merged["baseline_max_strength_abs_error"]
+    merged["p95_strength_error_delta_vs_baseline"] = merged["prediction_p95_strength_abs_error"] - merged["baseline_p95_strength_abs_error"]
     return merged
 
 
-def _usable_horizon_summary(method_summary: pd.DataFrame) -> pd.DataFrame:
+def _horizon_measurement_summary(method_summary: pd.DataFrame) -> pd.DataFrame:
     if method_summary.empty:
         return pd.DataFrame()
     out = []
     for (method, profile), group in method_summary.groupby(["method", "profile"]):
-        usable = group[group["usable_horizon_pass"]]
         out.append(
             {
                 "method": method,
                 "profile": profile,
-                "usable_horizon": int(usable["horizon"].max()) if not usable.empty else 0,
                 "tested_horizons": ",".join(str(int(h)) for h in sorted(group["horizon"].unique())),
+                "mean_direction_match_rate_across_horizons": float(group["direction_match_rate"].mean()),
+                "min_direction_match_rate_across_horizons": float(group["direction_match_rate"].min()),
+                "mean_strength_abs_error_across_horizons": float(group["mean_strength_abs_error"].mean()),
+                "max_strength_abs_error_across_horizons": float(group["max_strength_abs_error"].max()),
+                "p95_strength_abs_error_across_horizons": float(group["p95_strength_abs_error"].max()),
                 "rows": int(group["rows"].sum()),
                 "seeds": int(group["seeds"].max()) if not group.empty else 0,
             }
@@ -273,7 +277,8 @@ def _boundary_summary(rows: pd.DataFrame, cfg: PredictionFullValidationPhase1Con
                 "v2_future_usage": "heldout_answer_key_only",
                 "forbidden_prediction_input_keys": ",".join(sorted(FORBIDDEN_PREDICTION_INPUT_KEYS)),
                 "forbidden_v2_trace_keys_passed_to_prediction": forbidden_passed,
-                "boundary_pass": (not forbidden_passed) and (not rows.empty),
+                "boundary_violation_detected": forbidden_passed or rows.empty,
+                "rows_observed": int(len(rows)),
                 "n_seeds": len(cfg.seeds),
                 "n_profiles": len(cfg.profiles),
                 "n_methods": len(VALIDATION_METHODS),
@@ -295,13 +300,13 @@ def run_prediction_full_validation_phase1(
     method_summary = _method_summary(rows, cfg)
     seed_stability = _seed_stability_summary(rows)
     comparison = _comparison_summary(method_summary)
-    usable_horizon = _usable_horizon_summary(method_summary)
+    horizon_measurement = _horizon_measurement_summary(method_summary)
     boundary = _boundary_summary(rows, cfg)
     return {
         "prediction_full_validation_phase1_rows": rows,
         "prediction_full_validation_phase1_method_summary": method_summary,
         "prediction_full_validation_phase1_seed_stability": seed_stability,
         "prediction_full_validation_phase1_baseline_comparison": comparison,
-        "prediction_full_validation_phase1_usable_horizon": usable_horizon,
+        "prediction_full_validation_phase1_horizon_measurement": horizon_measurement,
         "prediction_full_validation_phase1_boundary": boundary,
     }
