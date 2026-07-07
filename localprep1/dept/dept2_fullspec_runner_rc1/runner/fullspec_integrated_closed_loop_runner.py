@@ -15,6 +15,7 @@ from dept2_fullspec_runner_rc1.contracts import FullSpecRunnerConfig, CycleArtif
 from dept2_fullspec_runner_rc1.modules.world_adapter import WorldAdapter
 from dept2_fullspec_runner_rc1.modules.gk_builder import GKBuilderModule
 from dept2_fullspec_runner_rc1.modules.ot_observation_module import OtObservationModule
+from dept2_fullspec_runner_rc1.modules.dept_prediction_module import DEPTPredictionModule
 from dept2_fullspec_runner_rc1.modules.upper_pressure_module import UpperPressureModule
 from dept2_fullspec_runner_rc1.modules.pressure_translation_module import PressureTranslationModule
 from dept2_fullspec_runner_rc1.modules.parameter_shadow_box import ParameterShadowBox
@@ -38,6 +39,7 @@ class FullSpecIntegratedClosedLoopRunner:
         self.world_adapter = WorldAdapter(cfg)
         self.gk_builder = GKBuilderModule(cfg)
         self.ot_observation_module = OtObservationModule()
+        self.dept_prediction_module = DEPTPredictionModule()
         self.upper_pressure_module = UpperPressureModule()
         self.pressure_translation_module = PressureTranslationModule()
         self.parameter_shadow_box = ParameterShadowBox()
@@ -112,6 +114,29 @@ class FullSpecIntegratedClosedLoopRunner:
             artifacts.ot_native, artifacts.ot_action_view, artifacts.ot_exploration_view,
             artifacts.ot_observation_audit, artifacts.residual_noise_log, artifacts.residual_noise_ledger_audit,
         ))
+
+        # 3.5. DEPT-side prediction values.  This belongs before action planning:
+        # the action module must not fetch DEPT internals by itself.  The output
+        # remains prediction values only and does not contain risk/safe judgment.
+        if self.cfg.run_baseline_shadow:
+            artifacts.baseline_trace_after = self.world_adapter.baseline_step()
+        prediction_out = self.dept_prediction_module.build(
+            world_trace_before=artifacts.world_trace_before,
+            baseline_trace_after=artifacts.baseline_trace_after,
+            gt=artifacts.gt,
+            kt=artifacts.kt,
+            ot_native=artifacts.ot_native,
+            ot_action_view=artifacts.ot_action_view,
+            residual_noise_log=artifacts.residual_noise_log,
+            loop_step=step,
+            seed=self.cfg.seed,
+            scenario=self.cfg.scenario,
+        )
+        artifacts.dept_prediction_entity_projection = self._tag(prediction_out["dept_prediction_entity_projection"], step)
+        artifacts.dept_prediction_relation_projection = self._tag(prediction_out["dept_prediction_relation_projection"], step)
+        artifacts.dept_prediction_ot_context = self._tag(prediction_out["dept_prediction_ot_context"], step)
+        artifacts.dept_prediction_global_summary = self._tag(prediction_out["dept_prediction_global_summary"], step)
+        artifacts.dept_prediction_output_packet = self._tag(prediction_out["dept_prediction_output_packet"], step)
 
         # 4. Upper pressure from formal G/K only.
         upper_out = self.upper_pressure_module.compute(artifacts.formal_packet, loop_step=step)
@@ -284,7 +309,8 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.boundary_violations.extend(self.boundary_guard.validate_action_execution_audit(artifacts.action_execution_audit))
         artifacts.world_transition_audit = self._tag(self.world_adapter.audit_transition(artifacts.world_trace_before, artifacts.world_trace_after, step), step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_world_transition_audit(artifacts.world_transition_audit))
-        artifacts.baseline_trace_after = self.world_adapter.baseline_step() if self.cfg.run_baseline_shadow else None
+        if self.cfg.run_baseline_shadow and artifacts.baseline_trace_after is None:
+            artifacts.baseline_trace_after = self.world_adapter.baseline_step()
         return artifacts
 
     def write_outputs(self, out_dir: Path) -> dict:
