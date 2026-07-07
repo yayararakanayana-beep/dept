@@ -27,7 +27,7 @@ def test_direction_decomposition_outputs_tables():
     assert all(table is not None and not table.empty for table in outputs.values())
 
 
-def test_direction_decomposition_rows_include_core_measurements():
+def test_direction_decomposition_rows_include_core_measurements_and_raw_logs():
     rows = run_prediction_direction_decomposition_audit(_small_cfg())["prediction_direction_decomposition_rows"]
     assert set(rows["actual_direction"]) == {"neutral", "overconvergence", "fixation", "divergence"}
     for col in [
@@ -35,6 +35,14 @@ def test_direction_decomposition_rows_include_core_measurements():
         "predicted_fixation_strength",
         "predicted_divergence_strength",
         "predicted_direction_margin",
+        "raw_predicted_direction",
+        "raw_predicted_strength",
+        "raw_predicted_direction_margin",
+        "neutral_buffer_applied",
+        "neutral_buffer_reason",
+        "neutral_buffer_distance_model",
+        "gradual_degradation_measure_model",
+        "gradual_degradation_measure_observed",
         "neutral_buffer_distance_measure",
         "shrink_equilibrium_measure",
         "bias_concentration_measure",
@@ -48,6 +56,8 @@ def test_direction_decomposition_rows_include_core_measurements():
     ]:
         assert col in rows.columns, col
         assert rows[col].notna().all(), col
+    assert rows["raw_predicted_direction"].isin({"neutral", "overconvergence", "fixation", "divergence"}).all()
+    assert rows["gradual_degradation_measure_model"].ge(0.0).all()
 
 
 def test_direction_decomposition_reports_confusion_and_components():
@@ -57,6 +67,8 @@ def test_direction_decomposition_reports_confusion_and_components():
     boundary = outputs["prediction_direction_decomposition_boundary"].iloc[0]
     assert "actual_direction" in confusion.columns
     assert "predicted_direction" in confusion.columns
+    assert "neutral_buffer_rate" in confusion.columns
+    assert "mean_gradual_degradation_measure_model" in component.columns
     assert "mean_divergence_release_measure" in component.columns
     assert "mean_shrink_equilibrium_measure" in component.columns
     assert bool(boundary["boundary_violation_detected"]) is False
