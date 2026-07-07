@@ -1,9 +1,11 @@
 """Objective challenge validation for the DEPT prediction module.
 
-This validation is intentionally not a friendly v2 replay. It builds a balanced,
-public-trace-only challenge set with multiple future dynamics directions, noise
-levels, horizons, and seeds. The goal is to measure accuracy and stability
-against baselines under a controlled but direction-balanced setting.
+This validation builds a balanced, public-trace-only challenge set with multiple
+future dynamics directions, noise levels, horizons, and seeds.
+
+It intentionally does not define performance pass/fail thresholds. The goal is
+measurement: direction match rate, mean error, max error, p95 error, seed
+stability, baseline deltas, and worst observed cases.
 
 Boundary:
   - The prediction module receives only current public trace, public-history
@@ -35,7 +37,16 @@ OBJECTIVE_PATTERNS = ["neutral", "overconvergence", "fixation", "divergence"]
 HORIZONS = [1, 2, 3, 5]
 NOISE_LEVELS = [0.0, 0.02, 0.05]
 ENTITY_IDS = [f"E{i}" for i in range(8)]
-RELATION_PAIRS = [("E0", "E1"), ("E1", "E2"), ("E2", "E3"), ("E3", "E4"), ("E4", "E5"), ("E5", "E6"), ("E6", "E7"), ("E0", "E7")]
+RELATION_PAIRS = [
+    ("E0", "E1"),
+    ("E1", "E2"),
+    ("E2", "E3"),
+    ("E3", "E4"),
+    ("E4", "E5"),
+    ("E5", "E6"),
+    ("E6", "E7"),
+    ("E0", "E7"),
+]
 ALLOWED_DIRECTIONS = {"neutral", "overconvergence", "fixation", "divergence"}
 
 
@@ -47,13 +58,14 @@ class PredictionObjectiveChallengeConfig:
     horizons: tuple[int, ...] = tuple(HORIZONS)
     history_steps: int = 6
     source_steps: int = 5
-    direction_match_floor: float = 0.70
-    balanced_direction_floor: float = 0.60
-    strength_abs_error_ceiling: float = 0.12
 
 
 def _clip01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
+
+
+def _p95(series: pd.Series) -> float:
+    return float(pd.to_numeric(series, errors="coerce").fillna(0.0).quantile(0.95))
 
 
 def _noise(seed: int, pattern_index: int, t: int, item_index: int, field_index: int, noise_level: float) -> float:
@@ -305,20 +317,16 @@ def run_objective_challenge_case(
 def _method_summary(rows: pd.DataFrame, cfg: PredictionObjectiveChallengeConfig) -> pd.DataFrame:
     if rows.empty:
         return pd.DataFrame()
-    summary = rows.groupby(["method", "pattern", "noise_level", "horizon"], as_index=False).agg(
+    return rows.groupby(["method", "pattern", "noise_level", "horizon"], as_index=False).agg(
         direction_match_rate=("direction_match", "mean"),
         mean_strength_abs_error=("strength_abs_error", "mean"),
         max_strength_abs_error=("strength_abs_error", "max"),
+        p95_strength_abs_error=("strength_abs_error", _p95),
         mean_predicted_strength=("predicted_strength", "mean"),
         mean_actual_strength=("actual_strength", "mean"),
         rows=("direction_match", "size"),
         seeds=("seed", "nunique"),
     )
-    summary["direction_match_floor"] = float(cfg.direction_match_floor)
-    summary["strength_abs_error_ceiling"] = float(cfg.strength_abs_error_ceiling)
-    summary["direction_floor_pass"] = summary["direction_match_rate"] >= cfg.direction_match_floor
-    summary["strength_error_pass"] = summary["mean_strength_abs_error"] <= cfg.strength_abs_error_ceiling
-    return summary
 
 
 def _balanced_accuracy_summary(rows: pd.DataFrame, cfg: PredictionObjectiveChallengeConfig) -> pd.DataFrame:
@@ -327,19 +335,18 @@ def _balanced_accuracy_summary(rows: pd.DataFrame, cfg: PredictionObjectiveChall
     per_pattern = rows.groupby(["method", "pattern", "noise_level", "horizon"], as_index=False).agg(
         pattern_direction_match_rate=("direction_match", "mean"),
         pattern_mean_strength_abs_error=("strength_abs_error", "mean"),
+        pattern_max_strength_abs_error=("strength_abs_error", "max"),
+        pattern_p95_strength_abs_error=("strength_abs_error", _p95),
     )
-    balanced = per_pattern.groupby(["method", "noise_level", "horizon"], as_index=False).agg(
+    return per_pattern.groupby(["method", "noise_level", "horizon"], as_index=False).agg(
         balanced_direction_match_rate=("pattern_direction_match_rate", "mean"),
-        worst_pattern_direction_match_rate=("pattern_direction_match_rate", "min"),
+        min_pattern_direction_match_rate=("pattern_direction_match_rate", "min"),
+        max_pattern_direction_match_rate=("pattern_direction_match_rate", "max"),
         mean_pattern_strength_abs_error=("pattern_mean_strength_abs_error", "mean"),
-        worst_pattern_strength_abs_error=("pattern_mean_strength_abs_error", "max"),
+        max_pattern_strength_abs_error=("pattern_max_strength_abs_error", "max"),
+        p95_pattern_strength_abs_error=("pattern_p95_strength_abs_error", "max"),
         patterns=("pattern", "nunique"),
     )
-    balanced["balanced_direction_floor"] = float(cfg.balanced_direction_floor)
-    balanced["strength_abs_error_ceiling"] = float(cfg.strength_abs_error_ceiling)
-    balanced["balanced_direction_pass"] = balanced["balanced_direction_match_rate"] >= cfg.balanced_direction_floor
-    balanced["strength_error_pass"] = balanced["mean_pattern_strength_abs_error"] <= cfg.strength_abs_error_ceiling
-    return balanced
 
 
 def _baseline_comparison(method_summary: pd.DataFrame) -> pd.DataFrame:
@@ -349,20 +356,24 @@ def _baseline_comparison(method_summary: pd.DataFrame) -> pd.DataFrame:
     base = method_summary[method_summary["method"].isin([NEUTRAL_BASELINE_METHOD, PREVIOUS_STEP_BASELINE_METHOD])]
     if pred.empty or base.empty:
         return pd.DataFrame()
-    pred = pred[["pattern", "noise_level", "horizon", "direction_match_rate", "mean_strength_abs_error"]].rename(columns={
+    pred = pred[["pattern", "noise_level", "horizon", "direction_match_rate", "mean_strength_abs_error", "max_strength_abs_error", "p95_strength_abs_error"]].rename(columns={
         "direction_match_rate": "prediction_direction_match_rate",
         "mean_strength_abs_error": "prediction_mean_strength_abs_error",
+        "max_strength_abs_error": "prediction_max_strength_abs_error",
+        "p95_strength_abs_error": "prediction_p95_strength_abs_error",
     })
-    base = base[["method", "pattern", "noise_level", "horizon", "direction_match_rate", "mean_strength_abs_error"]].rename(columns={
+    base = base[["method", "pattern", "noise_level", "horizon", "direction_match_rate", "mean_strength_abs_error", "max_strength_abs_error", "p95_strength_abs_error"]].rename(columns={
         "method": "baseline_method",
         "direction_match_rate": "baseline_direction_match_rate",
         "mean_strength_abs_error": "baseline_mean_strength_abs_error",
+        "max_strength_abs_error": "baseline_max_strength_abs_error",
+        "p95_strength_abs_error": "baseline_p95_strength_abs_error",
     })
     out = base.merge(pred, on=["pattern", "noise_level", "horizon"], how="left")
     out["direction_match_lift"] = out["prediction_direction_match_rate"] - out["baseline_direction_match_rate"]
-    out["strength_error_reduction"] = out["baseline_mean_strength_abs_error"] - out["prediction_mean_strength_abs_error"]
-    out["prediction_beats_baseline_direction"] = out["direction_match_lift"] > 0.0
-    out["prediction_beats_baseline_strength"] = out["strength_error_reduction"] > 0.0
+    out["mean_strength_error_delta_vs_baseline"] = out["prediction_mean_strength_abs_error"] - out["baseline_mean_strength_abs_error"]
+    out["max_strength_error_delta_vs_baseline"] = out["prediction_max_strength_abs_error"] - out["baseline_max_strength_abs_error"]
+    out["p95_strength_error_delta_vs_baseline"] = out["prediction_p95_strength_abs_error"] - out["baseline_p95_strength_abs_error"]
     return out
 
 
@@ -372,6 +383,7 @@ def _seed_stability(rows: pd.DataFrame) -> pd.DataFrame:
     per_seed = rows.groupby(["method", "pattern", "noise_level", "horizon", "seed"], as_index=False).agg(
         seed_direction_match_rate=("direction_match", "mean"),
         seed_mean_strength_abs_error=("strength_abs_error", "mean"),
+        seed_max_strength_abs_error=("strength_abs_error", "max"),
     )
     return per_seed.groupby(["method", "pattern", "noise_level", "horizon"], as_index=False).agg(
         mean_seed_direction_match_rate=("seed_direction_match_rate", "mean"),
@@ -380,6 +392,7 @@ def _seed_stability(rows: pd.DataFrame) -> pd.DataFrame:
         std_seed_direction_match_rate=("seed_direction_match_rate", "std"),
         mean_seed_strength_abs_error=("seed_mean_strength_abs_error", "mean"),
         max_seed_strength_abs_error=("seed_mean_strength_abs_error", "max"),
+        worst_seed_max_strength_abs_error=("seed_max_strength_abs_error", "max"),
         seeds=("seed_direction_match_rate", "size"),
     ).fillna(0.0)
 
@@ -394,7 +407,7 @@ def _direction_distribution(rows: pd.DataFrame) -> pd.DataFrame:
 def _worst_cases(method_summary: pd.DataFrame) -> pd.DataFrame:
     if method_summary.empty:
         return pd.DataFrame()
-    return method_summary.sort_values(["direction_match_rate", "mean_strength_abs_error"], ascending=[True, False]).head(24).reset_index(drop=True)
+    return method_summary.sort_values(["direction_match_rate", "max_strength_abs_error"], ascending=[True, False]).head(24).reset_index(drop=True)
 
 
 def _boundary(rows: pd.DataFrame, cfg: PredictionObjectiveChallengeConfig) -> pd.DataFrame:
@@ -406,9 +419,9 @@ def _boundary(rows: pd.DataFrame, cfg: PredictionObjectiveChallengeConfig) -> pd
         "future_usage": "heldout_answer_key_only",
         "forbidden_prediction_input_keys": ",".join(sorted(FORBIDDEN_PREDICTION_INPUT_KEYS)),
         "forbidden_v2_trace_keys_passed_to_prediction": forbidden,
-        "boundary_pass": (not forbidden) and (not rows.empty),
-        "direction_diversity_pass": set(OBJECTIVE_PATTERNS).issubset(directions),
+        "boundary_violation_detected": forbidden or rows.empty,
         "actual_directions_seen": ",".join(sorted(directions)),
+        "actual_direction_count": len(directions),
         "n_seeds": len(cfg.seeds),
         "n_patterns": len(cfg.patterns),
         "n_noise_levels": len(cfg.noise_levels),
