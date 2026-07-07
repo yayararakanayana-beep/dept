@@ -222,12 +222,14 @@ def test_prediction_module_emits_values_without_judgment_terms():
         "dept_prediction_entity_projection",
         "dept_prediction_relation_projection",
         "dept_prediction_ot_context",
+        "dept_prediction_dynamics_projection",
         "dept_prediction_global_summary",
         "dept_prediction_output_packet",
     }
     assert not outputs["dept_prediction_entity_projection"].empty
     assert not outputs["dept_prediction_relation_projection"].empty
     assert not outputs["dept_prediction_ot_context"].empty
+    assert not outputs["dept_prediction_dynamics_projection"].empty
     assert not outputs["dept_prediction_global_summary"].empty
     assert not outputs["dept_prediction_output_packet"].empty
     assert output_contains_judgment_terms(outputs) is False
@@ -256,6 +258,31 @@ def test_prediction_module_uses_baseline_trace_as_no_action_projection():
     assert row["projection_source"] == "baseline_no_action_trace"
     assert int(row["projection_horizon_steps"]) == 1
     assert abs(float(row["projected_no_action_delta"]) - 0.05) < 1e-9
+    assert abs(float(row["projected_no_action_delta_per_step"]) - 0.05) < 1e-9
+
+
+def test_prediction_module_emits_dynamics_direction_and_strength():
+    module = DEPTPredictionModule()
+    ot_native, ot_action_view, residual = _ot_tables()
+    outputs = module.build(
+        world_trace_before=_direction_trace(0, drift=0.0),
+        baseline_trace_after=_direction_trace(3, drift=0.18),
+        gt=pd.DataFrame(),
+        kt=pd.DataFrame(),
+        ot_native=ot_native,
+        ot_action_view=ot_action_view,
+        residual_noise_log=residual,
+        loop_step=0,
+        seed=7,
+        scenario="unit",
+    )
+    dynamics = outputs["dept_prediction_dynamics_projection"].iloc[0]
+    assert dynamics["predicted_dynamics_direction"] in {"overconvergence", "fixation", "divergence", "neutral"}
+    assert dynamics["predicted_dynamics_direction"] == "overconvergence"
+    assert float(dynamics["predicted_dynamics_strength"]) > 0.0
+    packet = outputs["dept_prediction_output_packet"].iloc[0]
+    assert packet["predicted_dynamics_direction"] == "overconvergence"
+    assert float(packet["predicted_dynamics_strength"]) > 0.0
 
 
 def test_prediction_module_runner_integration_outputs_prediction_tables():
