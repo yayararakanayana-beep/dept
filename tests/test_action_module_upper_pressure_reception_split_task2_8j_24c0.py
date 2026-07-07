@@ -36,13 +36,13 @@ def test_task2_8j_24c0_channels_are_correctly_separated():
     channel_status = dict(zip(channels["input_channel"].astype(str), channels["channel_status"].astype(str)))
     used_now = dict(zip(channels["input_channel"].astype(str), channels["used_now"].astype(bool)))
     assert channel_status["ot_information"] == "primary_current_route"
-    assert used_now["ot_information"] is True
+    assert bool(used_now["ot_information"]) is True
     assert channel_status["v8_local_observation_information"] == "auxiliary_current_route"
-    assert used_now["v8_local_observation_information"] is True
+    assert bool(used_now["v8_local_observation_information"]) is True
     assert channel_status["upper_pressure_information"] == "reserved_not_used_now"
-    assert used_now["upper_pressure_information"] is False
+    assert bool(used_now["upper_pressure_information"]) is False
     assert channel_status["exploration_axis_information"] == "deferred_not_used_now"
-    assert used_now["exploration_axis_information"] is False
+    assert bool(used_now["exploration_axis_information"]) is False
     assert packets["upper_pressure_channel_status"].astype(str).eq("reserved_not_used_now").all()
     assert packets["exploration_axis_channel_status"].astype(str).eq("deferred_not_used_now").all()
 
