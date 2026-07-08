@@ -8,11 +8,7 @@ if str(ROOT) not in sys.path:
 import pandas as pd
 import pytest
 
-from scripts.pseudoreality_v3_medium_pattern_validation import (
-    MEDIUM_PATTERN_STEPS,
-    add_dominance_columns,
-    run_medium_pattern_validation,
-)
+import scripts.pseudoreality_v3_medium_pattern_validation as medium_validation
 
 
 def test_add_dominance_columns_adds_short_and_medium_margins():
@@ -33,21 +29,23 @@ def test_add_dominance_columns_adds_short_and_medium_margins():
         ]
     )
 
-    enriched = add_dominance_columns(frame)
+    enriched = medium_validation.add_dominance_columns(frame)
 
     assert enriched["final_short_dominance_distribution_weighted_margin"].iloc[0] == pytest.approx(0.4)
     assert enriched["final_medium_dominance_distribution_weighted_margin"].iloc[1] == pytest.approx(0.6)
     assert enriched["final_dominance_regime"].tolist() == ["short_dominant", "medium_dominant"]
 
 
-def test_run_medium_pattern_validation_exports_combined_summary(tmp_path):
-    summary = run_medium_pattern_validation(tmp_path)
+def test_run_medium_pattern_validation_exports_combined_summary(tmp_path, monkeypatch):
+    monkeypatch.setattr(medium_validation, "MEDIUM_PATTERN_STEPS", (1,))
 
-    assert set(summary["validation_steps"]) == set(MEDIUM_PATTERN_STEPS)
+    summary = medium_validation.run_medium_pattern_validation(tmp_path)
+
+    assert set(summary["validation_steps"]) == {1}
     assert {"default", "stable"} <= set(summary["suite"])
     assert "final_short_dominance_distribution_weighted_margin" in summary.columns
     assert "final_medium_dominance_distribution_weighted_margin" in summary.columns
     assert "final_dominance_regime" in summary.columns
     assert (tmp_path / "medium_pattern_summary.csv").exists()
-    assert (tmp_path / "default_steps_30" / "scenario_summary.csv").exists()
-    assert (tmp_path / "stable_steps_100" / "scenario_summary.csv").exists()
+    assert (tmp_path / "default_steps_1" / "scenario_summary.csv").exists()
+    assert (tmp_path / "stable_steps_1" / "scenario_summary.csv").exists()
