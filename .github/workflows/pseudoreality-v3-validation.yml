@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "pseudo_reality/**"
+      - "scripts/pseudoreality_v3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
@@ -12,6 +13,7 @@ on:
       - main
     paths:
       - "pseudo_reality/**"
+      - "scripts/pseudoreality_v3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
@@ -50,6 +52,7 @@ jobs:
         run: |
           python -m py_compile pseudo_reality/distribution_terrain_v3.py
           python -m py_compile pseudo_reality/distribution_terrain_v3_scenarios.py
+          python -m py_compile scripts/pseudoreality_v3_medium_pattern_validation.py
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
@@ -86,6 +89,10 @@ jobs:
           export_suite("default", run_default_scenario_suite)
           export_suite("stable", run_stable_scenario_suite)
           PY
+
+      - name: Run medium pattern dominance validation
+        run: |
+          python scripts/pseudoreality_v3_medium_pattern_validation.py
 
       - name: Upload PseudoReality v3 validation artifacts
         uses: actions/upload-artifact@v4
