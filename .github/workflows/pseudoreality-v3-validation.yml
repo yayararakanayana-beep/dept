@@ -6,6 +6,7 @@ on:
       - "pseudo_reality/**"
       - "scripts/pseudoreality_v3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
+      - "tests/test_pseudoreality_v3*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
   push:
@@ -15,6 +16,7 @@ on:
       - "pseudo_reality/**"
       - "scripts/pseudoreality_v3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
+      - "tests/test_pseudoreality_v3*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
   workflow_dispatch:
@@ -56,7 +58,7 @@ jobs:
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
-          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py -q
+          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py -q
 
       - name: Run scenario suites and export summaries
         run: |
