@@ -26,6 +26,19 @@ BASELINE_EXTERNAL_FACTORS = {
 }
 
 
+DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS = (
+    "short_payoff_distribution_weighted_mean",
+    "medium_payoff_distribution_weighted_mean",
+    "short_medium_gap_distribution_weighted_mean",
+    "friction_distribution_weighted_mean",
+    "viscosity_distribution_weighted_mean",
+    "damage_distribution_weighted_mean",
+    "rigidity_distribution_weighted_mean",
+    "recovery_speed_distribution_weighted_mean",
+    "composite_payoff_distribution_weighted_mean",
+)
+
+
 @dataclass(frozen=True)
 class ScenarioPhase:
     start: int
@@ -166,6 +179,34 @@ def _external_factors_for_step(phases: tuple[ScenarioPhase, ...], t: int) -> dic
     return BASELINE_EXTERNAL_FACTORS
 
 
+def _distribution_weighted_terrain_row(world: DistributionTerrainV3World) -> dict[str, float | int | str]:
+    distribution = world.distribution
+
+    def weighted_mean(value: Any) -> float:
+        return float((distribution * value).sum())
+
+    short_medium_gap = abs(world.short_payoff - world.medium_payoff)
+    composite_payoff = (
+        world.config.short_term_weight * world.short_payoff
+        + world.config.medium_term_weight * world.medium_payoff
+        - world.friction
+    )
+    return {
+        "t": world.t,
+        "scenario": world.config.scenario,
+        "seed": world.config.seed,
+        "short_payoff_distribution_weighted_mean": weighted_mean(world.short_payoff),
+        "medium_payoff_distribution_weighted_mean": weighted_mean(world.medium_payoff),
+        "short_medium_gap_distribution_weighted_mean": weighted_mean(short_medium_gap),
+        "friction_distribution_weighted_mean": weighted_mean(world.friction),
+        "viscosity_distribution_weighted_mean": weighted_mean(world.viscosity),
+        "damage_distribution_weighted_mean": weighted_mean(world.damage),
+        "rigidity_distribution_weighted_mean": weighted_mean(world.rigidity),
+        "recovery_speed_distribution_weighted_mean": weighted_mean(world.recovery_speed),
+        "composite_payoff_distribution_weighted_mean": weighted_mean(composite_payoff),
+    }
+
+
 def _first_last_delta(summary: dict[str, Any], prefix: str, frame: pd.DataFrame, column: str) -> None:
     initial = float(frame[column].iloc[0])
     final = float(frame[column].iloc[-1])
@@ -178,6 +219,7 @@ def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[
     distribution = traces["v3_internal_distribution_trace"]
     flow = traces["v3_internal_flow_trace"]
     terrain = traces["v3_internal_terrain_trace"]
+    weighted_terrain = traces["v3_internal_distribution_weighted_terrain_trace"]
     external = traces["v3_internal_external_trace"]
     summary: dict[str, float | int | str] = {"scenario": spec.name, "seed": spec.seed, "steps": spec.steps}
 
@@ -199,6 +241,9 @@ def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[
     ):
         _first_last_delta(summary, column, terrain, column)
 
+    for column in DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS:
+        _first_last_delta(summary, column, weighted_terrain, column)
+
     summary["max_threshold_activation_strength"] = float(terrain["threshold_activation_strength"].max())
     summary["final_threshold_activation_strength"] = float(terrain["threshold_activation_strength"].iloc[-1])
     weighted_column = "distribution_weighted_threshold_activation_strength"
@@ -212,10 +257,13 @@ def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[
 def run_scenario(spec: ScenarioSpec) -> ScenarioResult:
     phases = _validate_phases(spec)
     world = DistributionTerrainV3World(DistributionTerrainV3Config(seed=spec.seed, scenario=spec.name))
+    weighted_terrain_rows = [_distribution_weighted_terrain_row(world)]
     for t in range(spec.steps):
         world.set_external_factors(_external_factors_for_step(phases, t))
         world.step()
+        weighted_terrain_rows.append(_distribution_weighted_terrain_row(world))
     traces = world.emit_trace()
+    traces["v3_internal_distribution_weighted_terrain_trace"] = pd.DataFrame(weighted_terrain_rows)
     return ScenarioResult(spec=spec, summary=_build_summary(spec, traces), traces=traces)
 
 
