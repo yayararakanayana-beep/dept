@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -8,6 +9,7 @@ MODULE_PATH = Path(__file__).resolve().parents[1] / "validation" / "task2_8j_29_
 SPEC = importlib.util.spec_from_file_location("task2_8j_29_validation", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 TASK2_8J_29 = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = TASK2_8J_29
 SPEC.loader.exec_module(TASK2_8J_29)
 
 
