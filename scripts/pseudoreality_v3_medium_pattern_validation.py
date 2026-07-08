@@ -23,6 +23,19 @@ SHORT_WEIGHTED_COLUMN = "final_short_payoff_distribution_weighted_mean"
 MEDIUM_WEIGHTED_COLUMN = "final_medium_payoff_distribution_weighted_mean"
 INITIAL_SHORT_WEIGHTED_COLUMN = "initial_short_payoff_distribution_weighted_mean"
 INITIAL_MEDIUM_WEIGHTED_COLUMN = "initial_medium_payoff_distribution_weighted_mean"
+COMPACT_PRINT_COLUMNS = (
+    "suite",
+    "validation_steps",
+    "scenario",
+    SHORT_WEIGHTED_COLUMN,
+    MEDIUM_WEIGHTED_COLUMN,
+    "final_short_dominance_distribution_weighted_margin",
+    "final_medium_dominance_distribution_weighted_margin",
+    "final_dominance_regime",
+    "final_composite_payoff_distribution_weighted_mean",
+    "final_damage_distribution_weighted_mean",
+    "final_total_flow",
+)
 
 
 def add_dominance_columns(summary: pd.DataFrame) -> pd.DataFrame:
@@ -100,6 +113,13 @@ def run_medium_pattern_validation(output_dir: str | Path) -> pd.DataFrame:
     return combined
 
 
+def compact_readout(table: pd.DataFrame) -> pd.DataFrame:
+    """Return a compact, log-safe readout for GitHub Actions output."""
+
+    available = [column for column in COMPACT_PRINT_COLUMNS if column in table.columns]
+    return table[available].copy()
+
+
 if __name__ == "__main__":
     table = run_medium_pattern_validation("outputs/pseudoreality-v3-validation/medium-pattern")
-    print(table.to_string(index=False))
+    print(compact_readout(table).to_string(index=False))
