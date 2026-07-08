@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:
 import pandas as pd
 
 from pseudo_reality.distribution_terrain_v3_scenarios import (
+    DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS,
     default_scenario_specs,
     make_static_scenario,
     run_default_scenario_suite,
@@ -72,6 +73,11 @@ REQUIRED_SUMMARY_COLUMNS = {
     "final_distribution_weighted_threshold_activation_strength",
     "max_external_deformation_strength",
     "final_external_deformation_strength",
+    *{
+        prefix + column
+        for column in DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS
+        for prefix in ("initial_", "final_", "delta_")
+    },
 }
 
 
@@ -111,6 +117,7 @@ def test_distribution_terrain_v3_run_scenario_returns_summary_and_traces():
         "v3_internal_flow_trace",
         "v3_internal_external_trace",
         "v3_internal_auxiliary_trace",
+        "v3_internal_distribution_weighted_terrain_trace",
     }
     for frame in result.traces.values():
         assert isinstance(frame, pd.DataFrame)
@@ -131,6 +138,16 @@ def test_distribution_terrain_v3_scenario_summary_has_required_columns():
 
     missing = REQUIRED_SUMMARY_COLUMNS - set(summary.columns)
     assert not missing, f"Missing columns: {sorted(missing)}"
+
+
+def test_distribution_terrain_v3_weighted_terrain_trace_has_required_columns():
+    result = run_scenario(make_static_scenario("baseline", {}, seed=0, steps=5))
+    weighted = result.traces["v3_internal_distribution_weighted_terrain_trace"]
+
+    assert set(DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS) <= set(weighted.columns)
+    assert len(weighted) == 6
+    for column in DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS:
+        assert weighted[column].notna().all()
 
 
 def test_distribution_terrain_v3_scenario_module_has_no_phenomenon_flag_strings():
