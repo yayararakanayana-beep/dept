@@ -32,6 +32,7 @@ class FullSpecRunnerConfig:
     kt_window: int = 6
     gt_route: str = "legacy"  # legacy | static_pca_7_smoke
     task2_8j_bridge_enabled: bool = False
+    action_planning_route: str = "legacy"  # legacy | task2_8j_primary
     world_profile_name: str = "pseudo_reality_default"
     action_profile_name: str = "action_default"
     validation_profile_name: str = "smoke"
