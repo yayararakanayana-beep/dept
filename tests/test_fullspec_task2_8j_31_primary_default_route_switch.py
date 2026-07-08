@@ -85,14 +85,17 @@ def test_task2_8j_31_explicit_legacy_override_remains_available():
     outputs = run_fullspec_task16(cfg)
 
     gt = outputs["gt"]
+    gk_audit = outputs["gk_build_audit"]
     planning = outputs["action_surface_planning_audit"]
     candidates = outputs["action_candidates"]
     execution = outputs["action_execution_audit"]
     bridge = outputs.get("task2_8j_bridge_audit")
 
     assert gt is not None and not gt.empty
-    assert set(gt["gt_route_selected"].astype(str)) == {"legacy"}
-    assert set(gt["legacy_gt_deleted_by_gt_route"].astype(bool)) == {False}
+    assert gk_audit is not None and not gk_audit.empty
+    assert set(gk_audit["gt_route_selected"].astype(str)) == {"legacy"}
+    assert set(gk_audit["legacy_gt_deleted"].astype(bool)) == {False}
+    assert set(gk_audit["static_pca7_view_attached"].astype(bool)) == {False}
 
     assert bridge is None or bridge.empty
 
