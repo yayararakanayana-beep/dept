@@ -2,8 +2,8 @@
 
 This script is diagnostic-only. It post-processes PseudoReality v3 scenario
 summaries to add short/medium dominance readouts and total-gain tension
-readouts, then exports a 30-step medium validation summary table for default
-and stable scenario suites.
+readouts, then exports a 30-step medium validation summary table for default,
+stable, and typical-pattern scenario suites.
 
 The 50+ step range is intentionally left for the dedicated heavier validation
 phase because it is too heavy for routine pull-request validation.
@@ -20,6 +20,7 @@ from pseudo_reality.distribution_terrain_v3_scenarios import (
     run_default_scenario_suite,
     run_stable_scenario_suite,
 )
+from scripts.pseudoreality_v3_typical_pattern_suite import run_typical_pattern_scenario_suite
 
 
 MEDIUM_PATTERN_STEPS = (30,)
@@ -154,7 +155,7 @@ def _export_suite(
 
 
 def run_medium_pattern_validation(output_dir: str | Path) -> pd.DataFrame:
-    """Run default/stable scenario suites for 30 steps and export summaries."""
+    """Run default/stable/typical scenario suites for 30 steps and export summaries."""
 
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -162,6 +163,7 @@ def run_medium_pattern_validation(output_dir: str | Path) -> pd.DataFrame:
     suites = (
         ("default", run_default_scenario_suite),
         ("stable", run_stable_scenario_suite),
+        ("typical", run_typical_pattern_scenario_suite),
     )
     for steps in MEDIUM_PATTERN_STEPS:
         for suite_name, runner in suites:
