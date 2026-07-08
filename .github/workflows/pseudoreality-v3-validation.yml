@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "pseudo_reality/**"
+      - "scripts/pseudoreality_v3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
+      - "tests/test_pseudoreality_v3*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
   push:
@@ -12,7 +14,9 @@ on:
       - main
     paths:
       - "pseudo_reality/**"
+      - "scripts/pseudoreality_v3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
+      - "tests/test_pseudoreality_v3*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
   workflow_dispatch:
@@ -25,7 +29,7 @@ jobs:
   pseudoreality-v3-light-validation:
     name: PseudoReality v3 light validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -50,10 +54,11 @@ jobs:
         run: |
           python -m py_compile pseudo_reality/distribution_terrain_v3.py
           python -m py_compile pseudo_reality/distribution_terrain_v3_scenarios.py
+          python -m py_compile scripts/pseudoreality_v3_medium_pattern_validation.py
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
-          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py -q
+          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py -q
 
       - name: Run scenario suites and export summaries
         run: |
@@ -87,9 +92,30 @@ jobs:
           export_suite("stable", run_stable_scenario_suite)
           PY
 
+      - name: Run medium pattern dominance validation
+        run: |
+          mkdir -p outputs/pseudoreality-v3-validation/medium-pattern
+          python - <<'PY'
+          from pathlib import Path
+          import traceback
+
+          error_path = Path("outputs/pseudoreality-v3-validation/medium-pattern/error.txt")
+          try:
+              from scripts.pseudoreality_v3_medium_pattern_validation import (
+                  compact_readout,
+                  run_medium_pattern_validation,
+              )
+              table = run_medium_pattern_validation("outputs/pseudoreality-v3-validation/medium-pattern")
+              print(compact_readout(table).to_string(index=False))
+          except Exception:
+              error_path.write_text(traceback.format_exc(), encoding="utf-8")
+              raise
+          PY
+
       - name: Upload PseudoReality v3 validation artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pseudoreality-v3-validation-summary
           path: outputs/pseudoreality-v3-validation/
-          if-no-files-found: error
+          if-no-files-found: warn
