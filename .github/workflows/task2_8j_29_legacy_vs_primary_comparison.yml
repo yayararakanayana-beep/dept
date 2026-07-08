@@ -1,0 +1,43 @@
+name: Task2-8j-29 Legacy vs Primary Comparison
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'validation/task2_8j_29_legacy_vs_primary_multistep_comparison.py'
+      - 'tests/test_task2_8j_29_legacy_vs_primary_multistep_comparison.py'
+      - '.github/workflows/task2_8j_29_legacy_vs_primary_comparison.yml'
+      - 'docs/task2_8j_29_legacy_vs_primary_comparison.md'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/**'
+
+jobs:
+  task2-8j-29-legacy-vs-primary-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run Task2-8j-29 comparison pytest
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_task2_8j_29_legacy_vs_primary_multistep_comparison.py
+      - name: Write Task2-8j-29 comparison artifacts
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: python validation/task2_8j_29_legacy_vs_primary_multistep_comparison.py
+      - name: Upload Task2-8j-29 comparison artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task2-8j-29-legacy-vs-primary-comparison
+          path: results/task2_8j_29_legacy_vs_primary_multistep_comparison/
+          if-no-files-found: warn
