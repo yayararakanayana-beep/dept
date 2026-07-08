@@ -35,6 +35,15 @@ _EXTERNAL_FACTOR_DEFAULTS = {
     "external_constraint_pressure": 0.0,
 }
 
+_EXTERNAL_DEFORMATION_RATE_DEFAULTS = {
+    "resource_supply": 0.03,
+    "demand": 0.02,
+    "competition_pressure": 0.03,
+    "information_noise": 0.03,
+    "shock": 0.05,
+    "constraint_pressure": 0.03,
+}
+
 _THRESHOLD_DEFAULTS = {
     "resource_slack_low": 0.2,
     "information_quality_low": 0.2,
@@ -71,6 +80,7 @@ class DistributionTerrainV3Config:
     concentration_damage_threshold: float = 0.002
 
     external_factors: dict[str, float] | None = None
+    external_deformation_rates: dict[str, float] | None = None
     thresholds: dict[str, float] | None = None
 
     @classmethod
@@ -105,6 +115,7 @@ class DistributionTerrainV3Config:
         flattened.setdefault("base_recovery_speed", defaults.get("base_recovery_speed", cls.base_recovery_speed))
 
         flattened.setdefault("external_factors", data.get("external_factors"))
+        flattened.setdefault("external_deformation_rates", data.get("external_deformation_rates"))
         flattened.setdefault("thresholds", data.get("thresholds"))
         return cls(**flattened)
 
@@ -119,14 +130,23 @@ class DistributionTerrainV3World:
 
     def __init__(self, config: DistributionTerrainV3Config | None = None) -> None:
         self.config = config or DistributionTerrainV3Config()
-        if len(self.config.axes) != 5:
-            raise ValueError("DistributionTerrainV3World expects exactly five axes")
+        if tuple(self.config.axes) != _AXIS_NAMES:
+            raise ValueError(
+                "DistributionTerrainV3World expects axes to exactly match "
+                f"{_AXIS_NAMES!r}; got {tuple(self.config.axes)!r}"
+            )
         if self.config.n_bins < 2:
             raise ValueError("n_bins must be at least 2")
         self.shape = (self.config.n_bins,) * len(self.config.axes)
         self.rng = np.random.default_rng(self.config.seed)
         self.external_factors = dict(_EXTERNAL_FACTOR_DEFAULTS)
         self.external_factors.update(self.config.external_factors or {})
+        self.external_factors = {key: float(np.clip(value, -1.0, 1.0)) for key, value in self.external_factors.items()}
+        unknown_external = set(self.external_factors) - set(_EXTERNAL_FACTOR_DEFAULTS)
+        if unknown_external:
+            raise ValueError(f"Unknown external factor keys: {sorted(unknown_external)!r}")
+        self.external_deformation_rates = dict(_EXTERNAL_DEFORMATION_RATE_DEFAULTS)
+        self.external_deformation_rates.update(self.config.external_deformation_rates or {})
         self.thresholds = dict(_THRESHOLD_DEFAULTS)
         self.thresholds.update(self.config.thresholds or {})
         self.reset()
@@ -150,6 +170,7 @@ class DistributionTerrainV3World:
         self.rigidity = np.full(self.shape, 0.05, dtype=float)
         self.recovery_speed = np.full(self.shape, self.config.base_recovery_speed, dtype=float)
         self.last_flow = np.zeros(self.shape, dtype=float)
+        self.last_external_deformation_strength = 0.0
 
         self._distribution_trace: list[dict[str, Any]] = []
         self._terrain_trace: list[dict[str, Any]] = []
@@ -159,6 +180,7 @@ class DistributionTerrainV3World:
         self._record_trace(total_flow=0.0, stay_mass=float(self.distribution.sum()))
 
     def step(self) -> None:
+        self.last_external_deformation_strength = self._apply_external_factors()
         composite = self._composite_payoff()
         new_distribution, inbound_flow, total_flow, stay_mass = self._flow_distribution(composite)
         self.distribution = np.maximum(new_distribution, 0.0)
@@ -189,6 +211,94 @@ class DistributionTerrainV3World:
             self.distribution = np.full(self.shape, 1.0 / np.prod(self.shape), dtype=float)
         else:
             self.distribution /= total
+
+
+    def set_external_factors(self, updates: dict[str, float]) -> None:
+        """Update known external factors, clipping values to the v3 RC1 factor range."""
+
+        unknown = set(updates) - set(_EXTERNAL_FACTOR_DEFAULTS)
+        if unknown:
+            raise ValueError(f"Unknown external factor keys: {sorted(unknown)!r}")
+        for key, value in updates.items():
+            self.external_factors[key] = float(np.clip(float(value), -1.0, 1.0))
+
+    def _apply_external_factors(self) -> float:
+        resource, info, pressure, exploration, reversibility = self._coordinate_grids()
+        short_delta = np.zeros(self.shape, dtype=float)
+        medium_delta = np.zeros(self.shape, dtype=float)
+        friction_delta = np.zeros(self.shape, dtype=float)
+        viscosity_delta = np.zeros(self.shape, dtype=float)
+        damage_delta = np.zeros(self.shape, dtype=float)
+        rigidity_delta = np.zeros(self.shape, dtype=float)
+        recovery_delta = np.zeros(self.shape, dtype=float)
+        rates = self.external_deformation_rates
+
+        supply = float(np.clip(self.external_factors["external_resource_supply"], -1.0, 1.0))
+        rate = float(rates["resource_supply"])
+        if supply >= 0.0:
+            medium_delta += rate * supply * resource
+            recovery_delta += 0.5 * rate * supply
+        else:
+            scarcity = 1.0 - resource
+            short_delta += rate * (-supply) * scarcity
+            medium_delta -= rate * (-supply) * scarcity
+            friction_delta += 0.5 * rate * (-supply) * scarcity
+
+        demand = float(np.clip(self.external_factors["external_demand"], -1.0, 1.0))
+        rate = float(rates["demand"])
+        if demand >= 0.0:
+            short_delta += rate * demand * (0.5 + 0.5 * pressure)
+            damage_delta += 0.25 * rate * demand * pressure
+        else:
+            short_delta += rate * demand
+            viscosity_delta += 0.5 * rate * (-demand)
+
+        competition = max(0.0, float(np.clip(self.external_factors["external_competition_pressure"], -1.0, 1.0)))
+        rate = float(rates["competition_pressure"])
+        short_delta += rate * competition * pressure
+        medium_delta -= rate * competition * (1.0 - exploration)
+        rigidity_delta += 0.5 * rate * competition * pressure
+
+        noise = max(0.0, float(np.clip(self.external_factors["external_information_noise"], -1.0, 1.0)))
+        rate = float(rates["information_noise"])
+        low_info = 1.0 - info
+        medium_delta -= rate * noise * low_info
+        short_delta += 0.5 * rate * noise * (pressure + (1.0 - exploration)) / 2.0
+        friction_delta += 0.5 * rate * noise * low_info
+        viscosity_delta += 0.25 * rate * noise
+
+        shock = max(0.0, float(np.clip(self.external_factors["external_shock"], -1.0, 1.0)))
+        rate = float(rates["shock"])
+        damage_delta += rate * shock
+        friction_delta += 0.5 * rate * shock
+        viscosity_delta += 0.5 * rate * shock
+        medium_delta -= rate * shock
+        recovery_delta -= 0.5 * rate * shock
+
+        constraint = max(0.0, float(np.clip(self.external_factors["external_constraint_pressure"], -1.0, 1.0)))
+        rate = float(rates["constraint_pressure"])
+        low_reversibility = 1.0 - reversibility
+        friction_delta += rate * constraint * (0.5 + 0.5 * low_reversibility)
+        medium_delta -= rate * constraint * low_reversibility
+        rigidity_delta += 0.5 * rate * constraint * low_reversibility
+
+        self.short_payoff = np.clip(self.short_payoff + short_delta, 0.0, 1.5)
+        self.medium_payoff = np.clip(self.medium_payoff + medium_delta, 0.0, 1.5)
+        self.friction = np.clip(self.friction + friction_delta, 0.0, 0.95)
+        self.viscosity = np.clip(self.viscosity + viscosity_delta, 0.0, 0.95)
+        self.damage = np.clip(self.damage + damage_delta, 0.0, 1.0)
+        self.rigidity = np.clip(self.rigidity + rigidity_delta, 0.0, 1.0)
+        self.recovery_speed = np.clip(self.recovery_speed + recovery_delta, 0.0, 1.0)
+
+        return float(
+            np.mean(np.abs(short_delta))
+            + np.mean(np.abs(medium_delta))
+            + np.mean(np.abs(friction_delta))
+            + np.mean(np.abs(viscosity_delta))
+            + np.mean(np.abs(damage_delta))
+            + np.mean(np.abs(rigidity_delta))
+            + np.mean(np.abs(recovery_delta))
+        )
 
     def _composite_payoff(self) -> np.ndarray:
         return (
@@ -292,7 +402,11 @@ class DistributionTerrainV3World:
             "moved_mass": float(total_flow),
             "concentration": float(np.sum(self.distribution ** 2)),
         })
-        self._external_trace.append({**base, **self.external_factors})
+        self._external_trace.append({
+            **base,
+            **self.external_factors,
+            "external_deformation_strength": float(self.last_external_deformation_strength),
+        })
         self._auxiliary_trace.append({
             **base,
             "damage_mean": terrain_row["damage_mean"],

@@ -42,5 +42,13 @@
     "exploration_room_low": 0.2,
     "damage_high": 0.7,
     "rigidity_high": 0.7
+  },
+  "external_deformation_rates": {
+    "resource_supply": 0.03,
+    "demand": 0.02,
+    "competition_pressure": 0.03,
+    "information_noise": 0.03,
+    "shock": 0.05,
+    "constraint_pressure": 0.03
   }
 }
