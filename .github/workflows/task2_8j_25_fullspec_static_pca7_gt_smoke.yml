@@ -1,0 +1,30 @@
+name: Task2-8j-25 FullSpec Static PCA7 G_t Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/contracts/cycle_state.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/gk_builder.py'
+      - 'tests/test_fullspec_task2_8j_25_static_pca7_gt_smoke.py'
+      - '.github/workflows/task2_8j_25_fullspec_static_pca7_gt_smoke.yml'
+
+jobs:
+  task2-8j-25-fullspec-static-pca7-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run FullSpec static_pca_7 smoke test
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_fullspec_task2_8j_25_static_pca7_gt_smoke.py
