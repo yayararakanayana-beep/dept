@@ -1,0 +1,230 @@
+"""Lightweight scenario validation runner for PseudoReality v3.
+
+The runner is diagnostic-only: it applies external-factor schedules to the
+internal distribution-terrain world and summarizes numeric traces. It does not
+connect to G_t, O_t, DEPT internals, public observations, action modules, or
+individual player/entity models.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import pandas as pd
+
+from pseudo_reality.distribution_terrain_v3 import DistributionTerrainV3Config, DistributionTerrainV3World
+
+
+BASELINE_EXTERNAL_FACTORS = {
+    "external_resource_supply": 0.0,
+    "external_demand": 0.0,
+    "external_competition_pressure": 0.0,
+    "external_information_noise": 0.0,
+    "external_shock": 0.0,
+    "external_constraint_pressure": 0.0,
+}
+
+
+@dataclass(frozen=True)
+class ScenarioPhase:
+    start: int
+    end: int
+    external_factors: dict[str, float]
+
+
+@dataclass(frozen=True)
+class ScenarioSpec:
+    name: str
+    seed: int = 0
+    steps: int = 30
+    phases: tuple[ScenarioPhase, ...] = ()
+
+
+@dataclass(frozen=True)
+class ScenarioResult:
+    spec: ScenarioSpec
+    summary: dict[str, float | int | str]
+    traces: dict[str, pd.DataFrame]
+
+
+def make_static_scenario(
+    name: str,
+    external_factors: dict[str, float],
+    *,
+    seed: int = 0,
+    steps: int = 30,
+) -> ScenarioSpec:
+    return ScenarioSpec(
+        name=name,
+        seed=seed,
+        steps=steps,
+        phases=(ScenarioPhase(start=0, end=steps, external_factors=dict(external_factors)),),
+    )
+
+
+def default_scenario_specs(*, seed: int = 0, steps: int = 30) -> tuple[ScenarioSpec, ...]:
+    compound_shock = {
+        "external_resource_supply": -0.8,
+        "external_demand": 0.8,
+        "external_competition_pressure": 0.8,
+        "external_information_noise": 0.8,
+        "external_shock": 1.0,
+        "external_constraint_pressure": 0.8,
+    }
+    relief = {
+        "external_resource_supply": 0.4,
+        "external_demand": 0.2,
+        "external_competition_pressure": 0.0,
+        "external_information_noise": 0.1,
+        "external_shock": 0.0,
+        "external_constraint_pressure": 0.1,
+    }
+    midpoint = steps // 2
+    return (
+        make_static_scenario("baseline", BASELINE_EXTERNAL_FACTORS, seed=seed, steps=steps),
+        make_static_scenario(
+            "resource_scarcity",
+            {
+                "external_resource_supply": -1.0,
+                "external_demand": 0.4,
+                "external_competition_pressure": 0.3,
+                "external_information_noise": 0.1,
+                "external_shock": 0.0,
+                "external_constraint_pressure": 0.2,
+            },
+            seed=seed,
+            steps=steps,
+        ),
+        make_static_scenario(
+            "high_pressure_competition",
+            {
+                "external_resource_supply": -0.3,
+                "external_demand": 0.7,
+                "external_competition_pressure": 1.0,
+                "external_information_noise": 0.2,
+                "external_shock": 0.0,
+                "external_constraint_pressure": 0.2,
+            },
+            seed=seed,
+            steps=steps,
+        ),
+        make_static_scenario(
+            "information_noise_constraint",
+            {
+                "external_resource_supply": 0.0,
+                "external_demand": 0.2,
+                "external_competition_pressure": 0.3,
+                "external_information_noise": 1.0,
+                "external_shock": 0.0,
+                "external_constraint_pressure": 0.8,
+            },
+            seed=seed,
+            steps=steps,
+        ),
+        make_static_scenario("compound_shock", compound_shock, seed=seed, steps=steps),
+        ScenarioSpec(
+            name="shock_then_relief",
+            seed=seed,
+            steps=steps,
+            phases=(
+                ScenarioPhase(start=0, end=midpoint, external_factors=compound_shock),
+                ScenarioPhase(start=midpoint, end=steps, external_factors=relief),
+            ),
+        ),
+    )
+
+
+def _effective_phases(spec: ScenarioSpec) -> tuple[ScenarioPhase, ...]:
+    if not spec.phases:
+        return (ScenarioPhase(start=0, end=spec.steps, external_factors=BASELINE_EXTERNAL_FACTORS),)
+    return spec.phases
+
+
+def _validate_phases(spec: ScenarioSpec) -> tuple[ScenarioPhase, ...]:
+    if spec.steps < 0:
+        raise ValueError("steps must be non-negative")
+    phases = _effective_phases(spec)
+    previous_end = -1
+    for phase in phases:
+        if phase.start < 0:
+            raise ValueError("scenario phase start must be >= 0")
+        if phase.end <= phase.start:
+            raise ValueError("scenario phase end must be greater than start")
+        if phase.start < previous_end:
+            raise ValueError("scenario phases must be sorted and non-overlapping")
+        if phase.end > spec.steps:
+            raise ValueError("scenario phases must fit within steps")
+        previous_end = phase.end
+    return phases
+
+
+def _external_factors_for_step(phases: tuple[ScenarioPhase, ...], t: int) -> dict[str, float]:
+    for phase in phases:
+        if phase.start <= t < phase.end:
+            return phase.external_factors
+    return BASELINE_EXTERNAL_FACTORS
+
+
+def _first_last_delta(summary: dict[str, Any], prefix: str, frame: pd.DataFrame, column: str) -> None:
+    initial = float(frame[column].iloc[0])
+    final = float(frame[column].iloc[-1])
+    summary[f"initial_{prefix}"] = initial
+    summary[f"final_{prefix}"] = final
+    summary[f"delta_{prefix}"] = final - initial
+
+
+def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[str, float | int | str]:
+    distribution = traces["v3_internal_distribution_trace"]
+    flow = traces["v3_internal_flow_trace"]
+    terrain = traces["v3_internal_terrain_trace"]
+    external = traces["v3_internal_external_trace"]
+    summary: dict[str, float | int | str] = {"scenario": spec.name, "seed": spec.seed, "steps": spec.steps}
+
+    _first_last_delta(summary, "entropy", distribution, "entropy")
+    _first_last_delta(summary, "max_mass", distribution, "max_mass")
+    _first_last_delta(summary, "concentration", flow, "concentration")
+    summary["total_moved_mass_sum"] = float(flow["moved_mass"].sum())
+    summary["mean_total_flow"] = float(flow["total_flow"].mean())
+    summary["final_total_flow"] = float(flow["total_flow"].iloc[-1])
+
+    for column in (
+        "short_payoff_mean",
+        "medium_payoff_mean",
+        "friction_mean",
+        "viscosity_mean",
+        "damage_mean",
+        "rigidity_mean",
+        "recovery_speed_mean",
+    ):
+        _first_last_delta(summary, column, terrain, column)
+
+    summary["max_threshold_activation_strength"] = float(terrain["threshold_activation_strength"].max())
+    summary["final_threshold_activation_strength"] = float(terrain["threshold_activation_strength"].iloc[-1])
+    weighted_column = "distribution_weighted_threshold_activation_strength"
+    summary[f"max_{weighted_column}"] = float(terrain[weighted_column].max())
+    summary[f"final_{weighted_column}"] = float(terrain[weighted_column].iloc[-1])
+    summary["max_external_deformation_strength"] = float(external["external_deformation_strength"].max())
+    summary["final_external_deformation_strength"] = float(external["external_deformation_strength"].iloc[-1])
+    return summary
+
+
+def run_scenario(spec: ScenarioSpec) -> ScenarioResult:
+    phases = _validate_phases(spec)
+    world = DistributionTerrainV3World(DistributionTerrainV3Config(seed=spec.seed, scenario=spec.name))
+    for t in range(spec.steps):
+        world.set_external_factors(_external_factors_for_step(phases, t))
+        world.step()
+    traces = world.emit_trace()
+    return ScenarioResult(spec=spec, summary=_build_summary(spec, traces), traces=traces)
+
+
+def run_scenario_suite(specs: tuple[ScenarioSpec, ...] | list[ScenarioSpec]) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
+    results = [run_scenario(spec) for spec in specs]
+    summary = pd.DataFrame([result.summary for result in results])
+    traces_by_scenario = {result.spec.name: result.traces for result in results}
+    return summary, traces_by_scenario
+
+
+def run_default_scenario_suite(*, seed: int = 0, steps: int = 30) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
+    return run_scenario_suite(default_scenario_specs(seed=seed, steps=steps))

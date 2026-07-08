@@ -21,6 +21,11 @@ FORBIDDEN_PHENOMENON_FLAGS = (
     "goodhart_flag",
     "collapse_flag",
     "information_degradation_flag",
+    "collapse_detected",
+    "goodhart_detected",
+    "shrinking_equilibrium_detected",
+    "exploration_decline_detected",
+    "information_degradation_detected",
 )
 
 
@@ -129,6 +134,7 @@ def test_distribution_terrain_v3_emit_trace_contract():
             "rigidity_mean",
             "recovery_speed_mean",
             "threshold_activation_strength",
+            "distribution_weighted_threshold_activation_strength",
         },
     )
     assert_columns(
@@ -178,6 +184,13 @@ def test_distribution_terrain_v3_emit_trace_contract():
             "damage_high_activation_mean",
             "rigidity_high_activation_mean",
             "threshold_activation_strength",
+            "resource_low_activation_weighted_mean",
+            "information_low_activation_weighted_mean",
+            "pressure_high_activation_weighted_mean",
+            "exploration_low_activation_weighted_mean",
+            "damage_high_activation_weighted_mean",
+            "rigidity_high_activation_weighted_mean",
+            "distribution_weighted_threshold_activation_strength",
         },
     )
 
@@ -213,6 +226,45 @@ def test_distribution_terrain_v3_threshold_dynamics_activate():
     }
     assert_columns(auxiliary, activation_columns | {"threshold_activation_strength"})
     assert any(auxiliary[column].max() > 0.0 for column in activation_columns)
+
+
+def test_distribution_terrain_v3_weighted_threshold_activation_trace():
+    world = DistributionTerrainV3World(DistributionTerrainV3Config(seed=0))
+    world.set_external_factors(
+        {
+            "external_resource_supply": -1.0,
+            "external_competition_pressure": 1.0,
+            "external_information_noise": 1.0,
+            "external_shock": 1.0,
+            "external_constraint_pressure": 1.0,
+        }
+    )
+
+    for _ in range(8):
+        world.step()
+        assert_distribution_valid(world)
+
+    trace = world.emit_trace()
+    terrain = trace["v3_internal_terrain_trace"]
+    auxiliary = trace["v3_internal_auxiliary_trace"]
+    weighted_columns = {
+        "resource_low_activation_weighted_mean",
+        "information_low_activation_weighted_mean",
+        "pressure_high_activation_weighted_mean",
+        "exploration_low_activation_weighted_mean",
+        "damage_high_activation_weighted_mean",
+        "rigidity_high_activation_weighted_mean",
+    }
+
+    assert_columns(terrain, {"distribution_weighted_threshold_activation_strength"})
+    assert_columns(auxiliary, weighted_columns | {"distribution_weighted_threshold_activation_strength"})
+
+    for column in weighted_columns | {"distribution_weighted_threshold_activation_strength"}:
+        values = auxiliary[column].to_numpy()
+        assert np.all(np.isfinite(values))
+        assert np.all(values >= 0.0)
+
+    assert terrain["distribution_weighted_threshold_activation_strength"].max() > 0.0
 
 
 def test_distribution_terrain_v3_rejects_reordered_axes():

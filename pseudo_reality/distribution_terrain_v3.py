@@ -206,6 +206,15 @@ class DistributionTerrainV3World:
             "damage_high_activation_mean": 0.0,
             "rigidity_high_activation_mean": 0.0,
         }
+        self.last_distribution_weighted_threshold_activation_strength = 0.0
+        self.last_threshold_weighted_activations = {
+            "resource_low_activation_weighted_mean": 0.0,
+            "information_low_activation_weighted_mean": 0.0,
+            "pressure_high_activation_weighted_mean": 0.0,
+            "exploration_low_activation_weighted_mean": 0.0,
+            "damage_high_activation_weighted_mean": 0.0,
+            "rigidity_high_activation_weighted_mean": 0.0,
+        }
 
         self._distribution_trace: list[dict[str, Any]] = []
         self._terrain_trace: list[dict[str, Any]] = []
@@ -411,6 +420,11 @@ class DistributionTerrainV3World:
         self.rigidity = np.clip(self.rigidity + rigidity_delta, 0.0, 1.0)
         self.recovery_speed = np.clip(self.recovery_speed + recovery_delta, 0.0, 1.0)
 
+        distribution = self.distribution
+
+        def weighted_mean(activation: np.ndarray) -> float:
+            return float(np.sum(distribution * activation))
+
         self.last_threshold_activations = {
             "resource_low_activation_mean": float(resource_low.mean()),
             "information_low_activation_mean": float(information_low.mean()),
@@ -420,6 +434,17 @@ class DistributionTerrainV3World:
             "rigidity_high_activation_mean": float(rigidity_high.mean()),
         }
         self.last_threshold_activation_strength = float(sum(self.last_threshold_activations.values()))
+        self.last_threshold_weighted_activations = {
+            "resource_low_activation_weighted_mean": weighted_mean(resource_low),
+            "information_low_activation_weighted_mean": weighted_mean(information_low),
+            "pressure_high_activation_weighted_mean": weighted_mean(pressure_high),
+            "exploration_low_activation_weighted_mean": weighted_mean(exploration_low),
+            "damage_high_activation_weighted_mean": weighted_mean(damage_high),
+            "rigidity_high_activation_weighted_mean": weighted_mean(rigidity_high),
+        }
+        self.last_distribution_weighted_threshold_activation_strength = float(
+            sum(self.last_threshold_weighted_activations.values())
+        )
         return self.last_threshold_activation_strength
 
     def _composite_payoff(self) -> np.ndarray:
@@ -514,6 +539,9 @@ class DistributionTerrainV3World:
             "rigidity_mean": float(self.rigidity.mean()),
             "recovery_speed_mean": float(self.recovery_speed.mean()),
             "threshold_activation_strength": float(self.last_threshold_activation_strength),
+            "distribution_weighted_threshold_activation_strength": float(
+                self.last_distribution_weighted_threshold_activation_strength
+            ),
         }
         self._terrain_trace.append(terrain_row)
         self._flow_trace.append({
@@ -539,4 +567,8 @@ class DistributionTerrainV3World:
             "recovery_speed_mean": terrain_row["recovery_speed_mean"],
             **self.last_threshold_activations,
             "threshold_activation_strength": float(self.last_threshold_activation_strength),
+            **self.last_threshold_weighted_activations,
+            "distribution_weighted_threshold_activation_strength": float(
+                self.last_distribution_weighted_threshold_activation_strength
+            ),
         })
