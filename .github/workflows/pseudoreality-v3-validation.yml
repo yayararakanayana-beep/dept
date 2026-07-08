@@ -94,11 +94,28 @@ jobs:
 
       - name: Run medium pattern dominance validation
         run: |
-          python scripts/pseudoreality_v3_medium_pattern_validation.py
+          mkdir -p outputs/pseudoreality-v3-validation/medium-pattern
+          python - <<'PY'
+          from pathlib import Path
+          import traceback
+
+          error_path = Path("outputs/pseudoreality-v3-validation/medium-pattern/error.txt")
+          try:
+              from scripts.pseudoreality_v3_medium_pattern_validation import (
+                  compact_readout,
+                  run_medium_pattern_validation,
+              )
+              table = run_medium_pattern_validation("outputs/pseudoreality-v3-validation/medium-pattern")
+              print(compact_readout(table).to_string(index=False))
+          except Exception:
+              error_path.write_text(traceback.format_exc(), encoding="utf-8")
+              raise
+          PY
 
       - name: Upload PseudoReality v3 validation artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pseudoreality-v3-validation-summary
           path: outputs/pseudoreality-v3-validation/
-          if-no-files-found: error
+          if-no-files-found: warn
