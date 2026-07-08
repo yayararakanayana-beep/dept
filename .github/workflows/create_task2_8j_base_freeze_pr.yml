@@ -190,16 +190,17 @@ jobs:
       - name: Safety audit selected diff
         shell: bash
         run: |
-          echo "Changed files against base:"
-          git diff --name-only "origin/${{ inputs.base_branch }}"...HEAD
+          echo "Changed files in working tree:"
+          changed_files="$(git diff --name-only)"
+          printf '%s\n' "$changed_files"
 
           echo "Forbidden pattern audit:"
-          if git diff --name-only "origin/${{ inputs.base_branch }}"...HEAD | grep -Ei 'dept_prediction|task2_8j_24e|task2_8j_25|_extract_task2_8j_mainline_once'; then
+          if printf '%s\n' "$changed_files" | grep -Ei 'dept_prediction|task2_8j_24e|task2_8j_25|_extract_task2_8j_mainline_once'; then
             echo "Forbidden files detected. Refusing to continue."
             exit 1
           fi
 
-          if ! git diff --name-only "origin/${{ inputs.base_branch }}"...HEAD | grep -q 'task2_8j_24c'; then
+          if ! printf '%s\n' "$changed_files" | grep -q 'task2_8j_24c'; then
             echo "task2_8j_24c is missing. Refusing to continue."
             exit 1
           fi
