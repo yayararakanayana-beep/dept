@@ -12,8 +12,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import json
+import sys
 
 import pandas as pd
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from validation.task2_8j_29_legacy_vs_primary_multistep_comparison import (
     TASK2_8J_29_SCENARIOS,
@@ -30,7 +35,6 @@ TASK2_8J_30_DECISION_CONTRACT = (
 MAX_ABS_MEAN_GATE_RISK_DELTA = 0.25
 MAX_GATE_DECISION_CHANGED_STEP_RATIO = 0.50
 REQUIRED_TOTAL_PRIMARY_CANDIDATES_PER_SCENARIO = 1
-
 
 PROMOTION_GATES = [
     "comparison_tables_exist",
