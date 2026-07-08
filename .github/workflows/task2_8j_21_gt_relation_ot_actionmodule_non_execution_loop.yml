@@ -1,0 +1,55 @@
+name: Task2-8j-21 GT Relation OT ActionModule Non-Execution Loop
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_21_gt_relation_ot_actionmodule_non_execution_loop.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_21.py'
+      - '.github/workflows/task2_8j_21_gt_relation_ot_actionmodule_non_execution_loop.yml'
+
+jobs:
+  task2-8j-21:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_21.py
+      - name: Export tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_21_gt_relation_ot_actionmodule_non_execution_loop import build_and_validate_gt_relation_ot_actionmodule_non_execution_loop
+          out = Path('results/task2_8j_21_gt_relation_ot_actionmodule_non_execution_loop_rc1')
+          out.mkdir(parents=True, exist_ok=True)
+          packets, review, checks, final_summary, errors, summary = build_and_validate_gt_relation_ot_actionmodule_non_execution_loop()
+          packets.to_csv(out / 'gt_relation_ot_actionmodule_loop_packets.csv', index=False)
+          review.to_csv(out / 'actionmodule_non_execution_review.csv', index=False)
+          checks.to_csv(out / 'non_execution_loop_checks.csv', index=False)
+          final_summary.to_csv(out / 'final_summary.csv', index=False)
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'TASK2_8J_21_GT_RELATION_OT_ACTIONMODULE_NON_EXECUTION_LOOP_RC1.md').write_text('# Task 2-8j-21\n\n' + json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          if errors:
+              raise SystemExit('Task2-8j-21 validation errors')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task2-8j-21-gt-relation-ot-actionmodule-non-execution-loop-rc1
+          path: results/task2_8j_21_gt_relation_ot_actionmodule_non_execution_loop_rc1/
+          if-no-files-found: error
