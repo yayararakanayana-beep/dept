@@ -2,7 +2,7 @@
 
 This script is diagnostic-only. It post-processes PseudoReality v3 scenario
 summaries to add short/medium dominance readouts and exports 30/50/100-step
-validation tables for default and stable scenario suites.
+validation summary tables for default and stable scenario suites.
 """
 
 from __future__ import annotations
@@ -71,18 +71,12 @@ def _export_suite(
 ) -> pd.DataFrame:
     output_dir = root / f"{suite_name}_steps_{steps}"
     output_dir.mkdir(parents=True, exist_ok=True)
-    summary, traces_by_scenario = runner(seed=0, steps=steps)
+    summary, _traces_by_scenario = runner(seed=0, steps=steps)
     summary = add_dominance_columns(summary)
     summary.insert(0, "suite", suite_name)
     summary.insert(1, "validation_steps", steps)
     summary.to_csv(output_dir / "scenario_summary.csv", index=False)
     summary.to_json(output_dir / "scenario_summary.json", orient="records", indent=2)
-
-    for scenario_name, traces in traces_by_scenario.items():
-        safe_name = scenario_name.replace("/", "_").replace(" ", "_")
-        for trace_name, frame in traces.items():
-            frame.to_csv(output_dir / f"{safe_name}_{trace_name}.csv", index=False)
-
     return summary
 
 
