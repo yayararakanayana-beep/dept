@@ -37,15 +37,15 @@ def test_add_dominance_columns_adds_short_and_medium_margins():
 
 
 def test_run_medium_pattern_validation_exports_combined_summary(tmp_path, monkeypatch):
-    monkeypatch.setattr(medium_validation, "MEDIUM_PATTERN_STEPS", (1,))
+    monkeypatch.setattr(medium_validation, "MEDIUM_PATTERN_STEPS", (2,))
 
     summary = medium_validation.run_medium_pattern_validation(tmp_path)
 
-    assert set(summary["validation_steps"]) == {1}
+    assert set(summary["validation_steps"]) == {2}
     assert {"default", "stable"} <= set(summary["suite"])
     assert "final_short_dominance_distribution_weighted_margin" in summary.columns
     assert "final_medium_dominance_distribution_weighted_margin" in summary.columns
     assert "final_dominance_regime" in summary.columns
     assert (tmp_path / "medium_pattern_summary.csv").exists()
-    assert (tmp_path / "default_steps_1" / "scenario_summary.csv").exists()
-    assert (tmp_path / "stable_steps_1" / "scenario_summary.csv").exists()
+    assert (tmp_path / "default_steps_2" / "scenario_summary.csv").exists()
+    assert (tmp_path / "stable_steps_2" / "scenario_summary.csv").exists()
