@@ -53,6 +53,24 @@ _THRESHOLD_DEFAULTS = {
     "rigidity_high": 0.7,
 }
 
+_THRESHOLD_WIDTH_DEFAULTS = {
+    "resource_slack_low": 0.15,
+    "information_quality_low": 0.15,
+    "pressure_high": 0.15,
+    "exploration_room_low": 0.15,
+    "damage_high": 0.15,
+    "rigidity_high": 0.15,
+}
+
+_THRESHOLD_EFFECT_RATE_DEFAULTS = {
+    "resource_low": 0.04,
+    "information_low": 0.04,
+    "pressure_high": 0.04,
+    "exploration_low": 0.04,
+    "damage_high": 0.05,
+    "rigidity_high": 0.05,
+}
+
 
 @dataclass(frozen=True)
 class DistributionTerrainV3Config:
@@ -82,6 +100,8 @@ class DistributionTerrainV3Config:
     external_factors: dict[str, float] | None = None
     external_deformation_rates: dict[str, float] | None = None
     thresholds: dict[str, float] | None = None
+    threshold_widths: dict[str, float] | None = None
+    threshold_effect_rates: dict[str, float] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "DistributionTerrainV3Config":
@@ -117,6 +137,8 @@ class DistributionTerrainV3Config:
         flattened.setdefault("external_factors", data.get("external_factors"))
         flattened.setdefault("external_deformation_rates", data.get("external_deformation_rates"))
         flattened.setdefault("thresholds", data.get("thresholds"))
+        flattened.setdefault("threshold_widths", data.get("threshold_widths"))
+        flattened.setdefault("threshold_effect_rates", data.get("threshold_effect_rates"))
         return cls(**flattened)
 
     @classmethod
@@ -149,6 +171,10 @@ class DistributionTerrainV3World:
         self.external_deformation_rates.update(self.config.external_deformation_rates or {})
         self.thresholds = dict(_THRESHOLD_DEFAULTS)
         self.thresholds.update(self.config.thresholds or {})
+        self.threshold_widths = dict(_THRESHOLD_WIDTH_DEFAULTS)
+        self.threshold_widths.update(self.config.threshold_widths or {})
+        self.threshold_effect_rates = dict(_THRESHOLD_EFFECT_RATE_DEFAULTS)
+        self.threshold_effect_rates.update(self.config.threshold_effect_rates or {})
         self.reset()
 
     def reset(self) -> None:
@@ -171,6 +197,15 @@ class DistributionTerrainV3World:
         self.recovery_speed = np.full(self.shape, self.config.base_recovery_speed, dtype=float)
         self.last_flow = np.zeros(self.shape, dtype=float)
         self.last_external_deformation_strength = 0.0
+        self.last_threshold_activation_strength = 0.0
+        self.last_threshold_activations = {
+            "resource_low_activation_mean": 0.0,
+            "information_low_activation_mean": 0.0,
+            "pressure_high_activation_mean": 0.0,
+            "exploration_low_activation_mean": 0.0,
+            "damage_high_activation_mean": 0.0,
+            "rigidity_high_activation_mean": 0.0,
+        }
 
         self._distribution_trace: list[dict[str, Any]] = []
         self._terrain_trace: list[dict[str, Any]] = []
@@ -181,6 +216,7 @@ class DistributionTerrainV3World:
 
     def step(self) -> None:
         self.last_external_deformation_strength = self._apply_external_factors()
+        self.last_threshold_activation_strength = self._apply_threshold_dynamics()
         composite = self._composite_payoff()
         new_distribution, inbound_flow, total_flow, stay_mass = self._flow_distribution(composite)
         self.distribution = np.maximum(new_distribution, 0.0)
@@ -212,6 +248,16 @@ class DistributionTerrainV3World:
         else:
             self.distribution /= total
 
+
+    def _low_activation(self, value: np.ndarray, threshold_key: str) -> np.ndarray:
+        threshold = float(self.thresholds[threshold_key])
+        width = max(float(self.threshold_widths[threshold_key]), 1e-9)
+        return np.clip((threshold - value) / width, 0.0, 1.0)
+
+    def _high_activation(self, value: np.ndarray, threshold_key: str) -> np.ndarray:
+        threshold = float(self.thresholds[threshold_key])
+        width = max(float(self.threshold_widths[threshold_key]), 1e-9)
+        return np.clip((value - threshold) / width, 0.0, 1.0)
 
     def set_external_factors(self, updates: dict[str, float]) -> None:
         """Update known external factors, clipping values to the v3 RC1 factor range."""
@@ -299,6 +345,82 @@ class DistributionTerrainV3World:
             + np.mean(np.abs(rigidity_delta))
             + np.mean(np.abs(recovery_delta))
         )
+
+    def _apply_threshold_dynamics(self) -> float:
+        resource, info, pressure, exploration, reversibility = self._coordinate_grids()
+        del reversibility
+        short_delta = np.zeros(self.shape, dtype=float)
+        medium_delta = np.zeros(self.shape, dtype=float)
+        friction_delta = np.zeros(self.shape, dtype=float)
+        viscosity_delta = np.zeros(self.shape, dtype=float)
+        damage_delta = np.zeros(self.shape, dtype=float)
+        rigidity_delta = np.zeros(self.shape, dtype=float)
+        recovery_delta = np.zeros(self.shape, dtype=float)
+        rates = self.threshold_effect_rates
+
+        resource_low = self._low_activation(resource, "resource_slack_low")
+        rate = float(rates["resource_low"])
+        short_delta += rate * resource_low
+        medium_delta -= rate * resource_low
+        friction_delta += 0.5 * rate * resource_low
+        damage_delta += 0.25 * rate * resource_low
+        recovery_delta -= 0.5 * rate * resource_low
+
+        information_low = self._low_activation(info, "information_quality_low")
+        rate = float(rates["information_low"])
+        medium_delta -= rate * information_low
+        friction_delta += 0.5 * rate * information_low
+        viscosity_delta += 0.5 * rate * information_low
+        short_delta += 0.25 * rate * information_low
+
+        pressure_high = self._high_activation(pressure, "pressure_high")
+        rate = float(rates["pressure_high"])
+        short_delta += rate * pressure_high
+        medium_delta -= rate * pressure_high
+        damage_delta += 0.5 * rate * pressure_high
+        rigidity_delta += 0.25 * rate * pressure_high
+        friction_delta += 0.5 * rate * pressure_high
+
+        exploration_low = self._low_activation(exploration, "exploration_room_low")
+        rate = float(rates["exploration_low"])
+        medium_delta -= rate * exploration_low
+        friction_delta += 0.5 * rate * exploration_low
+        rigidity_delta += 0.5 * rate * exploration_low
+        viscosity_delta += 0.25 * rate * exploration_low
+
+        damage_high = self._high_activation(self.damage, "damage_high")
+        rate = float(rates["damage_high"])
+        medium_delta -= rate * damage_high
+        friction_delta += 0.5 * rate * damage_high
+        viscosity_delta += 0.5 * rate * damage_high
+        recovery_delta -= rate * damage_high
+        rigidity_delta += 0.25 * rate * damage_high
+
+        rigidity_high = self._high_activation(self.rigidity, "rigidity_high")
+        rate = float(rates["rigidity_high"])
+        friction_delta += rate * rigidity_high
+        viscosity_delta += rate * rigidity_high
+        medium_delta -= 0.5 * rate * rigidity_high
+        recovery_delta -= 0.5 * rate * rigidity_high
+
+        self.short_payoff = np.clip(self.short_payoff + short_delta, 0.0, 1.5)
+        self.medium_payoff = np.clip(self.medium_payoff + medium_delta, 0.0, 1.5)
+        self.friction = np.clip(self.friction + friction_delta, 0.0, 0.95)
+        self.viscosity = np.clip(self.viscosity + viscosity_delta, 0.0, 0.95)
+        self.damage = np.clip(self.damage + damage_delta, 0.0, 1.0)
+        self.rigidity = np.clip(self.rigidity + rigidity_delta, 0.0, 1.0)
+        self.recovery_speed = np.clip(self.recovery_speed + recovery_delta, 0.0, 1.0)
+
+        self.last_threshold_activations = {
+            "resource_low_activation_mean": float(resource_low.mean()),
+            "information_low_activation_mean": float(information_low.mean()),
+            "pressure_high_activation_mean": float(pressure_high.mean()),
+            "exploration_low_activation_mean": float(exploration_low.mean()),
+            "damage_high_activation_mean": float(damage_high.mean()),
+            "rigidity_high_activation_mean": float(rigidity_high.mean()),
+        }
+        self.last_threshold_activation_strength = float(sum(self.last_threshold_activations.values()))
+        return self.last_threshold_activation_strength
 
     def _composite_payoff(self) -> np.ndarray:
         return (
@@ -391,6 +513,7 @@ class DistributionTerrainV3World:
             "damage_mean": float(self.damage.mean()),
             "rigidity_mean": float(self.rigidity.mean()),
             "recovery_speed_mean": float(self.recovery_speed.mean()),
+            "threshold_activation_strength": float(self.last_threshold_activation_strength),
         }
         self._terrain_trace.append(terrain_row)
         self._flow_trace.append({
@@ -414,4 +537,6 @@ class DistributionTerrainV3World:
             "friction_mean": terrain_row["friction_mean"],
             "viscosity_mean": terrain_row["viscosity_mean"],
             "recovery_speed_mean": terrain_row["recovery_speed_mean"],
+            **self.last_threshold_activations,
+            "threshold_activation_strength": float(self.last_threshold_activation_strength),
         })
