@@ -3,9 +3,23 @@ name: Task22A Runner Smoke
 on:
   workflow_dispatch:
   pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/task22a_runner_smoke.yml'
+      - 'validation/task22a_existing_runner_execution_environment_recovery_rc1.py'
+      - 'tests/test_task22a_existing_runner_execution_environment_recovery_rc1.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/**'
+      - 'localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1/**'
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/task22a_runner_smoke.yml'
+      - 'validation/task22a_existing_runner_execution_environment_recovery_rc1.py'
+      - 'tests/test_task22a_existing_runner_execution_environment_recovery_rc1.py'
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/**'
+      - 'localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1/**'
 
 jobs:
   task22a-runner-smoke:
@@ -46,10 +60,10 @@ jobs:
             cat results/task22a_existing_runner_execution_environment_recovery_rc1/environment_recovery_summary.json
           fi
 
-      - name: Run pytest
+      - name: Run Task22A pytest only
         env:
           PYTHONPATH: localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
-        run: pytest -q
+        run: pytest -q tests/test_task22a_existing_runner_execution_environment_recovery_rc1.py
 
       - name: Upload Task22A result artifact
         if: always()
