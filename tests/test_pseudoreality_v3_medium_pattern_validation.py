@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 import scripts.pseudoreality_v3_medium_pattern_validation as medium_validation
+from scripts.pseudoreality_v3_typical_pattern_suite import typical_pattern_scenario_specs
 
 
 def test_add_dominance_columns_adds_short_and_medium_margins():
@@ -60,13 +61,26 @@ def test_add_total_gain_columns_reads_short_dominant_total_decline_tension():
     assert enriched["final_total_gain_tension_readout"].iloc[0] == "short_dominant_total_decline_with_damage"
 
 
+def test_typical_pattern_specs_include_expected_condition_scenarios():
+    names = {spec.name for spec in typical_pattern_scenario_specs(seed=0, steps=6)}
+
+    assert {
+        "constrained_low_reversibility_stability",
+        "frontier_boom_then_tightening",
+        "shock_recovery_no_support",
+        "shock_recovery_weak_support",
+        "shock_recovery_strong_support",
+        "mild_stress_accumulation",
+    } <= names
+
+
 def test_run_medium_pattern_validation_exports_combined_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(medium_validation, "MEDIUM_PATTERN_STEPS", (2,))
 
     summary = medium_validation.run_medium_pattern_validation(tmp_path)
 
     assert set(summary["validation_steps"]) == {2}
-    assert {"default", "stable"} <= set(summary["suite"])
+    assert {"default", "stable", "typical"} <= set(summary["suite"])
     assert "final_short_dominance_distribution_weighted_margin" in summary.columns
     assert "final_medium_dominance_distribution_weighted_margin" in summary.columns
     assert "final_dominance_regime" in summary.columns
@@ -77,3 +91,4 @@ def test_run_medium_pattern_validation_exports_combined_summary(tmp_path, monkey
     assert (tmp_path / "medium_pattern_summary.csv").exists()
     assert (tmp_path / "default_steps_2" / "scenario_summary.csv").exists()
     assert (tmp_path / "stable_steps_2" / "scenario_summary.csv").exists()
+    assert (tmp_path / "typical_steps_2" / "scenario_summary.csv").exists()
