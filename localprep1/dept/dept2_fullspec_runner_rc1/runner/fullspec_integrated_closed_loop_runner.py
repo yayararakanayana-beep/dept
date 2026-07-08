@@ -7,6 +7,9 @@ Task12 goal:
 
 Task2-8j-26 adds an optional FullSpec integration bridge that loads the
 Task2-8j material chain through Task2-8j-24 inside a FullSpec cycle.
+
+Task2-8j-27 passes the Task2-8j operator material into ActionSurfacePlanning
+when the task2_8j_primary action-planning route is selected.
 """
 from __future__ import annotations
 
@@ -243,6 +246,7 @@ class FullSpecIntegratedClosedLoopRunner:
             seed=self.cfg.seed,
             scenario=self.cfg.scenario,
             ot_action_view=artifacts.ot_action_view,
+            task2_8j_operator_selection=artifacts.task2_8j_operator_selection,
         )
         artifacts.action_affordance = self._tag(action_out["action_affordance"], step)
         artifacts.action_candidates = self._tag(action_out["action_candidates"], step)
