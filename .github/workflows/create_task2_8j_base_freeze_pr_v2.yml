@@ -1,0 +1,236 @@
+name: Create Task2-8j Base Freeze PR v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: "Source branch containing PR #104 code"
+        required: true
+        default: "action-upper-pressure-reception-split-rc1"
+      base_branch:
+        description: "Base branch to copy into"
+        required: true
+        default: "main"
+      target_branch:
+        description: "New branch to create/update"
+        required: true
+        default: "task2-8j-base-freeze-through-24c"
+      create_pr:
+        description: "Create PR after copying files"
+        required: true
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-task2-8j-base-freeze-pr-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch source and base branches
+        run: |
+          git fetch origin "${{ inputs.base_branch }}:refs/remotes/origin/${{ inputs.base_branch }}"
+          git fetch origin "${{ inputs.source_branch }}:refs/remotes/origin/${{ inputs.source_branch }}"
+
+      - name: Create clean target branch from base
+        run: |
+          git checkout -B "${{ inputs.target_branch }}" "origin/${{ inputs.base_branch }}"
+
+      - name: Build filtered Task2-8j file list
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          import subprocess
+          from pathlib import Path
+
+          base = "${{ inputs.base_branch }}"
+          source = "${{ inputs.source_branch }}"
+
+          allowed_tokens = {
+              "1", "2", "3", "3b", "4", "4b", "4c", "4d", "4e",
+              "5", "5b", "6", "6b", "6c", "7", "7b", "7c",
+              "8", "9", "10", "11", "12", "13", "14", "15", "16",
+              "17", "18", "19", "20", "20b", "21", "22", "22b", "22c",
+              "23", "23b", "23c", "24", "24b", "24b2", "24b3", "24b4",
+              "24b5", "24b6", "24c",
+          }
+          allowed_prefixes = (
+              ".github/workflows/task2_8j_",
+              "localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_",
+              "tests/test_action_module_upper_pressure_reception_split_task2_8j_",
+          )
+          forbidden = (
+              "dept_prediction",
+              "prediction_direction_decomposition",
+              "placeholder",
+              "_extract_task2_8j_mainline_once",
+              "task2_8j_24e",
+              "task2_8j_25",
+          )
+
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", f"origin/{base}", f"origin/{source}"],
+              text=True,
+          ).splitlines()
+
+          def task_token(path: str) -> str | None:
+              marker = "task2_8j_"
+              if marker not in path:
+                  return None
+              rest = path.split(marker, 1)[1]
+              m = re.match(r"([0-9]+[a-z]?[0-9]?)", rest)
+              return m.group(1) if m else None
+
+          selected = []
+          for path in changed:
+              low = path.lower()
+              if not path.startswith(allowed_prefixes):
+                  continue
+              if any(x in low for x in forbidden):
+                  continue
+              if task_token(path) in allowed_tokens:
+                  selected.append(path)
+
+          selected = sorted(set(selected))
+          Path("/tmp/task2_8j_files_to_copy.txt").write_text(
+              "\n".join(selected) + ("\n" if selected else ""), encoding="utf-8"
+          )
+
+          print("Selected file count:", len(selected))
+          for path in selected:
+              print(path)
+
+          if not selected:
+              raise SystemExit("No Task2-8j files selected. Refusing to continue.")
+          if not any("task2_8j_24c" in path for path in selected):
+              raise SystemExit("task2_8j_24c was not selected. Refusing to continue.")
+          bad = [p for p in selected if re.search(r"dept_prediction|24e|task2_8j_25|_extract", p, flags=re.I)]
+          if bad:
+              print("Forbidden selected files:")
+              for path in bad:
+                  print(path)
+              raise SystemExit("Forbidden files selected. Refusing to continue.")
+          PY
+
+      - name: Copy selected files from source branch
+        shell: bash
+        run: |
+          git checkout "origin/${{ inputs.source_branch }}" -- $(cat /tmp/task2_8j_files_to_copy.txt)
+
+      - name: Add base-freeze documentation
+        shell: bash
+        run: |
+          mkdir -p docs
+          cat > docs/task2_8j_base_freeze_through_24c.md <<'EOF'
+          # Task2-8j Base Freeze Through 24c
+
+          This branch imports the Task2-8j fixed static_pca_7 / 7-axis G_t base code through Task2-8j-24c.
+
+          Included:
+          - Task2-8j-1 through Task2-8j-24c workflow files
+          - Task2-8j-1 through Task2-8j-24c action_policies modules
+          - Task2-8j-1 through Task2-8j-24c tests
+
+          Boundary:
+          - no real ActionModule runtime execution is introduced
+          - no canonical writeback is introduced
+          - no axis execution is introduced
+          - 24c remains a provisional action-module design lock, not final deployment
+          EOF
+
+      - name: Stage and audit selected diff
+        shell: bash
+        run: |
+          git add -A
+          changed_files="$(git diff --cached --name-only)"
+          echo "Staged files:"
+          printf '%s\n' "$changed_files"
+
+          if [ -z "$changed_files" ]; then
+            echo "No staged files. Refusing to continue."
+            exit 1
+          fi
+
+          if printf '%s\n' "$changed_files" | grep -Ei 'dept_prediction|task2_8j_24e|task2_8j_25|_extract_task2_8j_mainline_once'; then
+            echo "Forbidden files detected. Refusing to continue."
+            exit 1
+          fi
+
+          if ! printf '%s\n' "$changed_files" | grep -q 'task2_8j_24c'; then
+            echo "task2_8j_24c is missing. Refusing to continue."
+            exit 1
+          fi
+
+      - name: Syntax check
+        shell: bash
+        run: |
+          python -m compileall localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies
+
+      - name: Commit and push target branch
+        shell: bash
+        run: |
+          git commit -m "Add Task2-8j base freeze through 24c"
+          git push --force-with-lease origin "${{ inputs.target_branch }}"
+
+      - name: Create pull request
+        if: ${{ inputs.create_pr == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          body_file="$(mktemp)"
+          cat > "$body_file" <<'EOF'
+          This PR adds the Task2-8j fixed static_pca_7 / 7-axis G_t base code through Task2-8j-24c.
+
+          Purpose:
+          - establish the main-branch base code for continuing Task2-8j development
+          - preserve the fixed7 G_t route and non-execution action-module preparation path
+          - avoid merging all of PR #104 directly
+
+          Included:
+          - Task2-8j-1 through Task2-8j-24c workflow files
+          - Task2-8j-1 through Task2-8j-24c action_policies modules
+          - Task2-8j-1 through Task2-8j-24c tests
+
+          Excluded:
+          - DEPT Prediction Module
+          - placeholder G/K prediction validation
+          - task2_8j_24e and later
+          - task2_8j_25 and later
+          - temporary extraction workflows
+          - unrelated Task2 branches
+
+          Boundary:
+          - no real ActionModule runtime execution is introduced
+          - no canonical writeback is introduced
+          - no axis execution is introduced
+          - 24c remains a provisional action-module design lock, not final deployment
+          EOF
+
+          existing_pr="$(gh pr list --head "${{ inputs.target_branch }}" --base "${{ inputs.base_branch }}" --json number --jq '.[0].number' || true)"
+          if [ -n "$existing_pr" ]; then
+            echo "PR already exists: #$existing_pr"
+            gh pr edit "$existing_pr" --title "Add Task2-8j base freeze through 24c" --body-file "$body_file"
+          else
+            gh pr create --base "${{ inputs.base_branch }}" --head "${{ inputs.target_branch }}" --title "Add Task2-8j base freeze through 24c" --body-file "$body_file"
+          fi
