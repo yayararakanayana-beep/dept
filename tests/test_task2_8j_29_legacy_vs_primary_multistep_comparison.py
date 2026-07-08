@@ -1,14 +1,18 @@
+from __future__ import annotations
+
+import importlib.util
 from pathlib import Path
 
-from validation.task2_8j_29_legacy_vs_primary_multistep_comparison import (
-    TASK2_8J_29_SCENARIOS,
-    TASK2_8J_29_STEPS,
-    write_task2_8j_29_comparison,
-)
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "validation" / "task2_8j_29_legacy_vs_primary_multistep_comparison.py"
+SPEC = importlib.util.spec_from_file_location("task2_8j_29_validation", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+TASK2_8J_29 = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(TASK2_8J_29)
 
 
 def test_task2_8j_29_builds_and_writes_legacy_vs_primary_comparison_tables(tmp_path: Path):
-    outputs = write_task2_8j_29_comparison(tmp_path)
+    outputs = TASK2_8J_29.write_task2_8j_29_comparison(tmp_path)
 
     summary = outputs["task2_8j_29_summary"]
     per_step = outputs["task2_8j_29_per_step_metrics"]
@@ -23,7 +27,7 @@ def test_task2_8j_29_builds_and_writes_legacy_vs_primary_comparison_tables(tmp_p
     for filename in expected_files:
         assert (tmp_path / filename).exists(), filename
 
-    assert set(summary["scenario"].astype(str)) == set(TASK2_8J_29_SCENARIOS)
+    assert set(summary["scenario"].astype(str)) == set(TASK2_8J_29.TASK2_8J_29_SCENARIOS)
     assert set(summary["comparison_status"].astype(str)) == {"pass"}
     assert bool(summary["legacy_all_planning_pass"].astype(bool).all())
     assert bool(summary["task2_8j_all_planning_pass"].astype(bool).all())
@@ -34,7 +38,7 @@ def test_task2_8j_29_builds_and_writes_legacy_vs_primary_comparison_tables(tmp_p
     assert bool((summary["task2_8j_total_primary_candidate_rows"].astype(int) > 0).all())
     assert bool((summary["task2_8j_total_primary_need_rows"].astype(int) > 0).all())
 
-    expected_rows = len(TASK2_8J_29_SCENARIOS) * 2 * TASK2_8J_29_STEPS
+    expected_rows = len(TASK2_8J_29.TASK2_8J_29_SCENARIOS) * 2 * TASK2_8J_29.TASK2_8J_29_STEPS
     assert len(per_step) == expected_rows
     assert set(per_step["route"].astype(str)) == {"legacy", "task2_8j_primary"}
     assert set(per_step["gt_main_map_name"].astype(str)) == {"static_pca_7"}
@@ -59,7 +63,7 @@ def test_task2_8j_29_builds_and_writes_legacy_vs_primary_comparison_tables(tmp_p
     assert set(legacy["task2_8j_primary_route_used"].astype(bool)) == {False}
     assert set(legacy["task2_8j_primary_candidate_rows"].astype(int)) == {0}
 
-    expected_delta_rows = len(TASK2_8J_29_SCENARIOS) * TASK2_8J_29_STEPS
+    expected_delta_rows = len(TASK2_8J_29.TASK2_8J_29_SCENARIOS) * TASK2_8J_29.TASK2_8J_29_STEPS
     assert len(route_delta) == expected_delta_rows
     assert bool(route_delta["both_actionframe_only"].astype(bool).all())
     assert bool(route_delta["legacy_transition_time_ok"].astype(bool).all())
