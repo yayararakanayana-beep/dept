@@ -17,6 +17,10 @@ on:
       - ".github/workflows/pseudoreality-v3-validation.yml"
   workflow_dispatch:
 
+concurrency:
+  group: pseudoreality-v3-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pseudoreality-v3-light-validation:
     name: PseudoReality v3 light validation
@@ -31,6 +35,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+
+      - name: Show Python version
+        run: python --version
 
       - name: Install dependencies
         run: |
