@@ -1,8 +1,9 @@
 """Medium-pattern validation exports for PseudoReality v3.
 
 This script is diagnostic-only. It post-processes PseudoReality v3 scenario
-summaries to add short/medium dominance readouts and exports a 30-step medium
-validation summary table for default and stable scenario suites.
+summaries to add short/medium dominance readouts and total-gain tension
+readouts, then exports a 30-step medium validation summary table for default
+and stable scenario suites.
 
 The 50+ step range is intentionally left for the dedicated heavier validation
 phase because it is too heavy for routine pull-request validation.
@@ -26,16 +27,21 @@ SHORT_WEIGHTED_COLUMN = "final_short_payoff_distribution_weighted_mean"
 MEDIUM_WEIGHTED_COLUMN = "final_medium_payoff_distribution_weighted_mean"
 INITIAL_SHORT_WEIGHTED_COLUMN = "initial_short_payoff_distribution_weighted_mean"
 INITIAL_MEDIUM_WEIGHTED_COLUMN = "initial_medium_payoff_distribution_weighted_mean"
+INITIAL_TOTAL_GAIN_COLUMN = "initial_composite_payoff_distribution_weighted_mean"
+FINAL_TOTAL_GAIN_COLUMN = "final_composite_payoff_distribution_weighted_mean"
 COMPACT_PRINT_COLUMNS = (
     "suite",
     "validation_steps",
     "scenario",
     SHORT_WEIGHTED_COLUMN,
     MEDIUM_WEIGHTED_COLUMN,
+    "final_total_gain_distribution_weighted_mean",
+    "delta_total_gain_distribution_weighted_mean",
     "final_short_dominance_distribution_weighted_margin",
     "final_medium_dominance_distribution_weighted_margin",
     "final_dominance_regime",
-    "final_composite_payoff_distribution_weighted_mean",
+    "short_dominant_total_gain_decline_tension",
+    "final_total_gain_tension_readout",
     "final_damage_distribution_weighted_mean",
     "final_total_flow",
 )
@@ -69,6 +75,27 @@ def add_dominance_columns(summary: pd.DataFrame) -> pd.DataFrame:
     return enriched
 
 
+def add_total_gain_columns(summary: pd.DataFrame) -> pd.DataFrame:
+    """Add total-gain aliases and short-dominance/total-decline tension readouts."""
+
+    enriched = summary.copy()
+    enriched["initial_total_gain_distribution_weighted_mean"] = enriched[INITIAL_TOTAL_GAIN_COLUMN]
+    enriched["final_total_gain_distribution_weighted_mean"] = enriched[FINAL_TOTAL_GAIN_COLUMN]
+    enriched["delta_total_gain_distribution_weighted_mean"] = (
+        enriched["final_total_gain_distribution_weighted_mean"]
+        - enriched["initial_total_gain_distribution_weighted_mean"]
+    )
+    enriched["final_short_over_total_gain_margin"] = (
+        enriched[SHORT_WEIGHTED_COLUMN] - enriched["final_total_gain_distribution_weighted_mean"]
+    )
+    enriched["short_dominant_total_gain_decline_tension"] = enriched.apply(
+        _short_dominant_total_gain_decline_tension,
+        axis=1,
+    )
+    enriched["final_total_gain_tension_readout"] = enriched.apply(_total_gain_tension_readout, axis=1)
+    return enriched
+
+
 def _dominance_regime(row: pd.Series) -> str:
     margin = float(row["final_medium_dominance_distribution_weighted_margin"])
     if margin > 0.05:
@@ -76,6 +103,35 @@ def _dominance_regime(row: pd.Series) -> str:
     if margin < -0.05:
         return "short_dominant"
     return "mixed_or_near_balanced"
+
+
+def _short_dominant_total_gain_decline_tension(row: pd.Series) -> float:
+    """Positive when short dominance coexists with total-gain decline."""
+
+    if row["final_dominance_regime"] != "short_dominant":
+        return 0.0
+    total_decline = max(0.0, -float(row["delta_total_gain_distribution_weighted_mean"]))
+    short_margin = max(0.0, float(row["final_short_dominance_distribution_weighted_margin"]))
+    return total_decline * short_margin
+
+
+def _total_gain_tension_readout(row: pd.Series) -> str:
+    total_delta = float(row["delta_total_gain_distribution_weighted_mean"])
+    short_total_tension = float(row["short_dominant_total_gain_decline_tension"])
+    total_flow = float(row["final_total_flow"])
+    damage = float(row["final_damage_distribution_weighted_mean"])
+
+    if short_total_tension > 0.05 and damage > 0.20:
+        return "short_dominant_total_decline_with_damage"
+    if short_total_tension > 0.05 and total_flow < 0.08:
+        return "short_dominant_total_decline_low_flow"
+    if short_total_tension > 0.05:
+        return "short_dominant_total_decline"
+    if total_delta < -0.05 and total_flow < 0.08:
+        return "total_decline_low_flow"
+    if total_delta > 0.05:
+        return "total_gain_rising"
+    return "total_gain_near_flat"
 
 
 def _export_suite(
@@ -89,6 +145,7 @@ def _export_suite(
     output_dir.mkdir(parents=True, exist_ok=True)
     summary, _traces_by_scenario = runner(seed=0, steps=steps)
     summary = add_dominance_columns(summary)
+    summary = add_total_gain_columns(summary)
     summary.insert(0, "suite", suite_name)
     summary.insert(1, "validation_steps", steps)
     summary.to_csv(output_dir / "scenario_summary.csv", index=False)
