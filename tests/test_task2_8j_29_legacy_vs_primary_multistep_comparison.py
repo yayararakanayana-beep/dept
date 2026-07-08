@@ -3,17 +3,25 @@ from pathlib import Path
 from validation.task2_8j_29_legacy_vs_primary_multistep_comparison import (
     TASK2_8J_29_SCENARIOS,
     TASK2_8J_29_STEPS,
-    build_task2_8j_29_comparison,
     write_task2_8j_29_comparison,
 )
 
 
-def test_task2_8j_29_builds_legacy_vs_primary_comparison_tables():
-    outputs = build_task2_8j_29_comparison()
+def test_task2_8j_29_builds_and_writes_legacy_vs_primary_comparison_tables(tmp_path: Path):
+    outputs = write_task2_8j_29_comparison(tmp_path)
 
     summary = outputs["task2_8j_29_summary"]
     per_step = outputs["task2_8j_29_per_step_metrics"]
     route_delta = outputs["task2_8j_29_route_delta"]
+
+    expected_files = [
+        "task2_8j_29_summary.csv",
+        "task2_8j_29_per_step_metrics.csv",
+        "task2_8j_29_route_delta.csv",
+        "task2_8j_29_manifest.json",
+    ]
+    for filename in expected_files:
+        assert (tmp_path / filename).exists(), filename
 
     assert set(summary["scenario"].astype(str)) == set(TASK2_8J_29_SCENARIOS)
     assert set(summary["comparison_status"].astype(str)) == {"pass"}
@@ -58,16 +66,3 @@ def test_task2_8j_29_builds_legacy_vs_primary_comparison_tables():
     assert bool(route_delta["task2_8j_transition_time_ok"].astype(bool).all())
     assert "gate_risk_delta_task2_minus_legacy" in route_delta.columns
     assert "mean_delta_relation_lock_delta_task2_minus_legacy" in route_delta.columns
-
-
-def test_task2_8j_29_writes_comparison_artifacts(tmp_path: Path):
-    outputs = write_task2_8j_29_comparison(tmp_path)
-    assert outputs["task2_8j_29_summary"] is not None
-    expected = [
-        "task2_8j_29_summary.csv",
-        "task2_8j_29_per_step_metrics.csv",
-        "task2_8j_29_route_delta.csv",
-        "task2_8j_29_manifest.json",
-    ]
-    for filename in expected:
-        assert (tmp_path / filename).exists(), filename
