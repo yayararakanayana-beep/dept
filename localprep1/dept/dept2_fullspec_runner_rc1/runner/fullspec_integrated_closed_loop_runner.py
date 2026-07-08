@@ -4,6 +4,9 @@ Task12 goal:
   - Keep Task7 exploration, Task8 local audit, and Task10 exploration bridge.
   - Strengthen coactivation_gate_module so pressure / exploration / action / shadow / noise coactivation is classified before ActionFrame.
   - Preserve the gate as a bounded pre-ActionFrame safety valve, not a full combined-interference solution.
+
+Task2-8j-26 adds an optional FullSpec integration bridge that loads the
+Task2-8j material chain through Task2-8j-24 inside a FullSpec cycle.
 """
 from __future__ import annotations
 
@@ -28,6 +31,15 @@ from dept2_fullspec_runner_rc1.modules.coactivation_gate_module import Coactivat
 from dept2_fullspec_runner_rc1.modules.action_execution_module import ActionExecutionModule
 from dept2_fullspec_runner_rc1.modules.audit_ledger_module import AuditLedgerModule
 from dept2_fullspec_runner_rc1.modules.boundary_guard import BoundaryGuard
+from dept2_fullspec_runner_rc1.modules.task2_8j_fullspec_integration_bridge import Task2_8jFullSpecIntegrationBridge
+
+TASK2_8J_OPTIONAL_OUTPUT_TABLES = [
+    "task2_8j_bridge_audit",
+    "task2_8j_operator_selection",
+    "task2_8j_operator_review",
+    "task2_8j_operator_checks",
+    "task2_8j_operator_summary",
+]
 
 
 class FullSpecIntegratedClosedLoopRunner:
@@ -49,6 +61,7 @@ class FullSpecIntegratedClosedLoopRunner:
         self.action_surface_planning_module = ActionSurfacePlanningModule(cfg)
         self.coactivation_gate_module = CoactivationGateModule()
         self.action_execution_module = ActionExecutionModule()
+        self.task2_8j_bridge = Task2_8jFullSpecIntegrationBridge()
         self.audit_ledger_module = AuditLedgerModule()
         self.boundary_guard = BoundaryGuard()
 
@@ -80,7 +93,9 @@ class FullSpecIntegratedClosedLoopRunner:
             cycles.append(artifacts)
             trace = artifacts.world_trace_after
 
-        return self.audit_ledger_module.collect_outputs(cycles)
+        outputs = self.audit_ledger_module.collect_outputs(cycles)
+        outputs.update(self._collect_task2_8j_outputs(cycles))
+        return outputs
 
     def run_cycle(self, step: int, trace) -> CycleArtifacts:
         artifacts = CycleArtifacts(step=step, seed=self.cfg.seed, scenario=self.cfg.scenario)
@@ -127,6 +142,23 @@ class FullSpecIntegratedClosedLoopRunner:
         artifacts.pressure_intent_bundle = self._tag(trans_out["pressure_intent_bundle"], step)
         artifacts.pressure_translation_audit = self._tag(trans_out["pressure_translation_audit"], step)
         artifacts.boundary_violations.extend(self.boundary_guard.validate_pressure_translation_audit(artifacts.pressure_translation_audit))
+
+        if bool(getattr(self.cfg, "task2_8j_bridge_enabled", False)):
+            task2_8j_out = self.task2_8j_bridge.build(
+                gt=artifacts.gt,
+                kt=artifacts.kt,
+                formal_packet=artifacts.formal_packet,
+                ot_action_view=artifacts.ot_action_view,
+                pressure_intent_bundle=artifacts.pressure_intent_bundle,
+                loop_step=step,
+            )
+            artifacts.task2_8j_bridge_audit = self._tag(task2_8j_out["task2_8j_bridge_audit"], step)
+            artifacts.task2_8j_operator_selection = self._tag(task2_8j_out["task2_8j_operator_selection"], step)
+            artifacts.task2_8j_operator_review = self._tag(task2_8j_out["task2_8j_operator_review"], step)
+            artifacts.task2_8j_operator_checks = self._tag(task2_8j_out["task2_8j_operator_checks"], step)
+            artifacts.task2_8j_operator_summary = self._tag(task2_8j_out["task2_8j_operator_summary"], step)
+            if not artifacts.task2_8j_bridge_audit.empty and not bool((artifacts.task2_8j_bridge_audit["bridge_status"].astype(str) == "pass").all()):
+                artifacts.boundary_violations.append("task2_8j_26_bridge_status_not_pass")
 
         shadow_out = self.parameter_shadow_box.update_shadow(artifacts.formal_packet, artifacts.h11_local_pressure_field, loop_step=step)
         artifacts.parameter_registry = self._tag(shadow_out["parameter_registry"], step)
@@ -299,6 +331,17 @@ class FullSpecIntegratedClosedLoopRunner:
         out["run_seed"] = self.cfg.seed
         out["run_scenario"] = self.cfg.scenario
         return out
+
+    def _collect_task2_8j_outputs(self, cycles: List[CycleArtifacts]) -> Dict[str, pd.DataFrame]:
+        outputs: Dict[str, pd.DataFrame] = {}
+        for name in TASK2_8J_OPTIONAL_OUTPUT_TABLES:
+            frames = []
+            for cycle in cycles:
+                df = getattr(cycle, name, pd.DataFrame())
+                if df is not None and not df.empty:
+                    frames.append(df.copy())
+            outputs[name] = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        return outputs
 
 
 def run_fullspec_task16(cfg: Optional[FullSpecRunnerConfig] = None) -> Dict[str, pd.DataFrame]:

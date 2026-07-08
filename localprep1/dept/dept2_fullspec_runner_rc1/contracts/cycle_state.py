@@ -31,6 +31,7 @@ class FullSpecRunnerConfig:
     alignment_threshold: float = 0.50
     kt_window: int = 6
     gt_route: str = "legacy"  # legacy | static_pca_7_smoke
+    task2_8j_bridge_enabled: bool = False
     world_profile_name: str = "pseudo_reality_default"
     action_profile_name: str = "action_default"
     validation_profile_name: str = "smoke"
@@ -93,6 +94,11 @@ class CycleArtifacts:
     h11_local_pressure_field: pd.DataFrame = field(default_factory=pd.DataFrame)
     pressure_intent_bundle: pd.DataFrame = field(default_factory=pd.DataFrame)
     pressure_translation_audit: pd.DataFrame = field(default_factory=pd.DataFrame)
+    task2_8j_bridge_audit: pd.DataFrame = field(default_factory=pd.DataFrame)
+    task2_8j_operator_selection: pd.DataFrame = field(default_factory=pd.DataFrame)
+    task2_8j_operator_review: pd.DataFrame = field(default_factory=pd.DataFrame)
+    task2_8j_operator_checks: pd.DataFrame = field(default_factory=pd.DataFrame)
+    task2_8j_operator_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
     parameter_registry: pd.DataFrame = field(default_factory=pd.DataFrame)
     parameter_updates: pd.DataFrame = field(default_factory=pd.DataFrame)
     shadow_parameter_state: pd.DataFrame = field(default_factory=pd.DataFrame)
