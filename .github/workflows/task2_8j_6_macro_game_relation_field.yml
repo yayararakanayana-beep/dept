@@ -2,6 +2,13 @@ name: Task2-8j-6 Macro Game Relation Field
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_6_macro_game_relation_field_validation.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_6.py'
+      - '.github/workflows/task2_8j_6_macro_game_relation_field.yml'
 
 jobs:
   task2-8j-6:

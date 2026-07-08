@@ -1,0 +1,61 @@
+name: Task2-8j-24b3 Multi Scenario Stateful Rollout Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_24b3_multi_scenario_stateful_rollout_validation.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_24b3.py'
+      - '.github/workflows/task2_8j_24b3_multi_scenario_stateful_rollout_validation.yml'
+
+jobs:
+  task2-8j-24b3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run tests
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_action_module_upper_pressure_reception_split_task2_8j_24b3.py
+      - name: Export tables
+        if: always()
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from dept2_fullspec_runner_rc1.modules.action_policies.pressure_action_task2_8j_24b3_multi_scenario_stateful_rollout_validation import build_and_validate_multi_scenario_stateful_rollout_validation
+          out = Path('results/task2_8j_24b3_multi_scenario_stateful_rollout_validation_rc1')
+          out.mkdir(parents=True, exist_ok=True)
+          scenarios, policy, random_rollout, baseline, risk, step, threshold, checks, final_summary, errors, summary = build_and_validate_multi_scenario_stateful_rollout_validation()
+          scenarios.to_csv(out / 'multi_scenario_profiles.csv', index=False)
+          policy.to_csv(out / 'multi_scenario_policy_rollouts.csv', index=False)
+          random_rollout.to_csv(out / 'multi_scenario_randomized_operator_rollouts.csv', index=False)
+          baseline.to_csv(out / 'randomized_operator_baseline_comparison.csv', index=False)
+          risk.to_csv(out / 'per_risk_adoption_robustness_audit.csv', index=False)
+          step.to_csv(out / 'multi_scenario_step_count_sensitivity.csv', index=False)
+          threshold.to_csv(out / 'multi_scenario_threshold_audit.csv', index=False)
+          checks.to_csv(out / 'multi_scenario_validation_checks.csv', index=False)
+          final_summary.to_csv(out / 'final_summary.csv', index=False)
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'TASK2_8J_24B3_MULTI_SCENARIO_STATEFUL_ROLLOUT_VALIDATION_RC1.md').write_text('# Task 2-8j-24b3\n\n' + json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          if errors:
+              raise SystemExit('Task2-8j-24b3 validation errors')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task2-8j-24b3-multi-scenario-stateful-rollout-validation-rc1
+          path: results/task2_8j_24b3_multi_scenario_stateful_rollout_validation_rc1/
+          if-no-files-found: error

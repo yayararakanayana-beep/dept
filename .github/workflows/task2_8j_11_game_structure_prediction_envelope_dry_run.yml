@@ -2,6 +2,13 @@ name: Task2-8j-11 Game Structure Prediction Envelope Dry Run
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - action-upper-pressure-reception-split-rc1
+    paths:
+      - 'localprep1/dept/dept2_fullspec_runner_rc1/modules/action_policies/pressure_action_task2_8j_11_game_structure_prediction_envelope_dry_run.py'
+      - 'tests/test_action_module_upper_pressure_reception_split_task2_8j_11.py'
+      - '.github/workflows/task2_8j_11_game_structure_prediction_envelope_dry_run.yml'
 
 jobs:
   task2-8j-11:
