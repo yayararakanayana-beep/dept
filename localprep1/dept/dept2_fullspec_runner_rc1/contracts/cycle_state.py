@@ -30,6 +30,7 @@ class FullSpecRunnerConfig:
     strength_scale: float = 0.12
     alignment_threshold: float = 0.50
     kt_window: int = 6
+    gt_route: str = "legacy"  # legacy | static_pca_7_smoke
     world_profile_name: str = "pseudo_reality_default"
     action_profile_name: str = "action_default"
     validation_profile_name: str = "smoke"
