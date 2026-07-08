@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from pseudo_reality.distribution_terrain_v3 import DistributionTerrainV3Config, DistributionTerrainV3World
@@ -52,6 +53,8 @@ class ScenarioSpec:
     seed: int = 0
     steps: int = 30
     phases: tuple[ScenarioPhase, ...] = ()
+    initial_center: tuple[float, ...] | None = None
+    initial_width: float = 0.08
 
 
 @dataclass(frozen=True)
@@ -67,12 +70,16 @@ def make_static_scenario(
     *,
     seed: int = 0,
     steps: int = 30,
+    initial_center: tuple[float, ...] | None = None,
+    initial_width: float = 0.08,
 ) -> ScenarioSpec:
     return ScenarioSpec(
         name=name,
         seed=seed,
         steps=steps,
         phases=(ScenarioPhase(start=0, end=steps, external_factors=dict(external_factors)),),
+        initial_center=initial_center,
+        initial_width=initial_width,
     )
 
 
@@ -148,6 +155,61 @@ def default_scenario_specs(*, seed: int = 0, steps: int = 30) -> tuple[ScenarioS
     )
 
 
+def stable_scenario_specs(*, seed: int = 0, steps: int = 30) -> tuple[ScenarioSpec, ...]:
+    stable_support = {
+        "external_resource_supply": 0.7,
+        "external_demand": 0.1,
+        "external_competition_pressure": 0.0,
+        "external_information_noise": 0.0,
+        "external_shock": 0.0,
+        "external_constraint_pressure": 0.0,
+    }
+    mild_stress = {
+        "external_resource_supply": -0.2,
+        "external_demand": 0.2,
+        "external_competition_pressure": 0.2,
+        "external_information_noise": 0.2,
+        "external_shock": 0.0,
+        "external_constraint_pressure": 0.1,
+    }
+    midpoint = steps // 2
+    return (
+        make_static_scenario(
+            "stable_resource_support",
+            stable_support,
+            seed=seed,
+            steps=steps,
+        ),
+        make_static_scenario(
+            "stable_high_information",
+            stable_support,
+            seed=seed,
+            steps=steps,
+            initial_center=(0.65, 0.85, 0.35, 0.70, 0.80),
+            initial_width=0.06,
+        ),
+        make_static_scenario(
+            "stable_low_pressure_reversible",
+            stable_support,
+            seed=seed,
+            steps=steps,
+            initial_center=(0.60, 0.75, 0.25, 0.70, 0.90),
+            initial_width=0.06,
+        ),
+        ScenarioSpec(
+            name="mild_stress_then_stable_support",
+            seed=seed,
+            steps=steps,
+            phases=(
+                ScenarioPhase(start=0, end=midpoint, external_factors=mild_stress),
+                ScenarioPhase(start=midpoint, end=steps, external_factors=stable_support),
+            ),
+            initial_center=(0.55, 0.65, 0.40, 0.60, 0.70),
+            initial_width=0.07,
+        ),
+    )
+
+
 def _effective_phases(spec: ScenarioSpec) -> tuple[ScenarioPhase, ...]:
     if not spec.phases:
         return (ScenarioPhase(start=0, end=spec.steps, external_factors=BASELINE_EXTERNAL_FACTORS),)
@@ -157,6 +219,10 @@ def _effective_phases(spec: ScenarioSpec) -> tuple[ScenarioPhase, ...]:
 def _validate_phases(spec: ScenarioSpec) -> tuple[ScenarioPhase, ...]:
     if spec.steps < 0:
         raise ValueError("steps must be non-negative")
+    if spec.initial_center is not None and len(spec.initial_center) != len(DistributionTerrainV3Config().axes):
+        raise ValueError("initial_center must match the five PseudoReality v3 axes")
+    if spec.initial_width <= 0.0:
+        raise ValueError("initial_width must be positive")
     phases = _effective_phases(spec)
     previous_end = -1
     for phase in phases:
@@ -177,6 +243,22 @@ def _external_factors_for_step(phases: tuple[ScenarioPhase, ...], t: int) -> dic
         if phase.start <= t < phase.end:
             return phase.external_factors
     return BASELINE_EXTERNAL_FACTORS
+
+
+def _replace_initial_distribution(world: DistributionTerrainV3World, spec: ScenarioSpec) -> None:
+    if spec.initial_center is None:
+        return
+    coords = world._coordinate_grids()
+    center = tuple(float(np.clip(value, 0.0, 1.0)) for value in spec.initial_center)
+    squared_radius = sum((coord - center_value) ** 2 for coord, center_value in zip(coords, center, strict=True))
+    world.distribution = np.exp(-squared_radius / max(float(spec.initial_width), 1e-9))
+    world._normalize_distribution()
+    world._distribution_trace = []
+    world._terrain_trace = []
+    world._flow_trace = []
+    world._external_trace = []
+    world._auxiliary_trace = []
+    world._record_trace(total_flow=0.0, stay_mass=float(world.distribution.sum()))
 
 
 def _distribution_weighted_terrain_row(world: DistributionTerrainV3World) -> dict[str, float | int | str]:
@@ -257,6 +339,7 @@ def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[
 def run_scenario(spec: ScenarioSpec) -> ScenarioResult:
     phases = _validate_phases(spec)
     world = DistributionTerrainV3World(DistributionTerrainV3Config(seed=spec.seed, scenario=spec.name))
+    _replace_initial_distribution(world, spec)
     weighted_terrain_rows = [_distribution_weighted_terrain_row(world)]
     for t in range(spec.steps):
         world.set_external_factors(_external_factors_for_step(phases, t))
@@ -276,3 +359,7 @@ def run_scenario_suite(specs: tuple[ScenarioSpec, ...] | list[ScenarioSpec]) -> 
 
 def run_default_scenario_suite(*, seed: int = 0, steps: int = 30) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
     return run_scenario_suite(default_scenario_specs(seed=seed, steps=steps))
+
+
+def run_stable_scenario_suite(*, seed: int = 0, steps: int = 30) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
+    return run_scenario_suite(stable_scenario_specs(seed=seed, steps=steps))

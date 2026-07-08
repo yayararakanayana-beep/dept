@@ -13,6 +13,8 @@ from pseudo_reality.distribution_terrain_v3_scenarios import (
     make_static_scenario,
     run_default_scenario_suite,
     run_scenario,
+    run_stable_scenario_suite,
+    stable_scenario_specs,
 )
 
 
@@ -92,6 +94,16 @@ def test_distribution_terrain_v3_default_scenario_specs_include_required_scenari
     } <= names
 
 
+def test_distribution_terrain_v3_stable_scenario_specs_include_required_scenarios():
+    names = {spec.name for spec in stable_scenario_specs(seed=0, steps=5)}
+    assert {
+        "stable_resource_support",
+        "stable_high_information",
+        "stable_low_pressure_reversible",
+        "mild_stress_then_stable_support",
+    } <= names
+
+
 def test_distribution_terrain_v3_run_scenario_returns_summary_and_traces():
     spec = make_static_scenario(
         "test_resource_scarcity",
@@ -133,6 +145,17 @@ def test_distribution_terrain_v3_run_default_scenario_suite_returns_summary():
     assert {"baseline", "compound_shock"} <= set(traces_by_scenario)
 
 
+def test_distribution_terrain_v3_run_stable_scenario_suite_returns_summary():
+    summary, traces_by_scenario = run_stable_scenario_suite(seed=0, steps=5)
+
+    assert isinstance(summary, pd.DataFrame)
+    assert not summary.empty
+    assert {"stable_high_information", "mild_stress_then_stable_support"} <= set(summary["scenario"])
+    assert {"stable_high_information", "mild_stress_then_stable_support"} <= set(traces_by_scenario)
+    missing = REQUIRED_SUMMARY_COLUMNS - set(summary.columns)
+    assert not missing, f"Missing columns: {sorted(missing)}"
+
+
 def test_distribution_terrain_v3_scenario_summary_has_required_columns():
     summary, _ = run_default_scenario_suite(seed=0, steps=5)
 
@@ -148,6 +171,24 @@ def test_distribution_terrain_v3_weighted_terrain_trace_has_required_columns():
     assert len(weighted) == 6
     for column in DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS:
         assert weighted[column].notna().all()
+
+
+def test_distribution_terrain_v3_initial_center_moves_distribution_center():
+    result = run_scenario(
+        make_static_scenario(
+            "stable_high_information_check",
+            {},
+            seed=0,
+            steps=2,
+            initial_center=(0.65, 0.85, 0.35, 0.70, 0.80),
+            initial_width=0.06,
+        )
+    )
+    distribution = result.traces["v3_internal_distribution_trace"]
+
+    assert distribution["center_information_quality"].iloc[0] > 0.70
+    assert distribution["center_reversibility"].iloc[0] > 0.65
+    assert distribution["center_pressure"].iloc[0] < 0.50
 
 
 def test_distribution_terrain_v3_scenario_module_has_no_phenomenon_flag_strings():
