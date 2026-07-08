@@ -1,0 +1,30 @@
+name: Task2-8j-32 Main Default Route Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'validation/task2_8j_32_main_default_route_validation.py'
+      - 'tests/test_task2_8j_32_main_default_route_validation.py'
+      - '.github/workflows/task2_8j_32_main_default_route_validation.yml'
+      - 'docs/task2_8j_32_main_default_route_validation.md'
+
+jobs:
+  task2-8j-32:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Run Task2-8j-32 pytest
+        env:
+          PYTHONPATH: localprep1/dept:localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1
+        run: pytest -q tests/test_task2_8j_32_main_default_route_validation.py
