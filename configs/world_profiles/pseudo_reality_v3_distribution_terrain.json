@@ -50,5 +50,21 @@
     "information_noise": 0.03,
     "shock": 0.05,
     "constraint_pressure": 0.03
+  },
+  "threshold_widths": {
+    "resource_slack_low": 0.15,
+    "information_quality_low": 0.15,
+    "pressure_high": 0.15,
+    "exploration_room_low": 0.15,
+    "damage_high": 0.15,
+    "rigidity_high": 0.15
+  },
+  "threshold_effect_rates": {
+    "resource_low": 0.04,
+    "information_low": 0.04,
+    "pressure_high": 0.04,
+    "exploration_low": 0.04,
+    "damage_high": 0.05,
+    "rigidity_high": 0.05
   }
 }
