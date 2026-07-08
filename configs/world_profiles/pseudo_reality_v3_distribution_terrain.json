@@ -1,0 +1,46 @@
+{
+  "scenario": "distribution_terrain_v3_minimal",
+  "seed": 0,
+  "n_bins": 5,
+  "axes": [
+    "resource_slack",
+    "information_quality",
+    "pressure",
+    "exploration_room",
+    "reversibility"
+  ],
+  "payoff_weights": {
+    "short_term": 0.6,
+    "medium_term": 0.4
+  },
+  "mobility": {
+    "base_move_fraction": 0.2,
+    "diffusion_rate": 0.01
+  },
+  "terrain_deformation_rates": {
+    "path_reinforcement": 0.02,
+    "overconcentration_damage": 0.03,
+    "natural_recovery": 0.01
+  },
+  "auxiliary_defaults": {
+    "base_friction": 0.1,
+    "base_viscosity": 0.3,
+    "base_recovery_speed": 0.05
+  },
+  "external_factors": {
+    "external_resource_supply": 0.0,
+    "external_demand": 0.0,
+    "external_competition_pressure": 0.0,
+    "external_information_noise": 0.0,
+    "external_shock": 0.0,
+    "external_constraint_pressure": 0.0
+  },
+  "thresholds": {
+    "resource_slack_low": 0.2,
+    "information_quality_low": 0.2,
+    "pressure_high": 0.8,
+    "exploration_room_low": 0.2,
+    "damage_high": 0.7,
+    "rigidity_high": 0.7
+  }
+}
