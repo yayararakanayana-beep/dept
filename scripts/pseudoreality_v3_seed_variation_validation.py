@@ -56,6 +56,7 @@ COMPACT_AGGREGATE_COLUMNS = (
     "final_total_flow_std",
     "seed_stability_note",
 )
+LEADING_COLUMNS = ("suite", "validation_steps", "seed")
 
 
 def _scenario_suites() -> tuple[
@@ -69,6 +70,16 @@ def _scenario_suites() -> tuple[
     )
 
 
+def _with_front_columns(summary: pd.DataFrame, *, suite_name: str, seed: int, steps: int) -> pd.DataFrame:
+    enriched = summary.copy()
+    enriched["suite"] = suite_name
+    enriched["validation_steps"] = int(steps)
+    enriched["seed"] = int(seed)
+    ordered = [column for column in LEADING_COLUMNS if column in enriched.columns]
+    ordered.extend(column for column in enriched.columns if column not in ordered)
+    return enriched[ordered]
+
+
 def _run_suite_for_seed(
     *,
     suite_name: str,
@@ -79,10 +90,7 @@ def _run_suite_for_seed(
     summary, _traces_by_scenario = runner(seed=seed, steps=steps)
     summary = add_dominance_columns(summary)
     summary = add_total_gain_columns(summary)
-    summary.insert(0, "suite", suite_name)
-    summary.insert(1, "validation_steps", steps)
-    summary.insert(2, "seed", seed)
-    return summary
+    return _with_front_columns(summary, suite_name=suite_name, seed=seed, steps=steps)
 
 
 def run_seed_variation_validation(
