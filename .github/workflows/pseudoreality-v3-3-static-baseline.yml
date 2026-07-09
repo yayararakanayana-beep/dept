@@ -51,12 +51,13 @@ jobs:
           python -m py_compile scripts/pseudoreality_v3_3_static_7d_raw_baseline.py
 
       - name: Run static baseline tests
-        run: pytest tests/test_pseudoreality_v3_3_static_7d_raw_baseline.py -q
+        run: |
+          mkdir -p outputs/pseudoreality-v3-validation/v3-3-static-7d-raw-baseline
+          set -o pipefail
+          pytest tests/test_pseudoreality_v3_3_static_7d_raw_baseline.py -q 2>&1 | tee outputs/pseudoreality-v3-validation/v3-3-static-7d-raw-baseline/pytest.log
 
       - name: Export static 7D baseline
-        run: |
-          mkdir -p outputs/pseudoreality-v3-3-static-baseline
-          python scripts/pseudoreality_v3_3_static_7d_raw_baseline.py
+        run: python scripts/pseudoreality_v3_3_static_7d_raw_baseline.py
 
       - name: Upload static baseline artifacts
         if: always()
