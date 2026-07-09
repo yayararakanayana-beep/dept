@@ -6,10 +6,12 @@ terrain mechanics, not phenomenon flags and not an action module:
 
 - medium-path self-reinforcement in high-quality terrain;
 - conditional self-recovery when stress can be processed;
-- residual/nonproductive stress when stress exceeds local drain capacity.
+- residual/nonproductive stress when stress exceeds local drain capacity;
+- use-dependent stress tolerance for v3.1.1.
 
 Collapse-like outcomes are not directly designed here. They may appear only as a
-consequence of residual stress, damage, rigidity, friction, and low flow.
+consequence of residual stress, damage, rigidity, friction, low tolerance, and
+low flow.
 """
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ class DistributionTerrainV31Config(DistributionTerrainV3Config):
 
     medium_path_reinforcement_rate: float = 0.035
     productive_stress_learning_rate: float = 0.015
-    medium_path_memory_decay_rate: float = 0.015
+    medium_path_memory_decay_rate: float = 0.010
 
     conditional_recovery_rate: float = 0.035
     residual_stress_accumulation_rate: float = 0.10
@@ -44,6 +46,12 @@ class DistributionTerrainV31Config(DistributionTerrainV3Config):
     nonproductive_stress_rigidity_rate: float = 0.020
     nonproductive_stress_friction_rate: float = 0.030
     nonproductive_stress_medium_penalty_rate: float = 0.035
+
+    stress_tolerance_initial: float = 0.55
+    stress_tolerance_min: float = 0.10
+    stress_tolerance_use_gain_rate: float = 0.025
+    stress_tolerance_underuse_decay_rate: float = 0.008
+    stress_tolerance_overload_damage_rate: float = 0.020
 
 
 class DistributionTerrainV31World(DistributionTerrainV3World):
@@ -62,6 +70,11 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
         self.residual_stress = np.zeros(self.shape, dtype=float)
         self.nonproductive_stress = np.zeros(self.shape, dtype=float)
         self.terrain_quality = np.zeros(self.shape, dtype=float)
+        self.stress_tolerance = np.full(
+            self.shape,
+            float(np.clip(self.config.stress_tolerance_initial, self.config.stress_tolerance_min, 1.0)),
+            dtype=float,
+        )
         super().reset()
 
     def emit_trace(self) -> dict[str, Any]:
@@ -111,7 +124,8 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             1.0,
         )
         damage_drag = np.clip((1.0 - 0.45 * self.damage) * (1.0 - 0.30 * self.rigidity), 0.0, 1.0)
-        drain_capacity = np.clip(raw_capacity * damage_drag, 0.0, 1.0)
+        tolerance_factor = np.clip(0.60 + 0.80 * self.stress_tolerance, 0.0, 1.20)
+        drain_capacity = np.clip(raw_capacity * damage_drag * tolerance_factor, 0.0, 1.0)
         productive_stress = np.minimum(stress_load, drain_capacity)
         residual_gap = np.maximum(stress_load - drain_capacity, 0.0)
         return stress_load, drain_capacity, productive_stress, residual_gap, high_pressure
@@ -131,6 +145,38 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             1.0,
         )
 
+    def _update_stress_tolerance(
+        self,
+        *,
+        stress_load: np.ndarray,
+        productive_stress: np.ndarray,
+        nonproductive_stress: np.ndarray,
+        terrain_quality: np.ndarray,
+    ) -> None:
+        moderate_use = np.clip(productive_stress / 0.18, 0.0, 1.0) * np.clip(
+            (0.55 - productive_stress) / 0.30,
+            0.0,
+            1.0,
+        )
+        use_gain = (
+            self.config.stress_tolerance_use_gain_rate
+            * moderate_use
+            * terrain_quality
+            * (1.0 - self.stress_tolerance)
+        )
+        underuse = np.clip((0.08 - stress_load) / 0.08, 0.0, 1.0) * terrain_quality
+        underuse_decay = self.config.stress_tolerance_underuse_decay_rate * underuse * self.stress_tolerance
+        overload_damage = (
+            self.config.stress_tolerance_overload_damage_rate
+            * nonproductive_stress
+            * self.stress_tolerance
+        )
+        self.stress_tolerance = np.clip(
+            self.stress_tolerance + use_gain - underuse_decay - overload_damage,
+            self.config.stress_tolerance_min,
+            1.0,
+        )
+
     def _deform_terrain(self, inbound_flow: np.ndarray) -> None:
         stress_load, drain_capacity, productive_stress, residual_gap, high_pressure = self._stress_balance()
         terrain_quality = self._terrain_quality_score(high_pressure)
@@ -144,6 +190,12 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             1.0,
         )
         nonproductive_stress = np.clip(residual_gap + self.residual_stress, 0.0, 1.0)
+        self._update_stress_tolerance(
+            stress_load=stress_load,
+            productive_stress=productive_stress,
+            nonproductive_stress=nonproductive_stress,
+            terrain_quality=terrain_quality,
+        )
 
         concentration_excess = np.maximum(self.distribution - self.config.concentration_damage_threshold, 0.0)
         concentration_damage = self.config.overconcentration_damage_rate * concentration_excess
@@ -151,7 +203,12 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
         damage_delta = concentration_damage + stress_damage
 
         base_recovery = self.config.natural_recovery_rate * self.recovery_speed
-        recovery_gate = drain_capacity * terrain_quality * (1.0 - 0.50 * self.residual_stress)
+        recovery_gate = (
+            drain_capacity
+            * terrain_quality
+            * (1.0 - 0.50 * self.residual_stress)
+            * (0.50 + 0.50 * self.stress_tolerance)
+        )
         conditional_recovery = self.config.conditional_recovery_rate * np.clip(recovery_gate, 0.0, 1.0)
         recovery = np.clip(base_recovery + conditional_recovery, 0.0, 1.0)
 
@@ -169,8 +226,9 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             self.config.medium_path_reinforcement_rate * inbound_flow * terrain_quality
             + self.config.productive_stress_learning_rate * productive_stress * terrain_quality * self.distribution
         )
+        memory_decay = self.config.medium_path_memory_decay_rate * (1.0 - 0.35 * terrain_quality)
         self.medium_path_memory = np.clip(
-            (1.0 - self.config.medium_path_memory_decay_rate) * self.medium_path_memory + medium_memory_delta,
+            (1.0 - memory_decay) * self.medium_path_memory + medium_memory_delta,
             0.0,
             1.0,
         )
@@ -217,6 +275,7 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             self.config.base_recovery_speed * (1.0 - 0.55 * self.damage - 0.25 * self.rigidity)
             + 0.20 * drain_capacity
             + 0.10 * terrain_quality
+            + 0.12 * self.stress_tolerance
             - 0.20 * self.residual_stress,
             0.0,
             1.0,
@@ -242,6 +301,7 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             "residual_stress_mean": float(self.residual_stress.mean()),
             "nonproductive_stress_mean": float(self.nonproductive_stress.mean()),
             "terrain_quality_mean": float(self.terrain_quality.mean()),
+            "stress_tolerance_mean": float(self.stress_tolerance.mean()),
             "medium_path_memory_mean": float(self.medium_path_memory.mean()),
             "stress_load_distribution_weighted_mean": weighted_mean(self.stress_load),
             "stress_drain_capacity_distribution_weighted_mean": weighted_mean(self.stress_drain_capacity),
@@ -249,6 +309,7 @@ class DistributionTerrainV31World(DistributionTerrainV3World):
             "residual_stress_distribution_weighted_mean": weighted_mean(self.residual_stress),
             "nonproductive_stress_distribution_weighted_mean": weighted_mean(self.nonproductive_stress),
             "terrain_quality_distribution_weighted_mean": weighted_mean(self.terrain_quality),
+            "stress_tolerance_distribution_weighted_mean": weighted_mean(self.stress_tolerance),
             "medium_path_memory_distribution_weighted_mean": weighted_mean(self.medium_path_memory),
         }
         self._terrain_trace[-1].update(circulation_row)

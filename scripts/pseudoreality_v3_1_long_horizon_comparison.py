@@ -51,6 +51,7 @@ V31_EXTRA_METRICS = (
     "final_residual_stress_distribution_weighted_mean",
     "final_nonproductive_stress_distribution_weighted_mean",
     "final_terrain_quality_distribution_weighted_mean",
+    "final_stress_tolerance_distribution_weighted_mean",
     "final_medium_path_memory_distribution_weighted_mean",
 )
 COMPACT_MODEL_COLUMNS = (
@@ -65,6 +66,7 @@ COMPACT_MODEL_COLUMNS = (
     "final_rigidity_distribution_weighted_mean",
     "final_friction_distribution_weighted_mean",
     "final_total_flow",
+    "final_stress_tolerance_distribution_weighted_mean",
     "v3_1_long_horizon_readout",
 )
 COMPACT_DELTA_COLUMNS = (
@@ -76,6 +78,7 @@ COMPACT_DELTA_COLUMNS = (
     "total_gain_delta_v31_minus_v3",
     "damage_delta_v31_minus_v3",
     "flow_delta_v31_minus_v3",
+    "v31_final_stress_tolerance_distribution_weighted_mean",
     "v3_1_comparison_readout",
 )
 
@@ -116,10 +119,13 @@ def _model_readout(row: pd.Series) -> str:
     damage = float(row["final_damage_distribution_weighted_mean"])
     flow = float(row["final_total_flow"])
     residual = float(row.get("final_residual_stress_distribution_weighted_mean", 0.0))
+    tolerance = float(row.get("final_stress_tolerance_distribution_weighted_mean", 0.0))
     medium_memory = float(row.get("final_medium_path_memory_distribution_weighted_mean", 0.0))
 
     if regime == "medium_dominant" and damage < 0.45 and flow > 0.04:
         return "medium_path_persistent"
+    if medium_memory > 0.02 and tolerance > 0.45 and residual < 0.25 and damage < 0.55:
+        return "medium_memory_and_tolerance_present"
     if medium_memory > 0.02 and residual < 0.25 and damage < 0.55:
         return "medium_path_memory_present"
     if damage >= 0.90 and flow <= 0.03:
@@ -200,12 +206,15 @@ def _comparison_readout(row: dict[str, object]) -> str:
     damage_delta = _numeric_row_value(row, "damage_delta_v31_minus_v3")
     flow_delta = _numeric_row_value(row, "flow_delta_v31_minus_v3")
     residual = _numeric_row_value(row, "v31_final_residual_stress_distribution_weighted_mean")
+    tolerance = _numeric_row_value(row, "v31_final_stress_tolerance_distribution_weighted_mean")
     medium_memory = _numeric_row_value(row, "v31_final_medium_path_memory_distribution_weighted_mean")
 
     if v3_regime == "short_dominant" and v31_regime == "medium_dominant":
         return "v31_preserves_medium_dominance"
     if damage_delta <= -0.10 and total_gain_delta >= 0.03:
         return "v31_reduces_damage_and_improves_gain"
+    if medium_memory > 0.02 and tolerance > 0.45 and residual < 0.30:
+        return "v31_memory_and_tolerance_active"
     if medium_memory > 0.02 and residual < 0.30:
         return "v31_medium_path_memory_active"
     if residual >= 0.35 and damage_delta >= 0.05:
