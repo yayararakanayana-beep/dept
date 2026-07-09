@@ -20,7 +20,9 @@ def test_v3_1_world_keeps_v3_world_separate():
     v31_world = DistributionTerrainV31World()
 
     assert not hasattr(v3_world, "residual_stress")
+    assert not hasattr(v3_world, "stress_tolerance")
     assert hasattr(v31_world, "residual_stress")
+    assert hasattr(v31_world, "stress_tolerance")
     assert isinstance(v31_world.config, DistributionTerrainV31Config)
 
 
@@ -42,9 +44,11 @@ def test_v3_1_world_records_circulation_metrics_after_step():
 
     assert "residual_stress_distribution_weighted_mean" in terrain.columns
     assert "nonproductive_stress_distribution_weighted_mean" in terrain.columns
+    assert "stress_tolerance_distribution_weighted_mean" in terrain.columns
     assert "medium_path_memory_distribution_weighted_mean" in terrain.columns
     assert terrain["stress_load_distribution_weighted_mean"].iloc[-1] >= 0.0
     assert terrain["residual_stress_distribution_weighted_mean"].iloc[-1] >= 0.0
+    assert 0.0 <= terrain["stress_tolerance_distribution_weighted_mean"].iloc[-1] <= 1.0
 
 
 def test_v3_1_scenario_suites_return_expected_columns():
@@ -56,6 +60,7 @@ def test_v3_1_scenario_suites_return_expected_columns():
     for table in (default_summary, stable_summary):
         assert "final_residual_stress_distribution_weighted_mean" in table.columns
         assert "final_nonproductive_stress_distribution_weighted_mean" in table.columns
+        assert "final_stress_tolerance_distribution_weighted_mean" in table.columns
         assert "final_medium_path_memory_distribution_weighted_mean" in table.columns
         assert "final_total_flow" in table.columns
 
@@ -68,8 +73,10 @@ def test_v3_1_long_horizon_comparison_smoke():
     assert {"v3", "v3.1"} == set(by_model["model"])
     assert {5, 6} == set(by_model["validation_steps"])
     assert "v3_1_comparison_readout" in delta.columns
+    assert "v31_final_stress_tolerance_distribution_weighted_mean" in delta.columns
     compact = compact_delta_readout(delta)
     assert "total_gain_delta_v31_minus_v3" in compact.columns
+    assert "v31_final_stress_tolerance_distribution_weighted_mean" in compact.columns
 
 
 def test_export_v3_1_long_horizon_comparison_writes_outputs(tmp_path):
