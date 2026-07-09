@@ -51,8 +51,12 @@ DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS = (
 
 COMPACT_PRINT_COLUMNS = (
     "scenario",
+    "operation_family",
     "operation_target",
     "operation_scope",
+    "timing_label",
+    "duration_label",
+    "strength_label",
     "operation_start",
     "operation_duration",
     "operation_strength",
@@ -77,6 +81,10 @@ class TerrainOperationSpec:
     start: int
     duration: int
     strength: float
+    operation_family: str = "terrain_operation"
+    timing_label: str = "candidate"
+    duration_label: str = "candidate"
+    strength_label: str = "candidate"
 
 
 @dataclass(frozen=True)
@@ -93,7 +101,18 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
     late_start = max(shock_end + 1, (steps * 2) // 3)
     short_duration = max(1, steps // 10)
     return (
-        TerrainOperationSpec("terrain_op_no_operation", "none", "none", start=steps + 1, duration=0, strength=0.0),
+        TerrainOperationSpec(
+            "terrain_op_no_operation",
+            "none",
+            "none",
+            start=steps + 1,
+            duration=0,
+            strength=0.0,
+            operation_family="baseline",
+            timing_label="none",
+            duration_label="none",
+            strength_label="none",
+        ),
         TerrainOperationSpec(
             "terrain_op_damage_reduction_early",
             "damage_reduction",
@@ -101,6 +120,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=shock_end,
             duration=short_duration,
             strength=0.18,
+            operation_family="candidate_comparison",
+            timing_label="early",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_rigidity_reduction_early",
@@ -109,6 +132,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=shock_end,
             duration=short_duration,
             strength=0.18,
+            operation_family="candidate_comparison",
+            timing_label="early",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_friction_reduction_early",
@@ -117,6 +144,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=shock_end,
             duration=short_duration,
             strength=0.16,
+            operation_family="candidate_comparison",
+            timing_label="early",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_recovery_speed_boost_early",
@@ -125,6 +156,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=shock_end,
             duration=short_duration,
             strength=0.18,
+            operation_family="candidate_comparison",
+            timing_label="early",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_medium_path_boost_early",
@@ -133,6 +168,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=shock_end,
             duration=short_duration,
             strength=0.16,
+            operation_family="candidate_comparison",
+            timing_label="early",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_wrong_direction_early",
@@ -141,6 +180,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=shock_end,
             duration=short_duration,
             strength=0.16,
+            operation_family="candidate_comparison",
+            timing_label="early",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_damage_reduction_late",
@@ -149,6 +192,10 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=late_start,
             duration=short_duration,
             strength=0.18,
+            operation_family="candidate_comparison",
+            timing_label="late",
+            duration_label="short",
+            strength_label="medium",
         ),
         TerrainOperationSpec(
             "terrain_op_recovery_speed_boost_late",
@@ -157,8 +204,64 @@ def terrain_operation_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, .
             start=late_start,
             duration=short_duration,
             strength=0.18,
+            operation_family="candidate_comparison",
+            timing_label="late",
+            duration_label="short",
+            strength_label="medium",
         ),
     )
+
+
+def damage_recovery_timing_sweep_specs(*, steps: int = 30) -> tuple[TerrainOperationSpec, ...]:
+    """Return damage-recovery timing/strength/duration sweep scenarios."""
+
+    shock_end = max(1, steps // 3)
+    timing_starts = {
+        "early": shock_end,
+        "mid": max(shock_end + 1, steps // 2),
+        "late": max(shock_end + 1, (steps * 2) // 3),
+    }
+    durations = {
+        "short": max(1, steps // 10),
+        "medium": max(2, steps // 5),
+    }
+    strengths = {
+        "weak": 0.08,
+        "medium": 0.18,
+        "strong": 0.30,
+    }
+    specs: list[TerrainOperationSpec] = [
+        TerrainOperationSpec(
+            "damage_recovery_no_operation",
+            "none",
+            "none",
+            start=steps + 1,
+            duration=0,
+            strength=0.0,
+            operation_family="damage_recovery_sweep",
+            timing_label="none",
+            duration_label="none",
+            strength_label="none",
+        )
+    ]
+    for timing_label, start in timing_starts.items():
+        for strength_label, strength in strengths.items():
+            for duration_label, duration in durations.items():
+                specs.append(
+                    TerrainOperationSpec(
+                        name=f"damage_recovery_{timing_label}_{strength_label}_{duration_label}",
+                        target="damage_reduction",
+                        scope="distribution_hotspot",
+                        start=start,
+                        duration=duration,
+                        strength=strength,
+                        operation_family="damage_recovery_sweep",
+                        timing_label=timing_label,
+                        duration_label=duration_label,
+                        strength_label=strength_label,
+                    )
+                )
+    return tuple(specs)
 
 
 def _normalize_mask(mask: np.ndarray) -> np.ndarray:
@@ -297,8 +400,12 @@ def run_terrain_operation_scenario(spec: TerrainOperationSpec, *, seed: int = 0,
             {
                 "t": t,
                 "scenario": spec.name,
+                "operation_family": spec.operation_family,
                 "operation_target": spec.target,
                 "operation_scope": spec.scope,
+                "timing_label": spec.timing_label,
+                "duration_label": spec.duration_label,
+                "strength_label": spec.strength_label,
                 "operation_active": int(_operation_is_active(spec, t)),
                 "operation_effect_strength": operation_effect_strength,
             }
@@ -325,8 +432,12 @@ def _build_summary(
         "scenario": spec.name,
         "seed": int(distribution["seed"].iloc[-1]),
         "steps": steps,
+        "operation_family": spec.operation_family,
         "operation_target": spec.target,
         "operation_scope": spec.scope,
+        "timing_label": spec.timing_label,
+        "duration_label": spec.duration_label,
+        "strength_label": spec.strength_label,
         "operation_start": spec.start,
         "operation_duration": spec.duration,
         "operation_strength": spec.strength,
@@ -364,15 +475,32 @@ def _build_summary(
     return summary
 
 
+def _scenario_suite_from_specs(
+    specs: tuple[TerrainOperationSpec, ...],
+    *,
+    seed: int = 0,
+    steps: int = 30,
+) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
+    results = [run_terrain_operation_scenario(spec, seed=seed, steps=steps) for spec in specs]
+    summary = pd.DataFrame([result.summary for result in results])
+    traces_by_scenario = {result.spec.name: result.traces for result in results}
+    return summary, traces_by_scenario
+
+
 def run_terrain_operation_effectiveness_suite(
     *,
     seed: int = 0,
     steps: int = 30,
 ) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
-    results = [run_terrain_operation_scenario(spec, seed=seed, steps=steps) for spec in terrain_operation_specs(steps=steps)]
-    summary = pd.DataFrame([result.summary for result in results])
-    traces_by_scenario = {result.spec.name: result.traces for result in results}
-    return summary, traces_by_scenario
+    return _scenario_suite_from_specs(terrain_operation_specs(steps=steps), seed=seed, steps=steps)
+
+
+def run_damage_recovery_timing_sweep(
+    *,
+    seed: int = 0,
+    steps: int = 30,
+) -> tuple[pd.DataFrame, dict[str, dict[str, pd.DataFrame]]]:
+    return _scenario_suite_from_specs(damage_recovery_timing_sweep_specs(steps=steps), seed=seed, steps=steps)
 
 
 def export_terrain_operation_effectiveness(output_dir: str | Path, *, seed: int = 0, steps: int = 30) -> pd.DataFrame:
@@ -381,6 +509,19 @@ def export_terrain_operation_effectiveness(output_dir: str | Path, *, seed: int 
     summary, _traces_by_scenario = run_terrain_operation_effectiveness_suite(seed=seed, steps=steps)
     summary.to_csv(root / "terrain_operation_effectiveness_summary.csv", index=False)
     summary.to_json(root / "terrain_operation_effectiveness_summary.json", orient="records", indent=2)
+
+    sweep_summary, _sweep_traces = run_damage_recovery_timing_sweep(seed=seed, steps=steps)
+    sweep_summary.to_csv(root / "damage_recovery_timing_sweep_summary.csv", index=False)
+    sweep_summary.to_json(root / "damage_recovery_timing_sweep_summary.json", orient="records", indent=2)
+    return summary
+
+
+def export_damage_recovery_timing_sweep(output_dir: str | Path, *, seed: int = 0, steps: int = 30) -> pd.DataFrame:
+    root = Path(output_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    summary, _traces_by_scenario = run_damage_recovery_timing_sweep(seed=seed, steps=steps)
+    summary.to_csv(root / "damage_recovery_timing_sweep_summary.csv", index=False)
+    summary.to_json(root / "damage_recovery_timing_sweep_summary.json", orient="records", indent=2)
     return summary
 
 
@@ -390,9 +531,10 @@ def compact_readout(table: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    table = export_terrain_operation_effectiveness(
-        "outputs/pseudoreality-v3-validation/terrain-operation-effectiveness",
-        seed=0,
-        steps=30,
-    )
+    output_root = Path("outputs/pseudoreality-v3-validation/terrain-operation-effectiveness")
+    table = export_terrain_operation_effectiveness(output_root, seed=0, steps=30)
+    print("\n=== terrain operation candidate comparison ===")
     print(compact_readout(table).to_string(index=False))
+    sweep_table = export_damage_recovery_timing_sweep(output_root, seed=0, steps=30)
+    print("\n=== damage recovery timing strength duration sweep ===")
+    print(compact_readout(sweep_table).to_string(index=False))
