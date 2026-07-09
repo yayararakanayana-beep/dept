@@ -22,8 +22,9 @@ without a hand-authored exploration flag.
 
 ## Short-to-medium route
 
-Short gain is not directly converted into medium payoff. Successful short gain
-and useful exploratory flow are first retained as information. Information then:
+Short gain is not directly converted into medium payoff. Successful short gain,
+short-path disappointment, useful exploratory flow, and released flow are first
+retained as information. Information then:
 
 - lowers exploration cost;
 - lowers friction/viscosity modestly;
@@ -31,3 +32,26 @@ and useful exploratory flow are first retained as information. Information then:
 
 This keeps v3.2 in the gain-optimization lineage rather than the stress-cost
 lineage.
+
+## Limit without a collapse flag
+
+v3.2 does not add a collapse flag. Instead, it uses neutral internal quantities:
+
+- viability reserve;
+- route support;
+- support erosion;
+- released mass;
+- release reallocation flow.
+
+Low-flow equilibrium remains possible when a route is low-growth but still
+maintainable. Sustained negative net viability is different: the route can no
+longer pay its maintenance cost, so route support erodes and part of the
+concentrated distribution is released. Released mass is reallocated toward
+exploration-weighted, information-rich, reversible, less damaged regions.
+
+This gives the model the intended structure:
+
+1. equilibrium can exist;
+2. equilibrium still has a limit;
+3. crossing the limit does not freeze the system;
+4. loss of route support becomes an opening for exploration.
