@@ -125,14 +125,16 @@ jobs:
           try:
               from scripts.pseudoreality_v3_terrain_operation_effectiveness import (
                   compact_readout,
+                  export_damage_recovery_timing_sweep,
                   export_terrain_operation_effectiveness,
               )
-              table = export_terrain_operation_effectiveness(
-                  "outputs/pseudoreality-v3-validation/terrain-operation-effectiveness",
-                  seed=0,
-                  steps=30,
-              )
+              output_root = "outputs/pseudoreality-v3-validation/terrain-operation-effectiveness"
+              table = export_terrain_operation_effectiveness(output_root, seed=0, steps=30)
+              print("\n=== terrain operation candidate comparison ===")
               print(compact_readout(table).to_string(index=False))
+              sweep_table = export_damage_recovery_timing_sweep(output_root, seed=0, steps=30)
+              print("\n=== damage recovery timing strength duration sweep ===")
+              print(compact_readout(sweep_table).to_string(index=False))
           except Exception:
               error_path.write_text(traceback.format_exc(), encoding="utf-8")
               raise
