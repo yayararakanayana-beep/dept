@@ -33,6 +33,18 @@ V32_DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS = DISTRIBUTION_WEIGHTED_TERRAIN_COLUMN
     "expected_value_advantage_distribution_weighted_mean",
     "information_memory_distribution_weighted_mean",
     "short_gain_information_conversion_distribution_weighted_mean",
+    "short_path_decline_information_distribution_weighted_mean",
+    "exploration_experience_information_distribution_weighted_mean",
+    "viability_reserve_distribution_weighted_mean",
+    "route_support_distribution_weighted_mean",
+    "maintenance_cost_distribution_weighted_mean",
+    "net_viability_value_distribution_weighted_mean",
+    "negative_viability_pressure_distribution_weighted_mean",
+    "support_erosion_distribution_weighted_mean",
+    "released_mass_distribution_weighted_mean",
+    "release_reallocation_flow_distribution_weighted_mean",
+    "released_mass_sum",
+    "release_reallocation_flow_sum",
 )
 
 
@@ -118,6 +130,22 @@ def _distribution_weighted_terrain_row(world: DistributionTerrainV32World) -> di
         "short_gain_information_conversion_distribution_weighted_mean": weighted_mean(
             world.short_gain_information_conversion
         ),
+        "short_path_decline_information_distribution_weighted_mean": weighted_mean(
+            world.short_path_decline_information
+        ),
+        "exploration_experience_information_distribution_weighted_mean": weighted_mean(
+            world.exploration_experience_information
+        ),
+        "viability_reserve_distribution_weighted_mean": weighted_mean(world.viability_reserve),
+        "route_support_distribution_weighted_mean": weighted_mean(world.route_support),
+        "maintenance_cost_distribution_weighted_mean": weighted_mean(world.maintenance_cost),
+        "net_viability_value_distribution_weighted_mean": weighted_mean(world.net_viability_value),
+        "negative_viability_pressure_distribution_weighted_mean": weighted_mean(world.negative_viability_pressure),
+        "support_erosion_distribution_weighted_mean": weighted_mean(world.support_erosion),
+        "released_mass_distribution_weighted_mean": weighted_mean(world.released_mass),
+        "release_reallocation_flow_distribution_weighted_mean": weighted_mean(world.release_reallocation_flow),
+        "released_mass_sum": float(world.released_mass.sum()),
+        "release_reallocation_flow_sum": float(world.release_reallocation_flow.sum()),
     }
 
 
@@ -159,6 +187,18 @@ def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[
         "expected_value_advantage_mean",
         "information_memory_mean",
         "short_gain_information_conversion_mean",
+        "short_path_decline_information_mean",
+        "exploration_experience_information_mean",
+        "viability_reserve_mean",
+        "route_support_mean",
+        "maintenance_cost_mean",
+        "net_viability_value_mean",
+        "negative_viability_pressure_mean",
+        "support_erosion_mean",
+        "released_mass_mean",
+        "release_reallocation_flow_mean",
+        "released_mass_sum",
+        "release_reallocation_flow_sum",
     ):
         _first_last_delta(summary, column, terrain, column)
 
