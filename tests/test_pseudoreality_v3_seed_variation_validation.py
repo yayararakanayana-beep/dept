@@ -32,7 +32,7 @@ def test_aggregate_seed_variation_summarizes_expected_columns():
 
     assert "final_total_gain_distribution_weighted_mean_mean" in aggregate.columns
     assert "final_total_gain_distribution_weighted_mean_std" in aggregate.columns
-    assert "final_damage_distribution_weighted_mean_range" in aggregate.columns
+    assert "final_total_gain_distribution_weighted_mean_range" in aggregate.columns
     assert aggregate["seed_count"].min() == 2
 
 
