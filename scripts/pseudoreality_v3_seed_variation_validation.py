@@ -107,6 +107,7 @@ def aggregate_seed_variation(per_seed: pd.DataFrame) -> pd.DataFrame:
 
     group_keys = ["suite", "scenario", "validation_steps"]
     rows: list[dict[str, object]] = []
+    available_metric_columns = [column for column in VARIATION_METRIC_COLUMNS if column in per_seed.columns]
     for keys, group in per_seed.groupby(group_keys, sort=True):
         suite, scenario, validation_steps = keys
         row: dict[str, object] = {
@@ -122,7 +123,7 @@ def aggregate_seed_variation(per_seed: pd.DataFrame) -> pd.DataFrame:
         for regime, count in regime_counts.items():
             row[f"dominance_regime_count_{regime}"] = int(count)
 
-        for column in VARIATION_METRIC_COLUMNS:
+        for column in available_metric_columns:
             row[f"{column}_mean"] = float(group[column].mean())
             row[f"{column}_std"] = float(group[column].std(ddof=0))
             row[f"{column}_min"] = float(group[column].min())
@@ -134,11 +135,19 @@ def aggregate_seed_variation(per_seed: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _numeric_row_value(row: dict[str, object], key: str, default: float = 0.0) -> float:
+    value = row.get(key, default)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _seed_stability_note(row: dict[str, object]) -> str:
-    regime_unique = int(row["dominant_regime_unique_count"])
-    total_gain_std = float(row["final_total_gain_distribution_weighted_mean_std"])
-    total_gain_range = float(row["final_total_gain_distribution_weighted_mean_range"])
-    damage_range = float(row["final_damage_distribution_weighted_mean_range"])
+    regime_unique = int(row.get("dominant_regime_unique_count", 0))
+    total_gain_std = _numeric_row_value(row, "final_total_gain_distribution_weighted_mean_std")
+    total_gain_range = _numeric_row_value(row, "final_total_gain_distribution_weighted_mean_range")
+    damage_range = _numeric_row_value(row, "final_damage_distribution_weighted_mean_range")
 
     if regime_unique > 1 and total_gain_range > 0.05:
         return "regime_and_gain_seed_sensitive"
