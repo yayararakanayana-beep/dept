@@ -56,10 +56,11 @@ jobs:
           python -m py_compile pseudo_reality/distribution_terrain_v3_scenarios.py
           python -m py_compile scripts/pseudoreality_v3_typical_pattern_suite.py
           python -m py_compile scripts/pseudoreality_v3_medium_pattern_validation.py
+          python -m py_compile scripts/pseudoreality_v3_terrain_operation_effectiveness.py
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
-          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py -q
+          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py -q
 
       - name: Run scenario suites and export summaries
         run: |
@@ -108,6 +109,32 @@ jobs:
               )
               table = run_medium_pattern_validation("outputs/pseudoreality-v3-validation/medium-pattern")
               print(compact_readout(table).to_string(index=False))
+          except Exception:
+              error_path.write_text(traceback.format_exc(), encoding="utf-8")
+              raise
+          PY
+
+      - name: Run terrain operation effectiveness validation
+        run: |
+          mkdir -p outputs/pseudoreality-v3-validation/terrain-operation-effectiveness
+          python - <<'PY'
+          from pathlib import Path
+          import traceback
+
+          error_path = Path("outputs/pseudoreality-v3-validation/terrain-operation-effectiveness/error.txt")
+          try:
+              from scripts.pseudoreality_v3_terrain_operation_effectiveness import (
+                  compact_readout,
+                  export_damage_recovery_timing_sweep,
+                  export_terrain_operation_effectiveness,
+              )
+              output_root = "outputs/pseudoreality-v3-validation/terrain-operation-effectiveness"
+              table = export_terrain_operation_effectiveness(output_root, seed=0, steps=30)
+              print("\n=== terrain operation candidate comparison ===")
+              print(compact_readout(table).to_string(index=False))
+              sweep_table = export_damage_recovery_timing_sweep(output_root, seed=0, steps=30)
+              print("\n=== damage recovery timing strength duration sweep ===")
+              print(compact_readout(sweep_table).to_string(index=False))
           except Exception:
               error_path.write_text(traceback.format_exc(), encoding="utf-8")
               raise
