@@ -18,13 +18,16 @@ def test_v3_2_world_keeps_v3_world_separate():
     assert not hasattr(v3_world, "information_memory")
     assert not hasattr(v3_world, "expected_value_advantage")
     assert not hasattr(v3_world, "exploration_cost")
+    assert not hasattr(v3_world, "route_support")
     assert hasattr(v32_world, "information_memory")
     assert hasattr(v32_world, "expected_value_advantage")
     assert hasattr(v32_world, "exploration_cost")
+    assert hasattr(v32_world, "route_support")
+    assert hasattr(v32_world, "released_mass")
     assert isinstance(v32_world.config, DistributionTerrainV32Config)
 
 
-def test_v3_2_world_records_expected_value_metrics_after_step():
+def test_v3_2_world_records_expected_value_and_release_metrics_after_step():
     world = DistributionTerrainV32World()
     world.set_external_factors(
         {
@@ -45,9 +48,17 @@ def test_v3_2_world_records_expected_value_metrics_after_step():
     assert "exploration_net_expected_value_distribution_weighted_mean" in terrain.columns
     assert "expected_value_advantage_distribution_weighted_mean" in terrain.columns
     assert "information_memory_distribution_weighted_mean" in terrain.columns
+    assert "short_path_decline_information_distribution_weighted_mean" in terrain.columns
+    assert "exploration_experience_information_distribution_weighted_mean" in terrain.columns
+    assert "viability_reserve_distribution_weighted_mean" in terrain.columns
+    assert "route_support_distribution_weighted_mean" in terrain.columns
+    assert "negative_viability_pressure_distribution_weighted_mean" in terrain.columns
+    assert "released_mass_sum" in terrain.columns
     assert terrain["exploration_cost_distribution_weighted_mean"].iloc[-1] >= 0.0
     assert terrain["expected_value_advantage_distribution_weighted_mean"].iloc[-1] >= 0.0
     assert terrain["information_memory_distribution_weighted_mean"].iloc[-1] >= 0.0
+    assert terrain["route_support_distribution_weighted_mean"].iloc[-1] >= 0.0
+    assert terrain["released_mass_sum"].iloc[-1] >= 0.0
 
 
 def test_v3_2_scenario_suites_return_expected_columns():
@@ -61,11 +72,15 @@ def test_v3_2_scenario_suites_return_expected_columns():
         assert "final_exploration_cost_distribution_weighted_mean" in table.columns
         assert "final_expected_value_advantage_distribution_weighted_mean" in table.columns
         assert "final_information_memory_distribution_weighted_mean" in table.columns
+        assert "final_route_support_distribution_weighted_mean" in table.columns
+        assert "final_released_mass_sum" in table.columns
         assert "final_total_flow" in table.columns
 
 
-def test_v3_2_comparison_declares_expected_value_extra_metrics():
+def test_v3_2_comparison_declares_expected_value_and_release_extra_metrics():
     assert "final_existing_path_expected_value_distribution_weighted_mean" in V32_EXTRA_METRICS
     assert "final_exploration_cost_distribution_weighted_mean" in V32_EXTRA_METRICS
     assert "final_expected_value_advantage_distribution_weighted_mean" in V32_EXTRA_METRICS
     assert "final_information_memory_distribution_weighted_mean" in V32_EXTRA_METRICS
+    assert "final_route_support_distribution_weighted_mean" in V32_EXTRA_METRICS
+    assert "final_released_mass_sum" in V32_EXTRA_METRICS
