@@ -21,7 +21,9 @@ By default, outputs are written to
 The full-envelope corpus includes normal v3.3 snapshots, stress snapshots,
 concentrated templates, diffuse templates, multi-peak templates, boundary
 templates, convex mixtures, and holdout snapshots. Convex mixtures use
-`lambda = 0.25, 0.50, 0.75`.
+`lambda = 0.25, 0.50, 0.75`. Rows marked `corpus_type == "holdout"` are
+excluded from PCA fitting and are projected afterward through the fixed fitted
+mean/components for true holdout reconstruction, residual, and envelope metrics.
 
 ## Candidate families
 
@@ -34,8 +36,9 @@ The comparison covers:
 - `sqrt_sparse_temporal_lag_pca`
 
 Each family is evaluated at 5, 7, 10, and 12 components. The primary Task 3
-candidate is `sqrt_static_pca_7`; it is selected only after metrics are emitted
-alongside the comparison candidates.
+candidate is `sqrt_static_pca_7`; its decision status is derived from
+reconstruction error, residual energy, out-of-envelope counts, and comparison
+against alternatives rather than being unconditionally selected.
 
 ## Outputs
 

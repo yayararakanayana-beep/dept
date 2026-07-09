@@ -55,7 +55,21 @@ def test_candidate_pipeline_generates_required_metrics_and_csvs(tmp_path: Path) 
     decision = tables["v3_3_pca_gt_candidate_decision.csv"]
     primary = decision[decision["candidate_name"] == "sqrt_static_pca_7"].iloc[0]
     assert bool(primary["primary_candidate"])
-    assert primary["decision_status"] == "selected_primary_candidate"
+    assert primary["decision_status"] in {
+        "selected_primary_candidate",
+        "provisional_primary_candidate",
+        "risk_flagged_primary_candidate",
+    }
+
+    primary_summary = summary[summary["candidate_name"] == "sqrt_static_pca_7"].iloc[0]
+    manifest = tables["v3_3_pca_gt_corpus_manifest.csv"]
+    assert int(primary_summary["fit_snapshot_count"]) == int((manifest["corpus_type"] == "fit").sum())
+    assert int(primary_summary["holdout_snapshot_count"]) == int((manifest["corpus_type"] == "holdout").sum())
+    assert primary_summary["corpus_type"] == "fit_plus_holdout_projection"
+
+    holdout = tables["v3_3_pca_gt_holdout_projection_metrics.csv"]
+    assert set(holdout["projection_type"]) == {"true_holdout_projection"}
+    assert set(holdout["snapshot_id"]).issubset(set(manifest.loc[manifest["corpus_type"] == "holdout", "snapshot_id"]))
 
     audit = tables["v3_3_pca_gt_envelope_audit.csv"]
     assert {"in_envelope", "near_boundary", "out_of_envelope", "high_residual"}.intersection(set(audit["audit_status"]))

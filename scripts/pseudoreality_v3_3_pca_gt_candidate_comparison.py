@@ -160,6 +160,14 @@ def _fit_pca(x: np.ndarray, k: int) -> PcaFit:
     return PcaFit(mean, comps, evr[:k], scores, recon, x)
 
 
+def _project_pca(x: np.ndarray, fit: PcaFit) -> tuple[np.ndarray, np.ndarray]:
+    """Project a feature matrix through an already-fitted PCA basis."""
+
+    scores = (x - fit.mean) @ fit.components.T
+    reconstructed = scores @ fit.components + fit.mean
+    return scores, reconstructed
+
+
 def _metrics(fit: PcaFit) -> tuple[np.ndarray, np.ndarray]:
     resid = fit.feature_matrix - fit.reconstructed
     err = np.sqrt(np.mean(resid**2, axis=1))
@@ -167,38 +175,89 @@ def _metrics(fit: PcaFit) -> tuple[np.ndarray, np.ndarray]:
     return err, energy
 
 
+def _projection_metrics(feature_matrix: np.ndarray, reconstructed: np.ndarray, mean: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    resid = feature_matrix - reconstructed
+    err = np.sqrt(np.mean(resid**2, axis=1))
+    energy = np.sum(resid**2, axis=1) / np.maximum(np.sum((feature_matrix - mean) ** 2, axis=1), 1e-12)
+    return err, energy
+
+
+def _score_range_violation(scores: np.ndarray, fit_min: np.ndarray, fit_max: np.ndarray) -> np.ndarray:
+    return np.any((scores < fit_min) | (scores > fit_max), axis=1).astype(int)
+
+
+def _decision_status(summary: pd.DataFrame, primary_name: str = "sqrt_static_pca_7") -> tuple[str, str]:
+    primary = summary[summary["candidate_name"] == primary_name].iloc[0]
+    same_component = summary[summary["component_count"] == int(primary["component_count"])]
+    residual_cutoff = float(same_component["residual_energy_ratio_mean"].quantile(0.75))
+    reconstruction_cutoff = float(same_component["reconstruction_error_mean"].quantile(0.75))
+    envelope_cutoff = float(same_component["out_of_envelope_count"].quantile(0.75))
+
+    residual_ok = float(primary["residual_energy_ratio_mean"]) <= residual_cutoff
+    reconstruction_ok = float(primary["reconstruction_error_mean"]) <= reconstruction_cutoff
+    envelope_ok = int(primary["out_of_envelope_count"]) <= envelope_cutoff
+
+    if residual_ok and reconstruction_ok and envelope_ok:
+        return (
+            "selected_primary_candidate",
+            "Primary candidate metrics are within the comparison-set acceptance band for residual, reconstruction, and envelope counts.",
+        )
+    if sum((residual_ok, reconstruction_ok, envelope_ok)) >= 2:
+        return (
+            "provisional_primary_candidate",
+            "Primary candidate is acceptable on most metrics but has at least one borderline comparison metric.",
+        )
+    return (
+        "risk_flagged_primary_candidate",
+        "Primary candidate is expected by design but comparison metrics do not support unconditional selection.",
+    )
+
+
 def run_pca_gt_candidate_comparison(output_root: str | Path = "artifacts/pseudoreality_v3_3_pca_gt_candidate_comparison", *, seed: int = 0, epsilon: float = 1e-12) -> dict[str, pd.DataFrame]:
     root = Path(output_root); root.mkdir(parents=True, exist_ok=True)
     manifest, mass = build_full_envelope_corpus(seed=seed)
+    alt_manifest, alt_mass = build_full_envelope_corpus(seed=seed + 997)
+    fit_mask = manifest["corpus_type"].to_numpy() == "fit"
+    alt_fit_mask = alt_manifest["corpus_type"].to_numpy() == "fit"
     rows_summary=[]; rows_comp=[]; rows_scores=[]; rows_recon=[]; rows_audit=[]; rows_decision=[]; holdout=[]
     for cand in CANDIDATE_FAMILIES:
         feat, typ = _features(mass, cand, epsilon)
+        alt_feat, _ = _features(alt_mass, cand, epsilon)
+        fit_feat = feat[fit_mask]
         for k in COMPONENT_COUNTS:
-            fit = _fit_pca(feat, k); err, energy = _metrics(fit)
+            fit = _fit_pca(fit_feat, k)
+            scores, reconstructed = _project_pca(feat, fit)
+            err, energy = _projection_metrics(feat, reconstructed, fit.mean)
+            fit_err = err[fit_mask]
+            fit_energy = energy[fit_mask]
             score_std = fit.transformed.std(axis=0) + 1e-12
-            md = np.sqrt(np.sum(((fit.transformed - fit.transformed.mean(axis=0))/score_std)**2, axis=1))
+            md = np.sqrt(np.sum(((scores - fit.transformed.mean(axis=0))/score_std)**2, axis=1))
+            fit_md = md[fit_mask]
             mins, maxs = fit.transformed.min(axis=0), fit.transformed.max(axis=0)
-            near = ((fit.transformed - mins) / np.maximum(maxs - mins, 1e-12) < .03) | ((maxs - fit.transformed) / np.maximum(maxs - mins, 1e-12) < .03)
-            violation = np.zeros(len(manifest), dtype=int)
-            out = (energy > max(float(np.quantile(energy, .95))*1.25, 1e-12)) | (md > float(np.quantile(md, .95))*1.25)
-            seed_stability = float(np.mean(np.abs(fit.explained_variance_ratio - _fit_pca(feat[::-1], k).explained_variance_ratio)))
+            near = ((scores - mins) / np.maximum(maxs - mins, 1e-12) < .03) | ((maxs - scores) / np.maximum(maxs - mins, 1e-12) < .03)
+            violation = _score_range_violation(scores, mins, maxs)
+            out = (energy > max(float(np.quantile(fit_energy, .95))*1.25, 1e-12)) | (md > float(np.quantile(fit_md, .95))*1.25) | (violation.astype(bool))
+            alt_fit = _fit_pca(alt_feat[alt_fit_mask], k)
+            seed_stability = float(np.mean(np.abs(fit.explained_variance_ratio - alt_fit.explained_variance_ratio)))
             sep = float(pd.Series(md).groupby(manifest["scenario_type"]).mean().std())
-            smooth = float(np.mean(np.linalg.norm(np.diff(fit.transformed, axis=0), axis=1)))
+            smooth = float(np.mean(np.linalg.norm(np.diff(scores, axis=0), axis=1)))
             name = f"{cand}_{k}"
-            rows_summary.append({"candidate_name":name,"transform_type":typ,"component_count":k,"snapshot_count":len(manifest),"corpus_type":"full_envelope","reconstruction_error_mean":float(err.mean()),"reconstruction_error_max":float(err.max()),"residual_energy_ratio_mean":float(energy.mean()),"residual_energy_ratio_max":float(energy.max()),"component_explained_variance":";".join(f"{v:.8f}" for v in fit.explained_variance_ratio),"cumulative_explained_variance":float(fit.explained_variance_ratio.sum()),"effective_rank":float(np.exp(-np.sum((fit.explained_variance_ratio/fit.explained_variance_ratio.sum())*np.log((fit.explained_variance_ratio/fit.explained_variance_ratio.sum())+1e-12)))),"matrix_rank":int(np.linalg.matrix_rank(feat-fit.mean)),"score_range_violation_count":int(violation.sum()),"out_of_envelope_count":int(out.sum()),"mahalanobis_distance_mean":float(md.mean()),"mahalanobis_distance_max":float(md.max()),"temporal_smoothness":smooth,"seed_stability":seed_stability,"scenario_separation":sep,"epsilon":epsilon})
+            rows_summary.append({"candidate_name":name,"transform_type":typ,"component_count":k,"snapshot_count":len(manifest),"fit_snapshot_count":int(fit_mask.sum()),"holdout_snapshot_count":int((~fit_mask).sum()),"corpus_type":"fit_plus_holdout_projection","reconstruction_error_mean":float(err.mean()),"reconstruction_error_max":float(err.max()),"fit_reconstruction_error_mean":float(fit_err.mean()),"holdout_reconstruction_error_mean":float(err[~fit_mask].mean()),"residual_energy_ratio_mean":float(energy.mean()),"residual_energy_ratio_max":float(energy.max()),"fit_residual_energy_ratio_mean":float(fit_energy.mean()),"holdout_residual_energy_ratio_mean":float(energy[~fit_mask].mean()),"component_explained_variance":";".join(f"{v:.8f}" for v in fit.explained_variance_ratio),"cumulative_explained_variance":float(fit.explained_variance_ratio.sum()),"effective_rank":float(np.exp(-np.sum((fit.explained_variance_ratio/fit.explained_variance_ratio.sum())*np.log((fit.explained_variance_ratio/fit.explained_variance_ratio.sum())+1e-12)))),"matrix_rank":int(np.linalg.matrix_rank(fit_feat-fit.mean)),"score_range_violation_count":int(violation.sum()),"out_of_envelope_count":int(out.sum()),"mahalanobis_distance_mean":float(md.mean()),"mahalanobis_distance_max":float(md.max()),"temporal_smoothness":smooth,"seed_stability":seed_stability,"scenario_separation":sep,"epsilon":epsilon})
             for j, ev in enumerate(fit.explained_variance_ratio, 1): rows_comp.append({"candidate_name":name,"component_count":k,"axis_name":f"g{j}","explained_variance_ratio":float(ev),"cumulative_explained_variance":float(fit.explained_variance_ratio[:j].sum())})
             for i, m in manifest.iterrows():
                 base={"snapshot_id":m.snapshot_id,"scenario_type":m.scenario_type,"candidate_name":name,"component_count":k,"reconstruction_error":float(err[i]),"residual_energy_ratio":float(energy[i]),"mahalanobis_distance":float(md[i]),"score_range_violation":int(violation[i]),"out_of_envelope_flag":bool(out[i])}
                 rows_recon.append(base); status = "out_of_envelope" if out[i] else ("near_boundary" if bool(near[i].any()) else "in_envelope")
-                if energy[i] > float(np.quantile(energy,.9)): status = "high_residual" if status == "in_envelope" else status
+                if energy[i] > float(np.quantile(fit_energy,.9)): status = "high_residual" if status == "in_envelope" else status
                 rows_audit.append({**base,"audit_status":status,"projection_warning": bool(out[i] or status in {"near_boundary","high_residual"})})
                 score_row={"snapshot_id":m.snapshot_id,"scenario_type":m.scenario_type,"candidate_name":name,"component_count":k}
-                score_row.update({f"g{j+1}":float(fit.transformed[i,j]) for j in range(k)})
+                score_row.update({f"g{j+1}":float(scores[i,j]) for j in range(k)})
                 rows_scores.append(score_row)
-                if m.corpus_type == "holdout": holdout.append(base)
+                if m.corpus_type == "holdout": holdout.append({**base, "projection_type": "true_holdout_projection"})
     summary=pd.DataFrame(rows_summary)
+    primary_status, primary_reason = _decision_status(summary)
     for _, r in summary.iterrows():
-        rows_decision.append({"candidate_name":r.candidate_name,"component_count":int(r.component_count),"decision_status":"selected_primary_candidate" if r.candidate_name=="sqrt_static_pca_7" else "comparison_candidate","primary_candidate":bool(r.candidate_name=="sqrt_static_pca_7"),"reason":"Primary Task 3 candidate: sqrt transform, static fixed seven-axis PCA basis, acceptable residual/envelope metrics." if r.candidate_name=="sqrt_static_pca_7" else "Compared for evidence against primary fixed PCA-G_t candidate.","key_strengths":"geometric g1..gN axes; full-envelope fit; no semantic axis labels","key_risks":"fixed basis may flag future extremes; audit records residuals without dynamic expansion","mean_reconstruction_error":float(r.reconstruction_error_mean),"max_reconstruction_error":float(r.reconstruction_error_max),"mean_residual_energy_ratio":float(r.residual_energy_ratio_mean),"max_residual_energy_ratio":float(r.residual_energy_ratio_max),"out_of_envelope_count":int(r.out_of_envelope_count),"seed_stability":float(r.seed_stability),"notes":"No H-DEPT/O_t/ActionModule or dynamic PCA basis update."})
+        is_primary = bool(r.candidate_name=="sqrt_static_pca_7")
+        rows_decision.append({"candidate_name":r.candidate_name,"component_count":int(r.component_count),"decision_status":primary_status if is_primary else "comparison_candidate","primary_candidate":is_primary,"expected_primary_candidate":is_primary,"reason":primary_reason if is_primary else "Compared for evidence against primary fixed PCA-G_t candidate.","key_strengths":"geometric g1..gN axes; holdout projected through fixed fit basis; no semantic axis labels","key_risks":"fixed basis may flag future extremes; audit records residuals without dynamic expansion","mean_reconstruction_error":float(r.reconstruction_error_mean),"max_reconstruction_error":float(r.reconstruction_error_max),"mean_residual_energy_ratio":float(r.residual_energy_ratio_mean),"max_residual_energy_ratio":float(r.residual_energy_ratio_max),"out_of_envelope_count":int(r.out_of_envelope_count),"score_range_violation_count":int(r.score_range_violation_count),"seed_stability":float(r.seed_stability),"notes":"No H-DEPT/O_t/ActionModule or dynamic PCA basis update."})
     tables={"v3_3_pca_gt_candidate_summary.csv":summary,"v3_3_pca_gt_component_table.csv":pd.DataFrame(rows_comp),"v3_3_pca_gt_snapshot_scores.csv":pd.DataFrame(rows_scores),"v3_3_pca_gt_reconstruction_metrics.csv":pd.DataFrame(rows_recon),"v3_3_pca_gt_envelope_audit.csv":pd.DataFrame(rows_audit),"v3_3_pca_gt_candidate_decision.csv":pd.DataFrame(rows_decision),"v3_3_pca_gt_corpus_manifest.csv":manifest,"v3_3_pca_gt_extreme_templates.csv":manifest[manifest.scenario_type.isin(["stress","concentrated","diffuse","multi_peak","boundary"])],"v3_3_pca_gt_mixture_manifest.csv":manifest[manifest.scenario_type=="mixture"],"v3_3_pca_gt_holdout_projection_metrics.csv":pd.DataFrame(holdout)}
     for fn, df in tables.items(): df.to_csv(root/fn, index=False)
     return tables
