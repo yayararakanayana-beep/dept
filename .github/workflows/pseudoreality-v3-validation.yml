@@ -54,17 +54,20 @@ jobs:
         run: |
           python -m py_compile pseudo_reality/distribution_terrain_v3.py
           python -m py_compile pseudo_reality/distribution_terrain_v3_scenarios.py
+          python -m py_compile pseudo_reality/distribution_terrain_v3_1.py
+          python -m py_compile pseudo_reality/distribution_terrain_v3_1_scenarios.py
           python -m py_compile scripts/pseudoreality_v3_typical_pattern_suite.py
           python -m py_compile scripts/pseudoreality_v3_medium_pattern_validation.py
           python -m py_compile scripts/pseudoreality_v3_terrain_operation_effectiveness.py
           python -m py_compile scripts/pseudoreality_v3_seed_variation_validation.py
           python -m py_compile scripts/pseudoreality_v3_long_horizon_validation.py
+          python -m py_compile scripts/pseudoreality_v3_1_long_horizon_comparison.py
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
           mkdir -p outputs/pseudoreality-v3-validation/test-debug
           set -o pipefail
-          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py tests/test_pseudoreality_v3_seed_variation_validation.py tests/test_pseudoreality_v3_long_horizon_validation.py -q 2>&1 | tee outputs/pseudoreality-v3-validation/test-debug/pytest.log
+          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py tests/test_pseudoreality_v3_seed_variation_validation.py tests/test_pseudoreality_v3_long_horizon_validation.py tests/test_pseudoreality_v3_1_circulation_dynamics.py -q 2>&1 | tee outputs/pseudoreality-v3-validation/test-debug/pytest.log
 
       - name: Run scenario suites and export summaries
         run: |
@@ -187,6 +190,30 @@ jobs:
                   steps_set=(50, 100, 200),
               )
               print(compact_trend_readout(trend).to_string(index=False))
+          except Exception:
+              error_path.write_text(traceback.format_exc(), encoding="utf-8")
+              raise
+          PY
+
+      - name: Run v3.1 long horizon comparison
+        run: |
+          mkdir -p outputs/pseudoreality-v3-validation/v3-1-long-horizon-comparison
+          python - <<'PY'
+          from pathlib import Path
+          import traceback
+
+          error_path = Path("outputs/pseudoreality-v3-validation/v3-1-long-horizon-comparison/error.txt")
+          try:
+              from scripts.pseudoreality_v3_1_long_horizon_comparison import (
+                  compact_delta_readout,
+                  export_v3_1_long_horizon_comparison,
+              )
+              _by_model, delta = export_v3_1_long_horizon_comparison(
+                  "outputs/pseudoreality-v3-validation/v3-1-long-horizon-comparison",
+                  seed=0,
+                  steps_set=(50, 100, 200),
+              )
+              print(compact_delta_readout(delta).to_string(index=False))
           except Exception:
               error_path.write_text(traceback.format_exc(), encoding="utf-8")
               raise
