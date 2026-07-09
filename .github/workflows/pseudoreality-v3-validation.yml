@@ -58,12 +58,13 @@ jobs:
           python -m py_compile scripts/pseudoreality_v3_medium_pattern_validation.py
           python -m py_compile scripts/pseudoreality_v3_terrain_operation_effectiveness.py
           python -m py_compile scripts/pseudoreality_v3_seed_variation_validation.py
+          python -m py_compile scripts/pseudoreality_v3_long_horizon_validation.py
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
           mkdir -p outputs/pseudoreality-v3-validation/test-debug
           set -o pipefail
-          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py tests/test_pseudoreality_v3_seed_variation_validation.py -q 2>&1 | tee outputs/pseudoreality-v3-validation/test-debug/pytest.log
+          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py tests/test_pseudoreality_v3_seed_variation_validation.py tests/test_pseudoreality_v3_long_horizon_validation.py -q 2>&1 | tee outputs/pseudoreality-v3-validation/test-debug/pytest.log
 
       - name: Run scenario suites and export summaries
         run: |
@@ -162,6 +163,30 @@ jobs:
                   steps=30,
               )
               print(compact_aggregate_readout(aggregate).to_string(index=False))
+          except Exception:
+              error_path.write_text(traceback.format_exc(), encoding="utf-8")
+              raise
+          PY
+
+      - name: Run long horizon validation
+        run: |
+          mkdir -p outputs/pseudoreality-v3-validation/long-horizon
+          python - <<'PY'
+          from pathlib import Path
+          import traceback
+
+          error_path = Path("outputs/pseudoreality-v3-validation/long-horizon/error.txt")
+          try:
+              from scripts.pseudoreality_v3_long_horizon_validation import (
+                  compact_trend_readout,
+                  export_long_horizon_validation,
+              )
+              _per_horizon, trend = export_long_horizon_validation(
+                  "outputs/pseudoreality-v3-validation/long-horizon",
+                  seed=0,
+                  steps_set=(50, 100, 200),
+              )
+              print(compact_trend_readout(trend).to_string(index=False))
           except Exception:
               error_path.write_text(traceback.format_exc(), encoding="utf-8")
               raise
