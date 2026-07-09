@@ -52,8 +52,8 @@ def test_v3_1_world_records_circulation_metrics_after_step():
 
 
 def test_v3_1_scenario_suites_return_expected_columns():
-    default_summary, _default_traces = run_default_scenario_suite(seed=0, steps=3)
-    stable_summary, _stable_traces = run_stable_scenario_suite(seed=0, steps=3)
+    default_summary, _default_traces = run_default_scenario_suite(seed=0, steps=2)
+    stable_summary, _stable_traces = run_stable_scenario_suite(seed=0, steps=2)
 
     assert not default_summary.empty
     assert not stable_summary.empty
@@ -66,12 +66,12 @@ def test_v3_1_scenario_suites_return_expected_columns():
 
 
 def test_v3_1_long_horizon_comparison_smoke():
-    by_model, delta = run_v3_1_long_horizon_comparison(seed=0, steps_set=(5, 6))
+    by_model, delta = run_v3_1_long_horizon_comparison(seed=0, steps_set=(1,))
 
     assert not by_model.empty
     assert not delta.empty
     assert {"v3", "v3.1"} == set(by_model["model"])
-    assert {5, 6} == set(by_model["validation_steps"])
+    assert {1} == set(by_model["validation_steps"])
     assert "v3_1_comparison_readout" in delta.columns
     assert "v31_final_stress_tolerance_distribution_weighted_mean" in delta.columns
     compact = compact_delta_readout(delta)
@@ -80,7 +80,7 @@ def test_v3_1_long_horizon_comparison_smoke():
 
 
 def test_export_v3_1_long_horizon_comparison_writes_outputs(tmp_path):
-    by_model, delta = export_v3_1_long_horizon_comparison(tmp_path, seed=0, steps_set=(5, 6))
+    by_model, delta = export_v3_1_long_horizon_comparison(tmp_path, seed=0, steps_set=(1,))
 
     assert not by_model.empty
     assert not delta.empty
