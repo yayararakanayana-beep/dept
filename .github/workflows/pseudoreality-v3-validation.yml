@@ -61,7 +61,9 @@ jobs:
 
       - name: Run PseudoReality v3 smoke and scenario tests
         run: |
-          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py tests/test_pseudoreality_v3_seed_variation_validation.py -q
+          mkdir -p outputs/pseudoreality-v3-validation/test-debug
+          set -o pipefail
+          pytest tests/test_distribution_terrain_v3_smoke.py tests/test_distribution_terrain_v3_scenarios.py tests/test_pseudoreality_v3_medium_pattern_validation.py tests/test_pseudoreality_v3_terrain_operation_effectiveness.py tests/test_pseudoreality_v3_seed_variation_validation.py -q 2>&1 | tee outputs/pseudoreality-v3-validation/test-debug/pytest.log
 
       - name: Run scenario suites and export summaries
         run: |
