@@ -5,8 +5,10 @@ on:
     paths:
       - "pseudo_reality/**"
       - "scripts/pseudoreality_v3_*.py"
+      - "!scripts/pseudoreality_v3_3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
       - "tests/test_pseudoreality_v3*.py"
+      - "!tests/test_pseudoreality_v3_3_*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
   push:
@@ -15,8 +17,10 @@ on:
     paths:
       - "pseudo_reality/**"
       - "scripts/pseudoreality_v3_*.py"
+      - "!scripts/pseudoreality_v3_3_*.py"
       - "tests/test_distribution_terrain_v3*.py"
       - "tests/test_pseudoreality_v3*.py"
+      - "!tests/test_pseudoreality_v3_3_*.py"
       - "configs/world_profiles/pseudo_reality_v3_distribution_terrain.json"
       - ".github/workflows/pseudoreality-v3-validation.yml"
   workflow_dispatch:

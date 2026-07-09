@@ -1,0 +1,66 @@
+name: PseudoReality v3.3 Macro Correlation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/pseudoreality_v3_3_full_info_macro_correlation_validation.py"
+      - "scripts/pseudoreality_v3_3_static_7d_raw_baseline.py"
+      - "tests/test_pseudoreality_v3_3_full_info_macro_correlation_validation.py"
+      - ".github/workflows/pseudoreality-v3-3-macro-correlation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/pseudoreality_v3_3_full_info_macro_correlation_validation.py"
+      - "scripts/pseudoreality_v3_3_static_7d_raw_baseline.py"
+      - "tests/test_pseudoreality_v3_3_full_info_macro_correlation_validation.py"
+      - ".github/workflows/pseudoreality-v3-3-macro-correlation.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: pseudoreality-v3-3-macro-correlation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-info-macro-correlation:
+    name: Full-info macro correlation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+          python -m pip install pytest
+
+      - name: Compile macro correlation scripts
+        run: |
+          PYTHONPATH=. python -m py_compile scripts/pseudoreality_v3_3_static_7d_raw_baseline.py
+          PYTHONPATH=. python -m py_compile scripts/pseudoreality_v3_3_full_info_macro_correlation_validation.py
+
+      - name: Run macro correlation tests
+        run: |
+          mkdir -p outputs/pseudoreality-v3-3-macro-correlation/full-info
+          set -o pipefail
+          PYTHONPATH=. pytest tests/test_pseudoreality_v3_3_full_info_macro_correlation_validation.py -q 2>&1 | tee outputs/pseudoreality-v3-3-macro-correlation/full-info/pytest.log
+
+      - name: Export full-info macro correlation tables
+        run: PYTHONPATH=. python scripts/pseudoreality_v3_3_full_info_macro_correlation_validation.py
+
+      - name: Upload macro correlation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pseudoreality-v3-3-full-info-macro-correlation
+          path: outputs/pseudoreality-v3-3-macro-correlation/full-info/
+          if-no-files-found: warn
