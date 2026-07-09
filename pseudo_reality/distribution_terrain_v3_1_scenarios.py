@@ -33,6 +33,7 @@ V31_DISTRIBUTION_WEIGHTED_TERRAIN_COLUMNS = DISTRIBUTION_WEIGHTED_TERRAIN_COLUMN
     "residual_stress_distribution_weighted_mean",
     "nonproductive_stress_distribution_weighted_mean",
     "terrain_quality_distribution_weighted_mean",
+    "stress_tolerance_distribution_weighted_mean",
     "medium_path_memory_distribution_weighted_mean",
 )
 
@@ -119,6 +120,7 @@ def _distribution_weighted_terrain_row(world: DistributionTerrainV31World) -> di
         "residual_stress_distribution_weighted_mean": weighted_mean(world.residual_stress),
         "nonproductive_stress_distribution_weighted_mean": weighted_mean(world.nonproductive_stress),
         "terrain_quality_distribution_weighted_mean": weighted_mean(world.terrain_quality),
+        "stress_tolerance_distribution_weighted_mean": weighted_mean(world.stress_tolerance),
         "medium_path_memory_distribution_weighted_mean": weighted_mean(world.medium_path_memory),
     }
 
@@ -160,6 +162,7 @@ def _build_summary(spec: ScenarioSpec, traces: dict[str, pd.DataFrame]) -> dict[
         "residual_stress_mean",
         "nonproductive_stress_mean",
         "terrain_quality_mean",
+        "stress_tolerance_mean",
         "medium_path_memory_mean",
     ):
         _first_last_delta(summary, column, terrain, column)
