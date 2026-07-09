@@ -2,8 +2,8 @@
 
 v3.2 is the gain-optimization branch: it does not inherit from the v3.1 stress
 lineage. This comparison checks whether expected-value comparison, exploration
-cost, and information retention create a short-to-medium route without directly
-forcing medium dominance.
+cost, information retention, and release from unsupported routes create a
+short-to-medium route without directly forcing medium dominance.
 """
 
 from __future__ import annotations
@@ -52,6 +52,18 @@ V32_EXTRA_METRICS = (
     "final_expected_value_advantage_distribution_weighted_mean",
     "final_information_memory_distribution_weighted_mean",
     "final_short_gain_information_conversion_distribution_weighted_mean",
+    "final_short_path_decline_information_distribution_weighted_mean",
+    "final_exploration_experience_information_distribution_weighted_mean",
+    "final_viability_reserve_distribution_weighted_mean",
+    "final_route_support_distribution_weighted_mean",
+    "final_maintenance_cost_distribution_weighted_mean",
+    "final_net_viability_value_distribution_weighted_mean",
+    "final_negative_viability_pressure_distribution_weighted_mean",
+    "final_support_erosion_distribution_weighted_mean",
+    "final_released_mass_distribution_weighted_mean",
+    "final_release_reallocation_flow_distribution_weighted_mean",
+    "final_released_mass_sum",
+    "final_release_reallocation_flow_sum",
 )
 COMPACT_MODEL_COLUMNS = (
     "model",
@@ -66,6 +78,8 @@ COMPACT_MODEL_COLUMNS = (
     "final_total_flow",
     "final_expected_value_advantage_distribution_weighted_mean",
     "final_information_memory_distribution_weighted_mean",
+    "final_route_support_distribution_weighted_mean",
+    "final_released_mass_sum",
     "v3_2_long_horizon_readout",
 )
 COMPACT_DELTA_COLUMNS = (
@@ -80,6 +94,8 @@ COMPACT_DELTA_COLUMNS = (
     "flow_delta_v32_minus_v3",
     "v32_final_expected_value_advantage_distribution_weighted_mean",
     "v32_final_information_memory_distribution_weighted_mean",
+    "v32_final_route_support_distribution_weighted_mean",
+    "v32_final_released_mass_sum",
     "v3_2_comparison_readout",
 )
 
@@ -121,7 +137,13 @@ def _model_readout(row: pd.Series) -> str:
     flow = float(row["final_total_flow"])
     advantage = float(row.get("final_expected_value_advantage_distribution_weighted_mean", 0.0))
     memory = float(row.get("final_information_memory_distribution_weighted_mean", 0.0))
+    released = float(row.get("final_released_mass_sum", 0.0))
+    route_support = float(row.get("final_route_support_distribution_weighted_mean", 1.0))
 
+    if released > 0.01 and memory > 0.01 and advantage > 0.01:
+        return "release_to_exploration_route_visible"
+    if released > 0.01 and route_support < 0.55:
+        return "unsupported_route_release_visible"
     if regime == "medium_dominant" and damage < 0.45 and flow > 0.04:
         return "medium_path_persistent"
     if memory > 0.02 and advantage > 0.01 and total_delta > -0.02:
@@ -207,7 +229,13 @@ def _comparison_readout(row: dict[str, object]) -> str:
     flow_delta = _numeric_row_value(row, "flow_delta_v32_minus_v3")
     advantage = _numeric_row_value(row, "v32_final_expected_value_advantage_distribution_weighted_mean")
     memory = _numeric_row_value(row, "v32_final_information_memory_distribution_weighted_mean")
+    released = _numeric_row_value(row, "v32_final_released_mass_sum")
+    route_support = _numeric_row_value(row, "v32_final_route_support_distribution_weighted_mean", 1.0)
 
+    if released > 0.01 and memory > 0.01 and advantage > 0.01:
+        return "v32_release_to_exploration_route_visible"
+    if released > 0.01 and route_support < 0.55:
+        return "v32_unsupported_route_release_visible"
     if v3_regime == "short_dominant" and v32_regime == "medium_dominant":
         return "v32_creates_medium_route"
     if total_gain_delta >= 0.03 and damage_delta <= -0.05 and friction_delta <= -0.01:
