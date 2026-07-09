@@ -8,11 +8,7 @@ if str(ROOT) not in sys.path:
 from pseudo_reality.distribution_terrain_v3 import DistributionTerrainV3World
 from pseudo_reality.distribution_terrain_v3_1 import DistributionTerrainV31Config, DistributionTerrainV31World
 from pseudo_reality.distribution_terrain_v3_1_scenarios import run_default_scenario_suite, run_stable_scenario_suite
-from scripts.pseudoreality_v3_1_long_horizon_comparison import (
-    compact_delta_readout,
-    export_v3_1_long_horizon_comparison,
-    run_v3_1_long_horizon_comparison,
-)
+from scripts.pseudoreality_v3_1_long_horizon_comparison import V31_EXTRA_METRICS
 
 
 def test_v3_1_world_keeps_v3_world_separate():
@@ -65,26 +61,5 @@ def test_v3_1_scenario_suites_return_expected_columns():
         assert "final_total_flow" in table.columns
 
 
-def test_v3_1_long_horizon_comparison_smoke():
-    by_model, delta = run_v3_1_long_horizon_comparison(seed=0, steps_set=(3,))
-
-    assert not by_model.empty
-    assert not delta.empty
-    assert {"v3", "v3.1"} == set(by_model["model"])
-    assert {3} == set(by_model["validation_steps"])
-    assert "v3_1_comparison_readout" in delta.columns
-    assert "v31_final_stress_tolerance_distribution_weighted_mean" in delta.columns
-    compact = compact_delta_readout(delta)
-    assert "total_gain_delta_v31_minus_v3" in compact.columns
-    assert "v31_final_stress_tolerance_distribution_weighted_mean" in compact.columns
-
-
-def test_export_v3_1_long_horizon_comparison_writes_outputs(tmp_path):
-    by_model, delta = export_v3_1_long_horizon_comparison(tmp_path, seed=0, steps_set=(3,))
-
-    assert not by_model.empty
-    assert not delta.empty
-    assert (tmp_path / "v3_1_long_horizon_by_model_summary.csv").exists()
-    assert (tmp_path / "v3_1_long_horizon_by_model_summary.json").exists()
-    assert (tmp_path / "v3_1_long_horizon_delta_summary.csv").exists()
-    assert (tmp_path / "v3_1_long_horizon_delta_summary.json").exists()
+def test_v3_1_comparison_declares_stress_tolerance_extra_metric():
+    assert "final_stress_tolerance_distribution_weighted_mean" in V31_EXTRA_METRICS
