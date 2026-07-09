@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
 
-from scripts.pseudoreality_v3_3_static_7d_raw_baseline import (
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.pseudoreality_v3_3_static_7d_raw_baseline import (  # noqa: E402
     BASELINE_DIMENSION_COLUMNS,
     build_static_7d_raw_baseline,
     compact_readout,
