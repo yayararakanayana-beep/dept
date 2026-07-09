@@ -1,0 +1,25 @@
+name: PseudoReality v3.3 PCA-G_t Candidate Comparison
+
+on:
+  pull_request:
+    paths:
+      - "scripts/pseudoreality_v3_3_pca_gt_candidate_comparison.py"
+      - "tests/test_pseudoreality_v3_3_pca_gt_candidate_comparison.py"
+      - "docs/pseudoreality_v3_3_pca_gt_candidate_comparison.md"
+      - ".github/workflows/pseudoreality-v3-3-pca-gt-candidate-comparison.yml"
+  workflow_dispatch:
+
+jobs:
+  pca-gt-candidate-comparison:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install lightweight dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Run Task 3 tests
+        run: pytest tests/test_pseudoreality_v3_3_pca_gt_candidate_comparison.py
