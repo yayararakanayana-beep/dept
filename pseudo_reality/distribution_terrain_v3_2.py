@@ -7,9 +7,12 @@ lineage. It adds a gain-optimization route:
   gain decline;
 - exploration is not directly commanded as a pressure. It becomes attractive
   when exploration-cost-adjusted expected value exceeds the existing path;
-- successful short gains and exploratory flow are retained as information;
+- short gains, short-path disappointment, exploratory flow, and released flow
+  are retained as information;
 - retained information lowers exploration/friction cost and gives a natural
-  route toward medium-term payoff.
+  route toward medium-term payoff;
+- sustained negative net viability erodes route support and releases mass from
+  the old route into exploration-weighted reallocation.
 
 The module does not add residual stress, stress tolerance, credit cost,
 phenomenon flags, action modules, G_t/O_t/DEPT connections, or individual agents.
@@ -38,17 +41,28 @@ class DistributionTerrainV32Config(DistributionTerrainV3Config):
     expected_value_decline_rate: float = 0.35
     exploration_option_bonus_rate: float = 0.20
     base_exploration_cost: float = 0.24
-    information_memory_retention_rate: float = 0.045
-    information_memory_decay_rate: float = 0.010
-    information_memory_cost_reduction_rate: float = 0.30
-    information_to_medium_rate: float = 0.055
-    information_friction_reduction_rate: float = 0.040
-    information_viscosity_reduction_rate: float = 0.020
+    information_memory_retention_rate: float = 0.075
+    information_decline_retention_rate: float = 0.022
+    exploration_experience_retention_rate: float = 0.030
+    information_memory_decay_rate: float = 0.008
+    information_memory_cost_reduction_rate: float = 0.45
+    information_to_medium_rate: float = 0.095
+    information_friction_reduction_rate: float = 0.060
+    information_viscosity_reduction_rate: float = 0.030
     exploration_advantage_short_penalty_rate: float = 0.018
+
+    viability_reserve_initial: float = 0.65
+    viability_reserve_gain_rate: float = 0.025
+    viability_reserve_loss_rate: float = 0.080
+    maintenance_cost_floor: float = 0.030
+    route_support_initial: float = 0.70
+    route_support_gain_rate: float = 0.020
+    route_support_loss_rate: float = 0.075
+    release_rate: float = 0.18
 
 
 class DistributionTerrainV32World(DistributionTerrainV3World):
-    """v3.2 terrain world with expected-value comparison and exploration cost."""
+    """v3.2 terrain world with expected-value comparison and release dynamics."""
 
     config: DistributionTerrainV32Config
 
@@ -63,6 +77,24 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
         self.expected_value_advantage = np.zeros(self.shape, dtype=float)
         self.information_memory = np.zeros(self.shape, dtype=float)
         self.short_gain_information_conversion = np.zeros(self.shape, dtype=float)
+        self.short_path_decline_information = np.zeros(self.shape, dtype=float)
+        self.exploration_experience_information = np.zeros(self.shape, dtype=float)
+        self.viability_reserve = np.full(
+            self.shape,
+            float(np.clip(self.config.viability_reserve_initial, 0.0, 1.0)),
+            dtype=float,
+        )
+        self.route_support = np.full(
+            self.shape,
+            float(np.clip(self.config.route_support_initial, 0.0, 1.0)),
+            dtype=float,
+        )
+        self.maintenance_cost = np.zeros(self.shape, dtype=float)
+        self.net_viability_value = np.zeros(self.shape, dtype=float)
+        self.negative_viability_pressure = np.zeros(self.shape, dtype=float)
+        self.support_erosion = np.zeros(self.shape, dtype=float)
+        self.released_mass = np.zeros(self.shape, dtype=float)
+        self.release_reallocation_flow = np.zeros(self.shape, dtype=float)
         self.total_gain_delta_signal = 0.0
         self.previous_total_gain = 0.0
         super().reset()
@@ -137,6 +169,7 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
             * (1.0 - 0.28 * info - 0.24 * exploration - 0.20 * reversibility)
             + 0.16 * self.damage
             + 0.08 * self.friction
+            + 0.08 * (1.0 - self.route_support)
             - self.config.information_memory_cost_reduction_rate * self.information_memory,
             0.0,
             1.0,
@@ -146,7 +179,8 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
             + 0.28 * info
             + 0.18 * reversibility
             + 0.14 * unused_route_room
-            + 0.10 * self.information_memory,
+            + 0.10 * self.information_memory
+            + 0.08 * (1.0 - self.route_support),
             0.0,
             1.0,
         )
@@ -163,8 +197,85 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
         )
         return learning_quality, total_gain_delta, decline_signal
 
+    def _update_support_and_release(self, learning_quality: np.ndarray) -> None:
+        base_composite = self._base_composite_payoff()
+        short_dominance = np.clip((self.short_payoff - self.medium_payoff) / 0.50, 0.0, 1.0)
+        distribution_load = self.distribution / max(float(self.distribution.max()), 1e-12)
+        self.maintenance_cost = np.clip(
+            self.config.maintenance_cost_floor
+            + 0.12 * self.friction
+            + 0.10 * self.damage
+            + 0.05 * self.rigidity
+            + 0.04 * short_dominance,
+            0.0,
+            1.0,
+        )
+        self.net_viability_value = np.clip(base_composite - self.maintenance_cost, -1.0, 1.5)
+        positive_viability = np.clip(self.net_viability_value / 0.25, 0.0, 1.0)
+        self.negative_viability_pressure = np.clip(-self.net_viability_value / 0.25, 0.0, 1.0)
+
+        reserve_gain = self.config.viability_reserve_gain_rate * positive_viability * learning_quality
+        reserve_loss = (
+            self.config.viability_reserve_loss_rate
+            * self.negative_viability_pressure
+            * (0.50 + 0.50 * distribution_load)
+        )
+        self.viability_reserve = np.clip(self.viability_reserve + reserve_gain - reserve_loss, 0.0, 1.0)
+
+        old_support = self.route_support.copy()
+        support_gain = (
+            self.config.route_support_gain_rate
+            * (positive_viability + 0.25 * self.information_memory)
+            * learning_quality
+        )
+        support_loss = (
+            self.config.route_support_loss_rate
+            * self.negative_viability_pressure
+            * (0.35 + 0.65 * (1.0 - self.viability_reserve))
+            * (0.50 + 0.50 * distribution_load)
+        )
+        self.route_support = np.clip(self.route_support + support_gain - support_loss, 0.0, 1.0)
+        self.support_erosion = np.maximum(old_support - self.route_support, 0.0)
+
+        release_pressure = np.clip(
+            self.config.release_rate
+            * self.negative_viability_pressure
+            * (1.0 - self.route_support)
+            * (0.30 + 0.70 * distribution_load),
+            0.0,
+            0.45,
+        )
+        self.released_mass = self.distribution * release_pressure
+        released_total = float(self.released_mass.sum())
+        self.release_reallocation_flow = np.zeros_like(self.distribution)
+        if released_total <= 0.0:
+            return
+
+        resource, info, pressure, exploration, reversibility = self._coordinate_grids()
+        del resource, pressure
+        target_weight = np.clip(
+            np.maximum(self.exploration_net_expected_value, 0.0)
+            + 0.50 * self.expected_value_advantage
+            + 0.25 * learning_quality
+            + 0.20 * exploration
+            + 0.15 * reversibility
+            + 0.10 * (1.0 - distribution_load)
+            - 0.15 * self.damage
+            - 0.05 * self.friction,
+            0.0,
+            None,
+        )
+        target_sum = float(target_weight.sum())
+        if target_sum <= 0.0:
+            target_weight = learning_quality + 1e-9
+            target_sum = float(target_weight.sum())
+        self.release_reallocation_flow = released_total * target_weight / target_sum
+        self.distribution = np.maximum(self.distribution - self.released_mass + self.release_reallocation_flow, 0.0)
+        self._normalize_distribution()
+        self.last_flow = np.maximum(self.last_flow + self.release_reallocation_flow, 0.0)
+
     def _deform_terrain(self, inbound_flow: np.ndarray) -> None:
-        learning_quality, total_gain_delta, _decline_signal = self._update_expected_value_fields()
+        learning_quality, total_gain_delta, decline_signal = self._update_expected_value_fields()
         success_signal = float(np.clip(total_gain_delta / 0.05, 0.0, 1.0))
         short_dominance = np.clip((self.short_payoff - self.medium_payoff) / 0.50, 0.0, 1.0)
 
@@ -174,14 +285,36 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
         self.damage = np.clip(self.damage + damage_delta - recovery, 0.0, 1.0)
         self.rigidity = np.clip(self.rigidity + 0.5 * damage_delta - recovery, 0.0, 1.0)
 
+        self._update_support_and_release(learning_quality)
+
         self.short_gain_information_conversion = np.clip(
             inbound_flow * short_dominance * learning_quality * success_signal,
             0.0,
             1.0,
         )
-        exploratory_information = inbound_flow * self.expected_value_advantage * learning_quality
-        information_delta = self.config.information_memory_retention_rate * (
-            self.short_gain_information_conversion + exploratory_information
+        self.short_path_decline_information = np.clip(
+            self.distribution
+            * short_dominance
+            * learning_quality
+            * decline_signal
+            * (0.20 + 0.80 * self.expected_value_advantage),
+            0.0,
+            1.0,
+        )
+        self.exploration_experience_information = np.clip(
+            inbound_flow * learning_quality * (0.50 * self.expected_value_advantage + 0.25 * decline_signal)
+            + self.release_reallocation_flow * learning_quality * (0.35 + 0.65 * self.expected_value_advantage),
+            0.0,
+            1.0,
+        )
+        information_delta = (
+            self.config.information_memory_retention_rate
+            * (self.short_gain_information_conversion + self.exploration_experience_information)
+            + self.config.information_decline_retention_rate * self.short_path_decline_information
+            + self.config.exploration_experience_retention_rate
+            * self.distribution
+            * learning_quality
+            * self.expected_value_advantage
         )
         memory_decay = self.config.information_memory_decay_rate * (1.0 - 0.35 * learning_quality)
         self.information_memory = np.clip((1.0 - memory_decay) * self.information_memory + information_delta, 0.0, 1.0)
@@ -220,7 +353,8 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
         )
         self.recovery_speed = np.clip(
             self.config.base_recovery_speed * (1.0 - 0.60 * self.damage - 0.30 * self.rigidity)
-            + 0.04 * self.information_memory,
+            + 0.04 * self.information_memory
+            + 0.02 * self.viability_reserve,
             0.0,
             1.0,
         )
@@ -241,6 +375,18 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
             "expected_value_advantage_mean": float(self.expected_value_advantage.mean()),
             "information_memory_mean": float(self.information_memory.mean()),
             "short_gain_information_conversion_mean": float(self.short_gain_information_conversion.mean()),
+            "short_path_decline_information_mean": float(self.short_path_decline_information.mean()),
+            "exploration_experience_information_mean": float(self.exploration_experience_information.mean()),
+            "viability_reserve_mean": float(self.viability_reserve.mean()),
+            "route_support_mean": float(self.route_support.mean()),
+            "maintenance_cost_mean": float(self.maintenance_cost.mean()),
+            "net_viability_value_mean": float(self.net_viability_value.mean()),
+            "negative_viability_pressure_mean": float(self.negative_viability_pressure.mean()),
+            "support_erosion_mean": float(self.support_erosion.mean()),
+            "released_mass_mean": float(self.released_mass.mean()),
+            "release_reallocation_flow_mean": float(self.release_reallocation_flow.mean()),
+            "released_mass_sum": float(self.released_mass.sum()),
+            "release_reallocation_flow_sum": float(self.release_reallocation_flow.sum()),
             "total_gain_delta_signal": float(self.total_gain_delta_signal),
             "existing_path_expected_value_distribution_weighted_mean": weighted_mean(self.existing_path_expected_value),
             "exploration_cost_distribution_weighted_mean": weighted_mean(self.exploration_cost),
@@ -251,6 +397,20 @@ class DistributionTerrainV32World(DistributionTerrainV3World):
             "short_gain_information_conversion_distribution_weighted_mean": weighted_mean(
                 self.short_gain_information_conversion
             ),
+            "short_path_decline_information_distribution_weighted_mean": weighted_mean(
+                self.short_path_decline_information
+            ),
+            "exploration_experience_information_distribution_weighted_mean": weighted_mean(
+                self.exploration_experience_information
+            ),
+            "viability_reserve_distribution_weighted_mean": weighted_mean(self.viability_reserve),
+            "route_support_distribution_weighted_mean": weighted_mean(self.route_support),
+            "maintenance_cost_distribution_weighted_mean": weighted_mean(self.maintenance_cost),
+            "net_viability_value_distribution_weighted_mean": weighted_mean(self.net_viability_value),
+            "negative_viability_pressure_distribution_weighted_mean": weighted_mean(self.negative_viability_pressure),
+            "support_erosion_distribution_weighted_mean": weighted_mean(self.support_erosion),
+            "released_mass_distribution_weighted_mean": weighted_mean(self.released_mass),
+            "release_reallocation_flow_distribution_weighted_mean": weighted_mean(self.release_reallocation_flow),
         }
         self._terrain_trace[-1].update(optimization_row)
         self._auxiliary_trace[-1].update(optimization_row)
