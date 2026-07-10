@@ -1,146 +1,149 @@
-# Task 3.1f Scope Freeze
+# Task 3.1f 範囲固定
 
-## 1. Status
+## 1. 状態
 
-Task 3.1f is frozen as the task **Stable Structure Extraction from the Full Distribution Corpus Including External-Factor Conditions**.
+Task 3.1fを、**外部要因条件を含むフル分布からの安定構造抽出**として固定する。
 
-This document is the task-level source of truth. The following companion files define the frozen Task 3.1f-1 contract:
+本書をTask 3.1f全体の基準文書とし、以下をTask 3.1f-1の固定契約とする。
 
 - `task3_1f1_comparison_design.md`
 - `task3_1f1_validation_contract.md`
 - `task3_1f1_output_schema.md`
 - `../../../configs/task3_1f_structure_extraction_contract.json`
 
-Task 3.1f-1 is a design-and-contract task only. It does not implement or execute the extraction pipeline.
+Task 3.1f-1は設計・契約の確定のみを行う。構造抽出コードの実装や正式実行は行わない。
 
-## 2. Change-control rule
+## 2. 変更管理
 
-The following items must not be changed, weakened, removed, or expanded without explicit user approval:
+以下は、ユーザーの明示的確認なしに変更・弱化・削除・拡張してはならない。
 
-- task purpose and success definition
-- Task 3.1e input corpus and split roles
-- primary analysis matrix
-- model families and their roles
-- rank grid
-- initialization seeds and formal run counts
-- weighting rule
-- stability and redundancy definitions
-- rank-selection rule
-- holdout lock procedure
-- required outputs
-- positive and negative validation requirements
-- stop conditions
-- scope exclusions
+- タスク目的と成功定義
+- Task 3.1e入力成果物と分割の役割
+- 主解析行列
+- 各手法の役割
+- 構造数grid
+- 初期値seedと正式run数
+- 重み付け規則
+- 安定性・重複・未使用構造の定義
+- 構造数選択規則
+- holdout固定手順
+- 必須出力
+- 正常系・破壊系検証
+- 停止条件
+- 対象外範囲
 
-When a change appears necessary, work must stop before the change is implemented. The proposed change must be reported with:
+変更が必要に見える場合は、変更前に作業を停止し、次を報告する。
 
-1. the conflicting requirement or observed failure;
-2. why the frozen contract cannot be followed as written;
-3. the smallest proposed change;
-4. expected effects on comparability and prior results;
-5. whether a new contract version and a new holdout protocol are required.
+1. 衝突した要件または観測された失敗
+2. 固定契約のまま進められない理由
+3. 最小限の変更案
+4. 比較可能性と過去結果への影響
+5. 新しい契約版または新しいholdout手順が必要か
 
-Silently changing a parameter, using a fallback model, opening the holdout early, or weakening a threshold is prohibited.
+パラメーターの黙示変更、別手法への自動切替、holdoutの先行開封、閾値の事後緩和は禁止する。
 
-## 3. Frozen starting point
+## 3. 固定する開始点
 
-Task 3.1f consumes the formal Task 3.1e corpus produced from the merged implementation at:
+Task 3.1fは、以下のTask 3.1e正式成果物を入力とする。
 
-- Task 3.1e merge commit: `b191f6d315caf0df72ed9dc718cb78c954775a93`
-- formal artifact digest: `sha256:20060abf640504561e5988ad2068d79658b0c6247d35bc83b2cc32f818180a17`
-- Task 3.1e configuration digest: `4125ed50cc4007c657e107e530a9969b979f496fc7fdb07093177a592240ac5a`
+- Task 3.1eマージコミット：`b191f6d315caf0df72ed9dc718cb78c954775a93`
+- 正式成果物digest：`sha256:20060abf640504561e5988ad2068d79658b0c6247d35bc83b2cc32f818180a17`
+- Task 3.1e設定digest：`4125ed50cc4007c657e107e530a9969b979f496fc7fdb07093177a592240ac5a`
 
-The validated corpus contains:
+検証済み成果物：
 
-- 1,582 distribution snapshots;
-- 3,125 cells per distribution;
-- 1,082 fit rows;
-- 256 validation rows;
-- 244 holdout rows;
-- 346 external vectors including three base vectors;
-- 1,566 exact external/base snapshot pairs;
-- 22 separately stored terrain fields.
+- 分布スナップショット：1,582件
+- 1分布あたり：3,125セル
+- 学習用：1,082行
+- 検証用：256行
+- 最終確認用：244行
+- 通常分布3件を含む外部ベクトル：346件
+- 外部要因作用後分布／通常分布の完全対応：1,566組
+- 別保存された地形情報：22種類
 
-The primary input is the probability-mass matrix. External-factor values and terrain fields remain audit and explanation information and are not model features in Task 3.1f.
+主入力は確率質量行列とする。外部要因値と地形情報は監査・説明情報として保持し、Task 3.1fのモデル入力には使用しない。
 
-## 4. Frozen task purpose
+## 4. 固定する目的
 
-Task 3.1f determines whether the 3,125-cell distributions can be represented by a relatively small set of non-negative, repeatedly recoverable structures.
+3,125セルの完全分布群が、比較的少数の非負かつ反復再現可能な構造の組合せとして表現できるかを検証する。
 
-It must answer:
+確認対象：
 
-- how much of the distribution corpus can be reconstructed by each candidate structure count;
-- whether the structures recur across initialization, grouped data perturbation, world seed, split, and external/base conditions;
-- whether additional structures add genuinely distinct information or only duplicate existing structures;
-- whether a validation-selected structure count generalizes once to the untouched holdout set;
-- which structures are stable enough to pass to Task 3.1g for semantic auditing.
+- 各構造数で分布群をどこまで再構成できるか
+- 初期値、データ摂動、world seed、分割、通常／外部条件を変えても構造が再現するか
+- 構造数の増加が新情報なのか、既存構造の重複・細分化なのか
+- 検証用だけで選んだ構造数が、未使用の最終確認用でも成立するか
+- Task 3.1gの意味論監査へ渡せる安定構造はどれか
 
-Task 3.1f does **not** determine the final number or names of Core semantic axes.
+Task 3.1fでは、最終Core軸数や意味論名を決定しない。
 
-## 5. Frozen subtask sequence
+## 5. 固定する作業順序
 
-### Task 3.1f-1 — Comparison design and validation contract
+### Task 3.1f-1：比較設計と検証契約
 
-Define and freeze:
+以下を固定する。
 
-- the input and weighting rules;
-- the primary and reference methods;
-- the rank grid;
-- stability, redundancy, inactivity, and reconstruction metrics;
-- the validation-only selection rule;
-- the one-time holdout procedure;
-- output schemas and independent validation requirements.
+- 入力・重み付け規則
+- 主手法・参照手法
+- 構造数grid
+- 再構成・安定性・重複・未使用構造の指標
+- 検証用だけを使った選択規則
+- 一度限りのholdout手順
+- 出力仕様
+- 独立検証条件
 
-### Task 3.1f-2 — Minimal extraction implementation
+### Task 3.1f-2：最小構造抽出基盤
 
-Implement the frozen primary route, references, artifact generation, independent validator, positive tests, negative tests, and smoke execution.
+固定済み主経路、参照手法、成果物生成、独立検証器、正常系テスト、破壊系テスト、縮小実行を実装する。
 
-ChatGPT is the default implementer.
+原則としてChatGPTが担当する。
 
-### Task 3.1f-3 — Fixed-condition batch execution
+### Task 3.1f-3：固定条件の一括実行
 
-Run the already frozen rank and initialization grid. Codex may be used only as a single, judgment-free execution task. Codex must not change algorithms, ranks, thresholds, files, or acceptance criteria.
+固定済みの構造数・初期値条件を一括実行する。
 
-### Task 3.1f-4 — Formal stability and holdout validation
+Codexを使う場合は、設計判断を伴わない単作業として使用する。Codexによる手法・構造数・閾値・成果物・合格条件の変更は禁止する。
 
-Use GitHub Actions for the formal fit/validation sweep, selection lock, grouped perturbation checks, one-time holdout evaluation, independent validation, and artifact retention.
+### Task 3.1f-4：正式安定性・holdout検証
 
-### Task 3.1f-5 — Result audit and handoff
+GitHub Actionsで、正式fit／validation走査、selection lock、データ摂動監査、一度限りのholdout評価、独立検証、成果物保存を行う。
 
-ChatGPT audits the formal artifacts, classifies the result, and selects the stable structures that may proceed to Task 3.1g.
+### Task 3.1f-5：結果監査と引き渡し
 
-## 6. Frozen exclusions
+ChatGPTが正式成果物を監査し、結果を分類し、Task 3.1gへ渡せる安定構造を決定する。
 
-The following are outside Task 3.1f and require explicit approval before being added:
+## 6. 対象外として固定するもの
 
-- assigning semantic names to extracted structures;
-- using the six external factors as structure-extraction features;
-- using the 22 terrain fields as structure-extraction features;
-- replacing static distributions with trajectories;
-- extracting independent factors from external-minus-base signed difference matrices;
-- dynamic G_t update timing;
-- K_t, O_t, H-DEPT, or Action Module integration;
-- reinforcement learning or parameter control;
-- automatic Core-axis adoption;
-- extending the primary rank grid beyond `5, 8, 10, 12, 15, 20, 25`;
-- activating dictionary learning as a fallback without approval;
-- selecting another rank after seeing a failed holdout result.
+以下をTask 3.1fへ追加するには明示的確認が必要である。
 
-Pairwise external/base deformation **evaluation** is in scope. A separate signed-difference factor model is not.
+- 抽出構造への意味論名付け
+- 外部要因6値を構造抽出特徴量として使用
+- 22地形情報を構造抽出特徴量として使用
+- 静的分布を軌道へ置換
+- 外部要因作用後分布−通常分布のsigned差分行列から独立因子を抽出
+- 動的G_t更新時期
+- K_t、O_t、H-DEPT、作用モジュールとの統合
+- 強化学習またはパラメーター制御
+- Core軸の自動採用
+- 構造数grid `5, 8, 10, 12, 15, 20, 25` の拡張
+- 確認なしの辞書学習への切替
+- holdout失敗後の別構造数への自動切替
 
-## 7. Frozen success definition
+外部要因作用後分布と対応通常分布の**変形保持評価**は対象内とする。ただし、signed差分を別モデルへ入力することは対象外とする。
 
-Success is not the lowest training error and is not obtaining approximately fifteen components.
+## 7. 成功定義
 
-Task 3.1f succeeds only when:
+学習誤差が最小になることや、構造数が15前後になることを成功とはしない。
 
-1. the fit/validation pipeline produces at least one admissible rank under the frozen integrity and stability rules;
-2. the validation-only rule selects one provisional extraction rank without holdout access;
-3. the selected representative basis is non-negative, non-degenerate, and independently reproducible from saved artifacts;
-4. its structures are stable across required perturbation checks;
-5. it improves meaningfully over the frozen mean-distribution baseline;
-6. its one-time holdout outcome is `confirmed` or `conditional`, not `failed`;
-7. all required mutation tests fail as expected;
-8. stable structures can be handed to Task 3.1g without semantic naming being performed in Task 3.1f.
+Task 3.1fの成功条件：
 
-If no rank is admissible, that is a valid scientific result. It must be reported as a failed hypothesis rather than hidden by changing the contract.
+1. 固定した完全性・安定性条件を満たす構造数が少なくとも1つ存在する。
+2. holdoutを使わず、検証用だけで暫定構造数を1つ選択できる。
+3. 選択代表基底が非負・非退化で、保存成果物から独立再計算できる。
+4. 必須の初期値・データ摂動監査で構造が再現する。
+5. 固定した平均分布基準より有意に改善する。
+6. 一度限りのholdout結果が`confirmed`または`conditional`であり、`failed`ではない。
+7. 必須破壊テストがすべて期待どおり検出される。
+8. 意味論名を付けないまま、安定構造をTask 3.1gへ渡せる。
+
+適格な構造数が0の場合も、科学的には有効な結果である。契約を変更して成功に見せず、主仮説が支持されなかった結果として記録する。
