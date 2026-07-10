@@ -21,6 +21,15 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Do not draft a Codex instruction from memory, from a previous task, or from an abbreviated local pattern.
 - Do not deliver the instruction until the mandatory shortcut audit in that file is complete.
 
+## Task 3.1f Frozen Contract
+
+- `docs/task3_1f_stable_structure_extraction/TASK3_1F_SCOPE_FREEZE.md` and its listed companion files are the source of truth for Task 3.1f.
+- Do not change Task 3.1f methods, rank grid, seeds, thresholds, weighting, split roles, holdout procedure, outputs, validation gates, or scope without explicit user approval.
+- When a change appears necessary, stop and report the conflict, the smallest proposed change, and its effect before editing the frozen contract or implementation.
+- Do not use holdout data before an independently validated `selection_lock.json` exists.
+- Do not switch rank, model family, threshold, or preprocessing after seeing holdout results.
+- Task 3.1f structures remain unnamed geometric structures until Task 3.1g semantic auditing.
+
 ## RC1 Freeze Archive Handling
 
 - Keep `DEPT2_FullSpecIntegratedClosedLoopRunner_RC1_Freeze.zip` as a frozen reference archive unless a task explicitly says to replace it.
