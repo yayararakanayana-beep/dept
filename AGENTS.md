@@ -14,6 +14,22 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - When changing implementation behavior, add or update tests that cover the change.
 - If Python tests are added, use `pytest`.
 
+## Codex Execution Integrity Rules
+
+These rules apply to every implementation, validation, audit, and data-generation task.
+
+1. Output existence is not evidence of correctness.
+2. Do not use fixed values, empty values, zeros, constant booleans, placeholders, or hard-coded pass results in place of required computation.
+3. A generator must not certify its own output as valid. Critical validation must re-read persisted artifacts and independently recompute checks.
+4. Every major formal execution branch must also run through the same code path in reduced form in the smoke profile. Smoke may reduce counts, seeds, or steps; it must not remove required logic.
+5. Every critical validator must have at least one negative test proving that corrupted, incomplete, duplicated, or placeholder output fails.
+6. Configuration files must be the single source of truth for configurable formal values. Do not duplicate formal constants in implementation code.
+7. Missing, unknown, uncomputed, or unimplemented results must fail closed. Do not emit plausible-looking defaults.
+8. Before implementation, identify the cheapest fake implementation that could satisfy the visible schema and add an independent check or negative test that makes it fail.
+9. Separate generation, audit, and validation responsibilities when a task produces evidence used to judge its own correctness.
+10. If the specification cannot be satisfied, stop and report the conflict. Do not weaken dimensions, sample counts, checks, or execution paths without explicit approval.
+
+See `docs/development/CODEX_EXECUTION_INTEGRITY.md` and use `docs/development/CODEX_TASK_CONTRACT_TEMPLATE.md` for new Codex implementation contracts.
 
 ## RC1 Freeze Archive Handling
 
@@ -62,4 +78,3 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task22's intended canonical update scope is limited to bounded in-run lower ParameterBox state only.
 - G/K writeback, world direct write, ActionModule internal DEPT connection, and ActionFrame direct generation boundaries remain closed.
 - Task22 is not a Parameter Shadow Box redesign or Task21 classifier rebuild; Task21 real `watch_only` candidates must not be canonically updated.
-
