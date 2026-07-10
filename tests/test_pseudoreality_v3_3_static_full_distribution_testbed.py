@@ -1,91 +1,83 @@
-from pathlib import Path
+from __future__ import annotations
 import json
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+import pseudoreality_v3_3_static_full_distribution_coverage_audit as audit
+import pseudoreality_v3_3_static_full_distribution_testbed as generator
+import pseudoreality_v3_3_static_full_distribution_validator as validator
 
-from scripts import pseudoreality_v3_3_static_full_distribution_testbed as t
-from pseudo_reality.distribution_terrain_v3_2_2 import DistributionTerrainV322Config, DistributionTerrainV322World
+@pytest.fixture(scope="module")
+def valid_smoke_artifact(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("task3_1e_smoke")
+    artifact = generator.build("smoke", root, generator.DEFAULT_CONFIG)
+    audit.run_audit(artifact, "smoke", generator.DEFAULT_CONFIG)
+    checks = validator.validate_artifacts(artifact, "smoke", generator.DEFAULT_CONFIG, write_outputs=True)
+    assert all(payload["passed"] for payload in checks.values()), checks
+    return artifact
 
-
-def test_distribution_contract_world_mass():
-    w, mass = t.run_world(0, (0, 0, 0, 0, 0, 0), 1)
-    assert w.config.n_bins == 5
-    assert mass.shape == (3125,)
+def test_smoke_artifact_contract(valid_smoke_artifact: Path) -> None:
+    artifact = valid_smoke_artifact
+    mass = np.load(artifact / "mass_matrix.npy", allow_pickle=False)
+    pool_mass = np.load(artifact / "adaptive_pool_mass_matrix.npy", allow_pickle=False)
+    vectors = pd.read_csv(artifact / "external_vectors.csv")
+    metadata = pd.read_csv(artifact / "snapshot_metadata.csv")
+    pairs = pd.read_csv(artifact / "matched_pairs.csv")
+    additions = pd.read_csv(artifact / "coverage_additions.csv")
+    coverage = pd.read_csv(artifact / "coverage_summary.csv")
+    assert mass.shape == (41, 3125)
     assert mass.dtype == np.float64
-    assert np.isfinite(mass).all()
-    assert mass.min() >= -1e-12
-    assert abs(float(mass.sum()) - 1.0) <= 1e-8
+    assert pool_mass.shape == (8, 3125)
+    assert len(vectors) == 19
+    assert len(metadata) == 41
+    assert len(pairs) == 32
+    assert len(additions) == 2
+    assert coverage["coverage_stage"].tolist() == ["before_adaptive", "after_adaptive"]
+    assert coverage.loc[0, "nearest_neighbor_js_max"] > 0.0
+    assert coverage.loc[1, "nearest_neighbor_js_max"] <= coverage.loc[0, "nearest_neighbor_js_max"] + 1e-12
 
+def test_discovery_manifest_has_only_four_columns(valid_smoke_artifact: Path) -> None:
+    discovery = pd.read_csv(valid_smoke_artifact / "discovery_manifest.csv")
+    assert list(discovery.columns) == ["matrix_row_index", "snapshot_id", "dataset_split", "analysis_weight"]
+    assert not set(generator.EXTERNAL_COLUMNS) & set(discovery.columns)
 
-def test_external_vector_ranges_and_keys():
-    assert len(t.EXTERNAL_COLUMNS) == 6
-    t.validate_external_values((-1, 1, 0, 0, 0, 0))
-    t.validate_external_values((1, -1, 1, 1, 1, 1))
-    for bad in [(0,0,-.1,0,0,0),(0,0,0,-.1,0,0),(0,0,0,0,-.1,0),(0,0,0,0,0,-.1),(1.1,0,0,0,0,0),(0,0,1.1,0,0,0)]:
-        with pytest.raises(ValueError): t.validate_external_values(bad)
-    update=t.all_external_update((0,0,0,0,0,0))
-    assert set(update)==set(t.EXTERNAL_COLUMNS)
-    assert all(v == 0.0 for v in update.values())
+def test_configuration_is_execution_source(tmp_path: Path) -> None:
+    config = json.loads(generator.DEFAULT_CONFIG.read_text(encoding="utf-8"))
+    smoke = config["profiles"]["smoke"]
+    smoke["capture_steps"]["external"] = [1]
+    smoke["capture_steps"]["base"] = [0, 1]
+    smoke["adaptive_reference_step"] = 1
+    custom_config = tmp_path / "custom_config.json"
+    custom_config.write_text(json.dumps(config), encoding="utf-8")
+    artifact = generator.build("smoke", tmp_path / "artifacts", custom_config)
+    metadata = pd.read_csv(artifact / "snapshot_metadata.csv")
+    assert sorted(metadata.loc[metadata["distribution_group"] == "external_augmented", "source_step"].unique()) == [1]
+    assert sorted(metadata.loc[metadata["distribution_group"] == "base_v3_3", "source_step"].unique()) == [0, 1]
+    assert len(metadata) == 22
 
+def test_same_source_run_id_spans_capture_steps(valid_smoke_artifact: Path) -> None:
+    metadata = pd.read_csv(valid_smoke_artifact / "snapshot_metadata.csv")
+    external = metadata[metadata["distribution_group"] == "external_augmented"]
+    assert set(external.groupby("source_run_id")["source_step"].nunique()) == {2}
+    base = metadata[metadata["distribution_group"] == "base_v3_3"]
+    assert set(base.groupby("source_run_id")["source_step"].nunique()) == {3}
 
-def test_sobol_determinism_and_formal_counts():
-    assert np.allclose(t.sobol_points(3, 4, 3101), t.sobol_points(3, 4, 3101))
-    assert not np.allclose(t.sobol_points(3, 4, 3101), t.sobol_points(3, 4, 3102))
-    fit,_=t.make_sobol_vectors("fit",3101,{"1":4,"2":2,"3":2,"4":1,"5":1,"6":32})
-    val,_=t.make_sobol_vectors("validation",3102,{"1":2,"2":1,"3":1,"4":1,"5":1,"6":16})
-    assert len(fit)==147
-    assert len(val)==84
-    hold,_=t.boundary_vectors("holdout",1)
-    assert len(hold)==64
-    assert len(hold)+16==80
-    keys={t.rounded_key(v.values) for v in fit+val+hold+[t.base_vector("fit",999),t.base_vector("validation",999),t.base_vector("holdout",999)]}
-    assert len(t.adaptive_candidates(keys))==178
+def test_quality_checks_contain_measured_evidence(valid_smoke_artifact: Path) -> None:
+    checks = json.loads((valid_smoke_artifact / "quality_checks.json").read_text(encoding="utf-8"))
+    assert checks["mass_matrix_valid"]["checked_rows"] == 41
+    assert checks["mass_matrix_valid"]["evidence_source"] == "mass_matrix.npy"
+    assert checks["coverage_summary_recomputed_valid"]["before_max"] > 0.0
+    assert all(isinstance(payload, dict) and "passed" in payload for payload in checks.values())
 
-
-def test_split_and_base_separation():
-    fit,_=t.make_sobol_vectors("fit",3101,{"1":1,"2":0,"3":0,"4":0,"5":0,"6":1})
-    vecs=fit+[t.base_vector("fit",99),t.base_vector("validation",1),t.base_vector("holdout",1)]
-    assert len({v.external_vector_id for v in vecs}) == len(vecs)
-    for v in vecs:
-        actual=sum(float(x)!=0.0 for x in v.values)
-        assert actual == v.active_factor_count
-        assert (actual == 0) == v.is_base_vector
-
-
-def test_terrain_fields_present_and_exclusions_absent():
-    w=DistributionTerrainV322World(DistributionTerrainV322Config(seed=0,n_bins=5))
-    assert len(t.TERRAIN_FIELDS)==22
-    for f in t.TERRAIN_FIELDS:
-        arr=np.asarray(getattr(w,f), dtype=np.float32).reshape(-1)
-        assert arr.shape == (3125,)
-        assert arr.dtype == np.float32
-        assert np.isfinite(arr).all()
-    assert not any(f in t.TERRAIN_FIELDS for f in t.EXCLUDED_TRANSITION_FIELDS)
-
-
-def test_smoke_artifacts_and_separation(tmp_path):
-    out=t.build("smoke", tmp_path)
-    md=pd.read_csv(out/"snapshot_metadata.csv")
-    disc=pd.read_csv(out/"discovery_manifest.csv")
-    pairs=pd.read_csv(out/"matched_pairs.csv")
-    mass=np.load(out/"mass_matrix.npy")
-    terr=np.load(out/"terrain_reference.npz")
-    assert list(disc.columns)==["matrix_row_index","snapshot_id","dataset_split","analysis_weight"]
-    forbidden=set(t.EXTERNAL_COLUMNS+["source_step","seed","distribution_group"]+t.TERRAIN_FIELDS)
-    assert forbidden.isdisjoint(disc.columns)
-    assert "combined_full" not in set(md["distribution_group"])
-    assert mass.shape[0]==len(md)
-    assert mass.shape[1]==3125
-    assert list(md["matrix_row_index"])==list(range(len(md)))
-    for f in t.TERRAIN_FIELDS:
-        assert terr[f].shape==(len(md),3125)
-        assert terr[f].dtype==np.float32
-    assert set(pairs["pair_quality"]) == {"exact"}
-    manifest=json.loads((out/"artifact_manifest.json").read_text())
-    names={r["relative_path"] for r in manifest}
-    required={"external_vectors.csv","snapshot_metadata.csv","discovery_manifest.csv","matched_pairs.csv","cell_coordinates.csv","terrain_field_catalog.csv","mass_matrix.npy","terrain_reference.npz","coverage_summary.csv","coverage_additions.csv","quality_checks.json","results.md"}
-    assert required.issubset(names)
-    checks=json.loads((out/"quality_checks.json").read_text())
-    for key in ["axis_count_is_5","n_bins_is_5","cell_count_is_3125","mass_shape_valid","mass_finite","mass_nonnegative","mass_sum_valid","external_ranges_valid","all_external_keys_present","base_external_separation_valid","discovery_manifest_has_no_forbidden_columns","terrain_fields_present","terrain_shapes_valid","transition_fields_absent","matched_pairs_exact","combined_full_not_stored","split_vector_sets_disjoint","sobol_deterministic","adaptive_count_is_32"]:
-        assert key in checks
+def test_artifact_manifest_is_type_aware(valid_smoke_artifact: Path) -> None:
+    manifest = json.loads((valid_smoke_artifact / "artifact_manifest.json").read_text(encoding="utf-8"))
+    entries = {entry["path"]: entry for entry in manifest["files"]}
+    assert entries["external_vectors.csv"]["row_count"] == 19
+    assert entries["mass_matrix.npy"]["shape"] == [41, 3125]
+    assert entries["terrain_reference.npz"]["members"]["short_payoff"]["shape"] == [41, 3125]
