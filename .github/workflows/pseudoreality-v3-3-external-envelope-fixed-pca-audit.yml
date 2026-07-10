@@ -1,0 +1,22 @@
+name: PseudoReality v3.3 external-envelope fixed PCA audit
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/pseudoreality_v3_3_external_envelope_fixed_pca_audit.py'
+      - 'tests/test_pseudoreality_v3_3_external_envelope_fixed_pca_audit.py'
+      - '.github/workflows/pseudoreality-v3-3-external-envelope-fixed-pca-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  lightweight-task3-1b-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Task 3.1b lightweight test
+        run: pytest tests/test_pseudoreality_v3_3_external_envelope_fixed_pca_audit.py
