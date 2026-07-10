@@ -10,7 +10,7 @@ SCRIPT = Path("scripts/pseudoreality_v3_3_external_envelope_residual_decompositi
 def test_task3_1b_real_generation_path_is_reused_without_artificial_vectors():
     text = SCRIPT.read_text()
     assert "DistributionTerrainV322World" in text
-    assert "world.set_external_factors" not in text  # delegated to Task 3.1b generator
+    assert "from scripts.pseudoreality_v3_3_external_envelope_fixed_pca_audit" in text
     assert "build_external_envelope_fit_corpus" in text
     assert "build_holdout_corpus" in text
     assert "build_full_envelope_corpus" in text
@@ -86,3 +86,45 @@ def test_results_md_is_diagnostic_not_candidate_decision(tmp_path, monkeypatch):
     assert "このレポートはPCA-G_t候補を採用・不採用にするものではない。" in text
     banned = ["winner", "best", "adopted", "final decision", "採用不可", "失敗", "有効範囲外と確定"]
     assert not any(term in text for term in banned)
+
+
+def test_committed_docs_are_production_audit_artifacts_without_monkeypatch():
+    root = Path("docs/task3_1c_external_envelope_residual_decomposition")
+    residual = pd.read_csv(root / "compact_residual_decomposition_summary.csv")
+    expected_candidates = {
+        "sqrt_static_pca_10_external_envelope",
+        "sqrt_static_pca_12_external_envelope",
+        "sqrt_static_pca_15_external_envelope",
+        "raw_static_pca_10_external_envelope",
+        "sqrt_sparse_temporal_lag_pca_10_external_envelope",
+    }
+    expected_datasets = {"fit_external", "holdout_external", "no_external_reference"}
+    assert set(residual["candidate_name"]) == expected_candidates
+    assert set(residual["dataset"]) == expected_datasets
+    assert len(residual.groupby(["candidate_name", "dataset"])) == len(expected_candidates) * len(expected_datasets)
+    assert int(residual["snapshot_count"].max()) > 1000
+    assert int(residual["snapshot_count"].min()) > 100
+
+    factor = pd.read_csv(root / "compact_factor_residual_summary.csv")
+    temporal = pd.read_csv(root / "compact_temporal_residual_summary.csv")
+    terrain = pd.read_csv(root / "compact_residual_terrain_summary.csv")
+    assert set(factor["candidate_name"]) == expected_candidates
+    assert {"fit_external", "holdout_external"} <= set(factor["dataset"])
+    assert len(factor) > 100
+    assert len(temporal) > 500
+    assert len(terrain) > 100
+    assert not any((root / name).exists() for name in audit.DETAILED_NAMES)
+
+
+def test_committed_results_md_records_artifact_provenance_without_decision():
+    text = Path("docs/task3_1c_external_envelope_residual_decomposition/results.md").read_text()
+    assert "## Artifact provenance" in text
+    assert "Generation command: `python scripts/pseudoreality_v3_3_external_envelope_residual_decomposition_audit.py`" in text
+    assert "Task 3.1b generator reused: yes" in text
+    assert "PCA candidate count: 5" in text
+    assert "Dataset splits: fit_external, holdout_external, no_external_reference" in text
+    assert "Detailed logs written by default: no" in text
+    assert "Candidate decision made: no" in text
+    assert "This report does not select, reject, or adopt any PCA-G_t candidate." in text
+    assert "Automatic audit flags are diagnostic signals, not final validity judgments." in text
+    assert "このレポートはPCA-G_t候補を採用・不採用にするものではない。" in text
