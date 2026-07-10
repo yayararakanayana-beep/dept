@@ -14,6 +14,12 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - When changing implementation behavior, add or update tests that cover the change.
 - If Python tests are added, use `pytest`.
 
+## Canonical Codex Instruction Rule
+
+- `CODEX_INSTRUCTION_STANDARD.md` is the single source of truth for drafting Codex implementation instructions for this repository.
+- Before producing any Codex instruction, implementation contract, repair instruction, or Codex handoff, read that file and instantiate its required sections for the current task.
+- Do not draft a Codex instruction from memory, from a previous task, or from an abbreviated local pattern.
+- Do not deliver the instruction until the mandatory shortcut audit in that file is complete.
 
 ## RC1 Freeze Archive Handling
 
@@ -62,4 +68,3 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task22's intended canonical update scope is limited to bounded in-run lower ParameterBox state only.
 - G/K writeback, world direct write, ActionModule internal DEPT connection, and ActionFrame direct generation boundaries remain closed.
 - Task22 is not a Parameter Shadow Box redesign or Task21 classifier rebuild; Task21 real `watch_only` candidates must not be canonically updated.
-
