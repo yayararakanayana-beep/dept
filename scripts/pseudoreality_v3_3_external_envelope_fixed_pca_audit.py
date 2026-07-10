@@ -54,32 +54,28 @@ EXTERNAL_FACTORS = tuple(BASELINE_EXTERNAL_FACTORS.keys())
 
 
 def _fit_pca(x: np.ndarray, k: int):
-    """Fit PCA via sample-space eigendecomposition for lightweight audits."""
+    """Fit a deterministic top-k PCA basis using a small randomized subspace."""
     from scripts.pseudoreality_v3_3_pca_gt_candidate_comparison import PcaFit
+
     mean = x.mean(axis=0)
     xc = x - mean
-    gram = xc @ xc.T
-    vals, vecs = np.linalg.eigh(gram)
-    order = np.argsort(vals)[::-1]
-    vals = np.maximum(vals[order], 0.0)
-    vecs = vecs[:, order]
-    keep = min(k, x.shape[0], x.shape[1])
-    comps = []
-    for i in range(keep):
-        scale = np.sqrt(vals[i])
-        if scale <= EPSILON:
-            comps.append(np.zeros(x.shape[1]))
-        else:
-            comps.append((vecs[:, i].T @ xc) / scale)
-    components = np.vstack(comps)
-    if keep < k:
-        components = np.vstack([components, np.zeros((k - keep, x.shape[1]))])
+    rank = min(k + 8, x.shape[0] - 1, x.shape[1])
+    rng = np.random.default_rng(12345 + k + x.shape[0])
+    omega = rng.normal(size=(x.shape[1], rank))
+    q, _ = np.linalg.qr(xc @ omega, mode="reduced")
+    for _ in range(1):
+        q, _ = np.linalg.qr(xc @ (xc.T @ q), mode="reduced")
+    b = q.T @ xc
+    _u, svals, vt = np.linalg.svd(b, full_matrices=False)
+    components = vt[:k]
+    if components.shape[0] < k:
+        components = np.vstack([components, np.zeros((k - components.shape[0], x.shape[1]))])
     scores = xc @ components.T
     recon = scores @ components + mean
-    var_all = vals / max(x.shape[0] - 1, 1)
-    total = max(float(var_all.sum()), EPSILON)
+    var = (svals[:k] ** 2) / max(x.shape[0] - 1, 1)
+    total = max(float(np.sum(xc * xc) / max(x.shape[0] - 1, 1)), EPSILON)
     evr = np.zeros(k)
-    evr[: min(k, len(var_all))] = var_all[: min(k, len(var_all))] / total
+    evr[: len(var)] = var / total
     return PcaFit(mean, components, evr, scores, recon, x)
 
 @dataclass(frozen=True)
@@ -146,65 +142,53 @@ def holdout_external_scenarios(steps: int = STEPS) -> list[ExternalScenario]:
     ]
 
 
-def _factor_vector(seed: int, t: int, factors: dict[str, float]) -> np.ndarray:
-    """Deterministic lightweight v3.3-shaped external-factor state vector."""
-    rng = np.random.default_rng(seed * 1009 + t)
-    coords = np.indices((5,) * 5).reshape(5, -1).T.astype(float)
-    center = np.array([2.0, 2.0, 2.0, 2.0, 2.0])
-    center[0] -= 0.55 * factors.get("external_resource_supply", 0.0)
-    center[1] += 0.55 * factors.get("external_demand", 0.0)
-    spread = max(0.65, 1.6 - 0.35 * factors.get("external_constraint_pressure", 0.0))
-    dist = ((coords - center) ** 2).sum(axis=1)
-    v = np.exp(-dist / (2.0 * spread**2))
-    v *= 1.0 + factors.get("external_competition_pressure", 0.0) * (coords[:, 2] / 4.0)
-    v += factors.get("external_information_noise", 0.0) * 0.04 * rng.random(len(v))
-    shock = factors.get("external_shock", 0.0)
-    if shock:
-        boundary = ((coords == 0) | (coords == 4)).any(axis=1).astype(float)
-        v = (1.0 - 0.25 * shock) * v + 0.25 * shock * boundary
-    v += 1e-9
-    return snapshot_to_mass_vector(v)
-
-
 def _scenario_rows(scenarios: list[ExternalScenario], seeds: tuple[int, ...], corpus: str) -> tuple[pd.DataFrame, np.ndarray]:
-    rows: list[dict[str, object]] = []; vectors: list[np.ndarray] = []
+    """Generate external-factor logs through the real v3.3 world interface."""
+    rows: list[dict[str, object]] = []
+    vectors: list[np.ndarray] = []
     for scenario in scenarios:
         for seed in seeds:
-            for t in range(scenario.steps + 1):
-                factors = zero_factors() if t == 0 else scenario.schedule(t - 1)
-                vec = _factor_vector(seed, t, factors)
-                row = {"snapshot_id": f"{scenario.scenario_id}_seed{seed}_t{t}", "scenario_id": scenario.scenario_id, "scenario_group": scenario.scenario_group, "external_factor_name": scenario.external_factor_name, "external_factor_value": scenario.external_factor_value, "seed": seed, "t": t, "corpus_split": corpus, "mass_total": float(vec.sum())}
-                row.update({f: float(factors.get(f, 0.0)) for f in EXTERNAL_FACTORS})
-                rows.append(row); vectors.append(vec)
+            world = DistributionTerrainV322World(DistributionTerrainV322Config(seed=seed, n_bins=5))
+            factors = zero_factors()
+            vector = snapshot_to_mass_vector(world.distribution)
+            row = {
+                "snapshot_id": f"{scenario.scenario_id}_seed{seed}_t0",
+                "scenario_id": scenario.scenario_id,
+                "scenario_group": scenario.scenario_group,
+                "external_factor_name": scenario.external_factor_name,
+                "external_factor_value": scenario.external_factor_value,
+                "seed": seed,
+                "t": 0,
+                "corpus_split": corpus,
+                "mass_total": float(vector.sum()),
+            }
+            row.update({factor: float(factors.get(factor, 0.0)) for factor in EXTERNAL_FACTORS})
+            rows.append(row)
+            vectors.append(vector)
+            for step_t in range(scenario.steps):
+                factors = scenario.schedule(step_t)
+                world.set_external_factors(factors)
+                world.step()
+                vector = snapshot_to_mass_vector(world.distribution)
+                row = {
+                    "snapshot_id": f"{scenario.scenario_id}_seed{seed}_t{step_t + 1}",
+                    "scenario_id": scenario.scenario_id,
+                    "scenario_group": scenario.scenario_group,
+                    "external_factor_name": scenario.external_factor_name,
+                    "external_factor_value": scenario.external_factor_value,
+                    "seed": seed,
+                    "t": step_t + 1,
+                    "corpus_split": corpus,
+                    "mass_total": float(vector.sum()),
+                }
+                row.update({factor: float(factors.get(factor, 0.0)) for factor in EXTERNAL_FACTORS})
+                rows.append(row)
+                vectors.append(vector)
     return pd.DataFrame(rows), np.vstack(vectors)
 
-
-
-def _lightweight_task3_fit_corpus(seed: int = 0) -> tuple[pd.DataFrame, np.ndarray]:
-    rows=[]; vectors=[]
-    groups=("normal","stress","concentrated","diffuse","multi_peak","boundary","mixture")
-    for gi, group in enumerate(groups):
-        count = 18 if group == "normal" else 8
-        for i in range(count):
-            vec = _factor_vector(seed + gi, i, zero_factors())
-            if group == "stress":
-                vec = snapshot_to_mass_vector(vec + 0.02 * np.random.default_rng(seed+i).gamma(0.5, 1.0, len(vec)))
-            elif group == "concentrated":
-                vec = _factor_vector(seed + gi, i, {**zero_factors(), "external_constraint_pressure": 1.0})
-            elif group == "diffuse":
-                vec = snapshot_to_mass_vector(np.ones_like(vec))
-            elif group == "multi_peak":
-                vec = snapshot_to_mass_vector(0.55 * vec + 0.45 * np.roll(vec, 777))
-            elif group == "boundary":
-                vec = _factor_vector(seed + gi, i, {**zero_factors(), "external_shock": 0.8})
-            elif group == "mixture":
-                vec = snapshot_to_mass_vector(0.6 * vec + 0.4 * np.roll(vec, 321))
-            rows.append({"snapshot_id": f"task3_{group}_{i}", "scenario_type": group, "corpus_type": "fit", "mass_total": 1.0})
-            vectors.append(vec)
-    return pd.DataFrame(rows), np.vstack(vectors)
 
 def build_external_envelope_fit_corpus(seed: int = 0, steps: int = STEPS) -> tuple[pd.DataFrame, np.ndarray]:
-    task3_manifest, task3_mass = _lightweight_task3_fit_corpus(seed=seed)
+    task3_manifest, task3_mass = build_full_envelope_corpus(seed=seed)
     mask = task3_manifest["corpus_type"].to_numpy() == "fit"
     no_ext = task3_manifest[mask].copy().reset_index(drop=True)
     no_ext["corpus_split"] = "fit_no_external_reference"
@@ -238,7 +222,7 @@ def _feature_matrix(mass: np.ndarray, manifest: pd.DataFrame, family: str) -> np
 
 def fit_bases(seed: int = 0, steps: int = STEPS) -> tuple[list[FrozenBasis], pd.DataFrame, np.ndarray]:
     manifest, mass = build_external_envelope_fit_corpus(seed, steps)
-    task3_manifest, task3_mass = _lightweight_task3_fit_corpus(seed=seed)
+    task3_manifest, task3_mass = build_full_envelope_corpus(seed=seed)
     task3_mask = task3_manifest["corpus_type"].to_numpy() == "fit"
     bases: list[FrozenBasis] = []
     for spec in CANDIDATES:
@@ -313,9 +297,68 @@ def _candidate_slice(df: pd.DataFrame, names: list[str]) -> pd.DataFrame:
 
 
 def _write_results(path: Path, summary: pd.DataFrame, comparison: pd.DataFrame, factor: pd.DataFrame, scenario: pd.DataFrame) -> None:
-    focus="sqrt_static_pca_10_external_envelope"
-    lines=["# Task 3.1b External-Envelope Fixed PCA Audit", "", "This report does not select the final PCA-G_t candidate. Final adoption decision is reserved for human review.", "", "Lower out-of-envelope rate alone is not sufficient. G_t displacement and factor-response separation must also be preserved.", "", "## Candidate-level summary", _markdown_table(summary, ["candidate_name","candidate_role","dataset","reconstruction_error_mean","residual_energy_ratio_mean","mahalanobis_distance_mean","out_of_envelope_rate","external_score_displacement_mean"]), "", "## Candidate comparison vs Task 3.1 no-external-only PCA baseline", _markdown_table(comparison, ["candidate_name","dataset","delta_out_of_envelope_rate_vs_task3_1","delta_residual_gain_vs_task3_1","delta_score_displacement_vs_task3_1","review_status"]), "", "## sqrt_static_pca_10_external_envelope vs sqrt_static_pca_12_external_envelope", _markdown_table(_candidate_slice(comparison, [focus,"sqrt_static_pca_12_external_envelope"]), ["candidate_name","candidate_role","out_of_envelope_rate","external_residual_gain_mean","external_score_displacement_mean","review_status"]), "", "## sqrt_static_pca_10_external_envelope vs sqrt_static_pca_15_external_envelope", _markdown_table(_candidate_slice(comparison, [focus,"sqrt_static_pca_15_external_envelope"]), ["candidate_name","candidate_role","out_of_envelope_rate","external_residual_gain_mean","external_score_displacement_mean","review_status"]), "", "## sqrt_static_pca_10_external_envelope vs raw_static_pca_10_external_envelope", _markdown_table(_candidate_slice(comparison, [focus,"raw_static_pca_10_external_envelope"]), ["candidate_name","candidate_role","out_of_envelope_rate","external_residual_gain_mean","external_score_displacement_mean","review_status"]), "", "## Factor response summary", _markdown_table(factor, ["candidate_name","dataset","external_factor_name","external_score_displacement_mean","external_residual_gain_mean","out_of_envelope_rate"], max_rows=20), "", "## Holdout external scenario summary", _markdown_table(scenario[scenario.dataset == "holdout_external"], ["candidate_name","scenario_id","external_factor_name","external_score_displacement_mean","external_residual_gain_mean","out_of_envelope_rate"], max_rows=20), "", "Human review is required before any PCA-G_t candidate decision."]
-    path.write_text("\n".join(lines)+"\n")
+    focus = "sqrt_static_pca_10_external_envelope"
+    lines = [
+        "# Task 3.1b External-Envelope Fixed PCA Audit",
+        "",
+        "This report does not select the final PCA-G_t candidate. Final adoption decision is reserved for human review.",
+        "",
+        "Lower out-of-envelope rate alone is not sufficient. G_t displacement and factor-response separation must also be preserved.",
+    ]
+    for dataset in ("fit_external", "holdout_external", "no_external_reference"):
+        lines.extend([
+            "",
+            f"## Candidate-level summary: {dataset}",
+            _markdown_table(
+                summary[summary["dataset"] == dataset],
+                [
+                    "candidate_name",
+                    "candidate_role",
+                    "dataset",
+                    "reconstruction_error_mean",
+                    "residual_energy_ratio_mean",
+                    "mahalanobis_distance_mean",
+                    "out_of_envelope_rate",
+                    "external_score_displacement_mean",
+                ],
+                max_rows=10,
+            ),
+        ])
+    lines.extend([
+        "",
+        "## Candidate comparison vs Task 3.1 no-external-only PCA baseline",
+        _markdown_table(
+            comparison,
+            [
+                "candidate_name",
+                "dataset",
+                "delta_out_of_envelope_rate_vs_task3_1",
+                "delta_residual_gain_vs_task3_1",
+                "delta_score_displacement_vs_task3_1",
+                "review_status",
+            ],
+            max_rows=20,
+        ),
+        "",
+        "## sqrt_static_pca_10_external_envelope vs sqrt_static_pca_12_external_envelope",
+        _markdown_table(_candidate_slice(comparison, [focus, "sqrt_static_pca_12_external_envelope"]), ["candidate_name", "candidate_role", "out_of_envelope_rate", "external_residual_gain_mean", "external_score_displacement_mean", "review_status"]),
+        "",
+        "## sqrt_static_pca_10_external_envelope vs sqrt_static_pca_15_external_envelope",
+        _markdown_table(_candidate_slice(comparison, [focus, "sqrt_static_pca_15_external_envelope"]), ["candidate_name", "candidate_role", "out_of_envelope_rate", "external_residual_gain_mean", "external_score_displacement_mean", "review_status"]),
+        "",
+        "## sqrt_static_pca_10_external_envelope vs raw_static_pca_10_external_envelope",
+        _markdown_table(_candidate_slice(comparison, [focus, "raw_static_pca_10_external_envelope"]), ["candidate_name", "candidate_role", "out_of_envelope_rate", "external_residual_gain_mean", "external_score_displacement_mean", "review_status"]),
+        "",
+        "## Factor response summary",
+        _markdown_table(factor, ["candidate_name", "dataset", "external_factor_name", "external_score_displacement_mean", "external_residual_gain_mean", "out_of_envelope_rate"], max_rows=40),
+        "",
+        "## Holdout external scenario summary",
+        _markdown_table(scenario[scenario.dataset == "holdout_external"], ["candidate_name", "scenario_id", "external_factor_name", "external_score_displacement_mean", "external_residual_gain_mean", "out_of_envelope_rate"], max_rows=40),
+        "",
+        "Human review is required before any PCA-G_t candidate decision.",
+    ])
+    path.write_text("\n".join(lines) + "\n")
+
 
 
 def main() -> None:
