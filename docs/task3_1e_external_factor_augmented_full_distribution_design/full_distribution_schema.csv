@@ -1,0 +1,13 @@
+field_name,field_role,required,allowed_values,description,is_axis,is_metadata,used_for_later_coverage_audit
+distribution_state_id,identifier,True,,Unique distribution state id.,False,True,True
+distribution_group,group,True,base_v3_3|external_augmented,Required raw group; combined_full is only a later aggregation view.,False,True,True
+external_factor_family,condition_label,True,none or external condition family,"External factor metadata, not a semantic axis.",False,True,True
+external_factor_strength,condition_label,True,none or scenario strength,"External factor metadata, not a semantic axis.",False,True,True
+external_factor_time_shape,condition_label,True,none or scenario time shape,"External factor metadata, not a semantic axis.",False,True,True
+external_factor_combination,condition_label,True,none or active factor combination,"External factor metadata, not a semantic axis.",False,True,True
+external_factor_count,condition_label,True,integer,"External factor metadata, not a semantic axis.",False,True,True
+external_factor_scenario_id,condition_label,True,none or scenario id,"External factor metadata, not a semantic axis.",False,True,True
+distribution_entropy,compact_summary,True,float,Distribution shape compact summary; not semantic axis adoption.,False,True,True
+distribution_concentration,compact_summary,True,float,Distribution shape compact summary; not semantic axis adoption.,False,True,True
+distribution_spread,compact_summary,True,float,Distribution shape compact summary; not semantic axis adoption.,False,True,True
+combined_full,logical_collection,False,summary only,Logical collection for later aggregation; never a raw distribution_group.,False,True,True

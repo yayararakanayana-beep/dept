@@ -1,0 +1,4 @@
+distribution_group,state_count,scenario_count,seed_count,t_count,n_bins,mean_entropy,mean_concentration,mean_spread,mean_nonzero_cell_count,mean_mass_sum,notes
+base_v3_3,12,2,5,3,4,4.93407101720066,0.01456641135006386,0.2407867863345845,1024.0,1.0,raw group summary
+external_augmented,110,39,5,2,4,4.985024328965356,0.013952435452967513,0.245259436274826,1024.0,1.0,raw group summary
+combined_full,122,41,5,3,4,4.9800125278081735,0.014012826524813055,0.24481950349381865,1024.0,1.0,summary row
