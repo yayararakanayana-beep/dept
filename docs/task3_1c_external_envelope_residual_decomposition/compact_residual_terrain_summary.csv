@@ -1,0 +1,3 @@
+candidate_name,dataset,external_factor_name,scenario_id,top_residual_cell_count,top_residual_mass_share,top_positive_residual_cells_summary,top_negative_residual_cells_summary,residual_concentration_score
+sqrt_static_pca_10_external_envelope,fit_external,external_shock,fit_unit,3,0.9999999999905131,cell2:0.1054,,0.99999999991
+sqrt_static_pca_10_external_envelope,holdout_external,external_shock,holdout_unit,3,0.9999999999952566,cell2:0.2108,,0.9999999999775

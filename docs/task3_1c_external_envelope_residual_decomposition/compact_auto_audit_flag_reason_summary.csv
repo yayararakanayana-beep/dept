@@ -1,0 +1,4 @@
+candidate_name,candidate_role,dataset,snapshot_count,residual_threshold,mahalanobis_threshold,score_range_violation_rate,residual_exceed_rate,mahalanobis_exceed_rate,score_range_exceed_rate,residual_only_rate,mahalanobis_only_rate,score_range_only_rate,residual_and_mahalanobis_rate,residual_and_score_range_rate,mahalanobis_and_score_range_rate,all_three_exceed_rate,no_flag_rate,auto_audit_flag_rate
+sqrt_static_pca_10_external_envelope,focus_candidate,fit_external,3,0.1,2.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0
+sqrt_static_pca_10_external_envelope,focus_candidate,holdout_external,3,0.1,2.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0
+sqrt_static_pca_10_external_envelope,focus_candidate,no_external_reference,3,0.1,2.0,0.0,0.3333333333333333,0.0,0.0,0.3333333333333333,0.0,0.0,0.0,0.0,0.0,0.0,0.6666666666666666,0.3333333333333333

@@ -1,0 +1,3 @@
+external_factor_name,scenario_id,scenario_group,candidate_name,dataset,snapshot_count,residual_energy_ratio_mean,residual_energy_ratio_p90,residual_energy_ratio_max,external_score_displacement_mean,external_gt_velocity_mean,external_gt_curvature_mean,auto_audit_flag_rate,residual_exceed_rate,mahalanobis_exceed_rate,score_range_exceed_rate
+external_shock,fit_unit,compact_example,sqrt_static_pca_10_external_envelope,fit_external,3,0.03333333333333333,0.08000000000000002,0.1,0.3505983934842118,0.20530242165458681,0.1156658910924182,0.0,0.0,0.0,0.0
+external_shock,holdout_unit,compact_example,sqrt_static_pca_10_external_envelope,holdout_external,3,0.06666666666666667,0.1,0.1,0.39103099663296487,0.23405307022359853,0.0880471421067338,0.0,0.0,0.0,0.0

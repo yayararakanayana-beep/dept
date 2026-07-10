@@ -1,0 +1,4 @@
+candidate_name,dataset,correlation_residual_displacement,correlation_residual_velocity,correlation_residual_curvature,high_residual_high_displacement_rate,high_residual_low_displacement_rate,low_residual_high_displacement_rate,low_residual_low_displacement_rate
+sqrt_static_pca_10_external_envelope,fit_external,0.6734549399068687,-0.18127254972738044,1.0,0.3333333333333333,0.0,0.0,0.6666666666666666
+sqrt_static_pca_10_external_envelope,holdout_external,0.950721293622928,0.8511075269506337,0.49999999999999983,0.0,0.3333333333333333,0.3333333333333333,0.3333333333333333
+sqrt_static_pca_10_external_envelope,no_external_reference,0.5295602048101627,-0.356681155512075,1.0,0.3333333333333333,0.0,0.0,0.6666666666666666
