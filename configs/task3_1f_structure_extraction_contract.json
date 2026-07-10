@@ -1,0 +1,178 @@
+{
+  "contract_version": "task3.1f-1-rc1",
+  "status": "frozen",
+  "change_control": {
+    "requires_explicit_user_approval": true,
+    "automatic_fallback_prohibited": true,
+    "holdout_failure_requires_new_contract_version": true
+  },
+  "input": {
+    "task3_1e_merge_commit": "b191f6d315caf0df72ed9dc718cb78c954775a93",
+    "formal_artifact_sha256": "20060abf640504561e5988ad2068d79658b0c6247d35bc83b2cc32f818180a17",
+    "task3_1e_config_sha256": "4125ed50cc4007c657e107e530a9969b979f496fc7fdb07093177a592240ac5a",
+    "snapshot_count": 1582,
+    "cell_count": 3125,
+    "split_rows": {
+      "fit": 1082,
+      "validation": 256,
+      "holdout": 244
+    },
+    "primary_matrix": "mass_matrix.npy",
+    "primary_features": "cell_mass_only",
+    "external_factors_as_features": false,
+    "terrain_fields_as_features": false
+  },
+  "rank_grid": [
+    5,
+    8,
+    10,
+    12,
+    15,
+    20,
+    25
+  ],
+  "numeric": {
+    "js_epsilon": 1e-12,
+    "basis_sum_tolerance": 1e-10,
+    "reconstruction_rtol": 1e-10,
+    "reconstruction_atol": 1e-12,
+    "metric_rtol": 1e-09,
+    "metric_atol": 1e-12
+  },
+  "primary_model": {
+    "family": "nmf",
+    "solver": "multiplicative_update",
+    "beta_loss": "kullback-leibler",
+    "regularization": "none",
+    "l1_ratio": 0.0,
+    "max_iter": 2000,
+    "tolerance": 1e-05,
+    "anchor_initialization": "nndsvda",
+    "random_initialization": "random",
+    "random_seeds": [
+      31011,
+      31012,
+      31013,
+      31014,
+      31015,
+      31016
+    ],
+    "minimum_converged_random_runs": 5,
+    "fit_weighting": "multiply_each_fit_row_by_analysis_weight",
+    "basis_normalization": "normalize_each_basis_row_to_sum_1_and_transfer_scale_to_activation"
+  },
+  "references": {
+    "mean_distribution_baseline": true,
+    "weighted_pca": {
+      "run_for_all_ranks": true,
+      "fit_weighting": "sqrt_analysis_weight_centered_svd",
+      "simplex_projection": "euclidean_probability_simplex"
+    },
+    "frobenius_nmf": {
+      "activation": "after_primary_rank_selection",
+      "ranks": "selected_rank_and_adjacent_fixed_grid_ranks",
+      "seeds": [
+        31201,
+        31202,
+        31203
+      ],
+      "max_iter": 2000,
+      "tolerance": 1e-05,
+      "fit_weighting": "multiply_each_fit_row_by_sqrt_analysis_weight"
+    },
+    "dictionary_learning": {
+      "automatic_activation": false,
+      "requires_explicit_user_approval": true
+    },
+    "clustering": {
+      "model_selection_role": false,
+      "optional_diagnostic_stage": "task3.1f-5"
+    }
+  },
+  "matching_and_stability": {
+    "matching_algorithm": "hungarian",
+    "matching_cost": "sqrt_jensen_shannon_distance_natural_log",
+    "js_similarity": "1 - js_distance / sqrt(log(2))",
+    "initialization_median_similarity_min": 0.85,
+    "component_survival_similarity_min": 0.8,
+    "component_survival_rate_min": 0.75,
+    "stable_component_fraction_min": 0.8,
+    "grouped_subset": {
+      "count": 5,
+      "fit_fraction": 0.8,
+      "external_group_key": "external_vector_id",
+      "base_group_key": "source_run_id",
+      "external_strata": [
+        "active_factor_count",
+        "vector_origin"
+      ],
+      "salts": [
+        "task3_1f_subset_01",
+        "task3_1f_subset_02",
+        "task3_1f_subset_03",
+        "task3_1f_subset_04",
+        "task3_1f_subset_05"
+      ],
+      "median_similarity_min": 0.8,
+      "component_similarity_min": 0.75,
+      "required_subset_survival_count": 4,
+      "stable_component_fraction_min": 0.8
+    },
+    "world_seed_sensitivity": {
+      "fit_world_seeds": [
+        0,
+        1
+      ],
+      "median_similarity_conditional_threshold": 0.75,
+      "hard_failure_gate": false
+    }
+  },
+  "structure_quality": {
+    "duplicate_if_js_similarity_gte": 0.98,
+    "duplicate_if_cosine_similarity_gte": 0.995,
+    "duplicate_structure_fraction_max": 0.2,
+    "inactive_if_weighted_activation_share_p95_lt": 0.005,
+    "inactive_structure_fraction_max": 0.2
+  },
+  "admissibility": {
+    "validation_must_improve_mean_baseline": true,
+    "external_to_base_weighted_mean_js_ratio_max": 3.0,
+    "all_integrity_gates_required": true
+  },
+  "selection": {
+    "holdout_used": false,
+    "rule": "smallest_admissible_rank_with_mean_validation_js_lte_best_mean_plus_best_standard_error",
+    "representative_run": "medoid_by_mean_matched_js_similarity_then_validation_js_then_seed",
+    "no_admissible_rank_action": "stop_without_holdout"
+  },
+  "holdout": {
+    "access_stage": "after_independent_selection_lock_audit",
+    "selected_rank_only": true,
+    "automatic_rank_switch_prohibited": true,
+    "confirmed": {
+      "mean_baseline_improvement_min": 0.05,
+      "holdout_to_validation_mean_js_ratio_max": 1.25,
+      "holdout_to_validation_p95_js_ratio_max": 1.35
+    },
+    "conditional": {
+      "mean_baseline_improvement_min_exclusive": 0.0,
+      "holdout_to_validation_mean_js_ratio_max": 1.5,
+      "holdout_to_validation_p95_js_ratio_max": 1.5
+    }
+  },
+  "scope_exclusions": [
+    "semantic_structure_names",
+    "external_factors_as_model_features",
+    "terrain_fields_as_model_features",
+    "trajectory_factorization",
+    "signed_difference_factor_model",
+    "dynamic_G_t_timing",
+    "K_t_integration",
+    "O_t_integration",
+    "H_DEPT_integration",
+    "Action_Module_integration",
+    "automatic_core_axis_adoption",
+    "rank_grid_extension_without_approval"
+  ],
+  "output_schema_version": "task3.1f-output-v1"
+}
