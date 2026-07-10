@@ -1,0 +1,25 @@
+name: PseudoReality v3.3 Fixed PCA External Factor Audit
+
+on:
+  pull_request:
+    paths:
+      - "scripts/pseudoreality_v3_3_fixed_pca_external_factor_projection_audit.py"
+      - "tests/test_pseudoreality_v3_3_fixed_pca_external_factor_projection_audit.py"
+      - "docs/task3_1_fixed_pca_external_factor_projection_audit/**"
+      - ".github/workflows/pseudoreality-v3-3-fixed-pca-external-factor-audit.yml"
+  workflow_dispatch:
+
+jobs:
+  fixed-pca-external-factor-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install lightweight dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Run Task 3.1 tests
+        run: pytest tests/test_pseudoreality_v3_3_fixed_pca_external_factor_projection_audit.py
