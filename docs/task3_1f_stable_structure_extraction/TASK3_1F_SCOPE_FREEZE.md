@@ -9,7 +9,7 @@ Task 3.1fを、**外部要因条件を含むフル分布からの安定構造抽
 - `task3_1f1_comparison_design.md`
 - `task3_1f1_validation_contract.md`
 - `task3_1f1_output_schema.md`
-- `../../../configs/task3_1f_structure_extraction_contract.json`
+- `../../configs/task3_1f_structure_extraction_contract.json`
 
 Task 3.1f-1は設計・契約の確定のみを行う。構造抽出コードの実装や正式実行は行わない。
 
