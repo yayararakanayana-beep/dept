@@ -2,11 +2,11 @@
 
 ## 0. 基本方針
 
-Task 3.1fの成果物は、モデルの結果だけでなく、入力固定、run条件、構造対応、構造数選択、holdout開封順序、独立再計算の証拠を保存する。
+Task 3.1fの成果物は、モデル結果だけでなく、入力固定、run条件、構造対応、構造数選択、holdout開封順序、独立再計算の証拠を保存する。
 
-生成器が合格判定を自己申告するだけの出力は禁止する。
+生成器が合格値を自己申告するだけの出力は禁止する。
 
-全CSVはUTF-8、header付き、indexなしとする。全NPY/NPZはpickleを使わない。浮動小数点配列の型は個別指定がない限り`float64`とする。
+全CSVはUTF-8、header付き、indexなしとする。全NPY／NPZはpickleを使用しない。浮動小数点配列は個別指定がない限り`float64`とする。
 
 正式成果物root：
 
@@ -14,11 +14,13 @@ Task 3.1fの成果物は、モデルの結果だけでなく、入力固定、ru
 artifacts/task3_1f_stable_structure_extraction/
 ```
 
+再構成行列は基底と活性度から再計算できるため、各runについて保存しない。これにより成果物の不要な肥大化を避け、独立検証器が必ず再構成を再計算する。
+
 ---
 
-## 1. 契約・入力固定成果物
+## 1. 契約・環境・入力固定
 
-## 1.1 `contract_snapshot.json`
+### 1.1 `contract_snapshot.json`
 
 実行時に使用したmachine-readable contractの完全コピー。
 
@@ -34,7 +36,7 @@ artifacts/task3_1f_stable_structure_extraction/
 - holdout policy
 - output schema version
 
-## 1.2 `environment_manifest.json`
+### 1.2 `environment_manifest.json`
 
 必須項目：
 
@@ -45,12 +47,12 @@ artifacts/task3_1f_stable_structure_extraction/
 - SciPy version
 - pandas version
 - scikit-learn version
-- BLAS/LAPACK情報
+- BLAS／LAPACK情報
 - Git commit SHA
 - workflow run ID
 - workflow job ID
 
-## 1.3 `input_manifest.json`
+### 1.3 `input_manifest.json`
 
 必須項目：
 
@@ -64,11 +66,11 @@ artifacts/task3_1f_stable_structure_extraction/
 - matched pair count
 - input validation result
 
-## 1.4 bundle
+### 1.4 分離bundle
 
-- `fit_bundle.npz`
-- `validation_bundle.npz`
-- `holdout_bundle.npz`
+- `bundles/fit_bundle.npz`
+- `bundles/validation_bundle.npz`
+- `bundles/holdout_bundle.npz`
 
 各bundle member：
 
@@ -77,20 +79,20 @@ artifacts/task3_1f_stable_structure_extraction/
 - `matrix_row_index`
 - `snapshot_id_hash`
 
-文字列ID本体はrow map CSVへ保存する。
+fit／validation選択jobはholdout bundleを取得しない。
 
-## 1.5 row map
+### 1.5 row map
 
-- `fit_row_map.csv`
-- `validation_row_map.csv`
-- `holdout_row_map.csv`
+- `bundles/fit_row_map.csv`
+- `bundles/validation_row_map.csv`
+- `bundles/holdout_row_map.csv`
 
 列：
 
 | 列 | 型 | 説明 |
 |---|---|---|
 | bundle_row_index | int | bundle内行番号 |
-| matrix_row_index | int | Task 3.1e mass行番号 |
+| matrix_row_index | int | Task 3.1eの行番号 |
 | snapshot_id | str | snapshot ID |
 | dataset_split | str | split |
 | distribution_group | str | base／external |
@@ -98,15 +100,15 @@ artifacts/task3_1f_stable_structure_extraction/
 | external_vector_id | str | 外部ベクトルID |
 | seed | int | world seed |
 | source_step | int | step |
-| active_factor_count | int | 外部要因活性数 |
+| active_factor_count | int | 活性外部要因数 |
 | vector_origin | str | ベクトル生成由来 |
 | analysis_weight | float | 分析重み |
 
 ---
 
-## 2. run一覧
+## 2. model run成果物
 
-## 2.1 `model_runs.csv`
+### 2.1 `model_runs.csv`
 
 1行＝1 model run。
 
@@ -120,7 +122,7 @@ artifacts/task3_1f_stable_structure_extraction/
 | run_role | `anchor`, `random_init`, `subset`, `world_seed_sensitivity`, `reference` |
 | init_method | 初期化方法 |
 | init_seed | seed。anchorは0 |
-| subset_id | 摂動subset ID。通常runは空 |
+| subset_id | 摂動subset。通常runは空 |
 | world_seed_filter | seed感度条件。通常runは空 |
 | solver | solver名 |
 | loss | loss名 |
@@ -133,58 +135,71 @@ artifacts/task3_1f_stable_structure_extraction/
 | fit_started_at | UTC timestamp |
 | fit_completed_at | UTC timestamp |
 | basis_path | 基底path |
-| activation_path | 活性度path |
+| fit_activation_path | fit活性度path |
+| validation_activation_path | validation活性度path |
 | basis_sha256 | 基底hash |
-| activation_sha256 | 活性度hash |
+| fit_activation_sha256 | fit活性度hash |
+| validation_activation_sha256 | validation活性度hash |
 
-固定`converged=true`は禁止する。収束判定根拠をrun logへ残す。
+固定`converged=true`は禁止する。収束判定根拠をrun metadataへ残す。
 
-## 2.2 run別モデル配列
-
-path：
+### 2.2 run別配列
 
 ```text
 models/<run_id>/basis.npy
 models/<run_id>/fit_activations.npy
 models/<run_id>/validation_activations.npy
-models/<run_id>/fit_reconstruction.npy
-models/<run_id>/validation_reconstruction.npy
 models/<run_id>/run_metadata.json
 ```
 
-`basis.npy`：`(rank, 3125)`、各行非負、総和1。
+- `basis.npy`：`(rank, 3125)`、非負、各行総和1
+- `fit_activations.npy`：`(1082, rank)`、非負
+- `validation_activations.npy`：`(256, rank)`、非負
 
-`*_activations.npy`：`(split_rows, rank)`、非負。
+再構成は次で独立再計算する。
 
-`*_reconstruction.npy` は生再構成を保存する。分布用正規化再構成は独立再計算可能なため、必須保存対象としない。
+```text
+X_hat_fit = fit_activations @ basis
+X_hat_validation = validation_activations @ basis
+```
+
+runごとの完全再構成行列は保存禁止とする。デバッグ用に一時生成しても正式成果物へ含めない。
 
 ---
 
 ## 3. 再構成評価
 
-## 3.1 `reconstruction_metrics.csv`
+### 3.1 `reconstruction_metrics.csv`
 
 1行＝1 run×split×subgroup×metric×weighting。
 
-必須列：
+列：
 
-| 列 | 説明 |
-|---|---|
-| run_id | model run ID |
-| method | 方法 |
-| rank | 構造数 |
-| split | fit／validation／holdout |
-| subgroup_type | `all`, `distribution_group`, `source_step`, `active_factor_count`, `vector_origin` |
-| subgroup_value | 群値 |
-| weighting | `weighted`, `unweighted` |
-| metric | 指標名 |
-| aggregation | `mean`, `median`, `p95`, `max`等 |
-| value | 実測値 |
-| row_count | 対象行数 |
-| weight_sum | weight合計。unweightedはrow count |
-| evidence_path | 再計算元配列path |
+- run_id
+- method
+- rank
+- split
+- subgroup_type
+- subgroup_value
+- weighting
+- metric
+- aggregation
+- value
+- row_count
+- weight_sum
+- evidence_basis_path
+- evidence_activation_path
+- independently_recomputed
 
-metric候補：
+`subgroup_type`：
+
+- `all`
+- `distribution_group`
+- `source_step`
+- `active_factor_count`
+- `vector_origin`
+
+metric：
 
 - `rmse_raw`
 - `mae_raw`
@@ -194,11 +209,20 @@ metric候補：
 - `negative_value_count`
 - `nonfinite_value_count`
 
-## 3.2 `pair_deformation_metrics.csv`
+aggregation：
 
-1行＝1 run×split×集計条件×指標。
+- `mean`
+- `median`
+- `p95`
+- `max`
 
-必須列：
+全指標でweighted／unweightedを分離する。
+
+### 3.2 `pair_deformation_metrics.csv`
+
+1行＝1 run×split×層別条件×指標。
+
+列：
 
 - run_id
 - method
@@ -224,7 +248,7 @@ metric：
 
 ## 4. 構造対応・安定性
 
-## 4.1 `component_matches.csv`
+### 4.1 `component_matches.csv`
 
 1行＝run pair内の対応構造1組。
 
@@ -240,7 +264,7 @@ metric：
 - cosine_similarity
 - matching_cost_rank
 
-## 4.2 `rank_stability_summary.csv`
+### 4.2 `rank_stability_summary.csv`
 
 1行＝1 rank。
 
@@ -265,9 +289,9 @@ metric：
 - grouped_subset_passed
 - world_seed_status
 
-## 4.3 `structure_summary.csv`
+### 4.3 `structure_summary.csv`
 
-1行＝代表runの1構造。
+1行＝選択代表runの1構造。
 
 列：
 
@@ -293,11 +317,19 @@ metric：
 - maximum_internal_cosine_similarity
 - duplicate_flag
 - inactive_flag
-- handoff_status (`stable_structure`, `conditional_structure`, `excluded_duplicate`, `excluded_inactive`, `unstable`)
+- handoff_status
 
-`effective_cell_count` は `exp(entropy)` とする。entropyは自然対数で計算する。
+`handoff_status`：
 
-## 4.4 `internal_structure_similarity.csv`
+- `stable_structure`
+- `conditional_structure`
+- `excluded_duplicate`
+- `excluded_inactive`
+- `unstable`
+
+`effective_cell_count = exp(entropy)` とし、entropyは自然対数で計算する。
+
+### 4.4 `internal_structure_similarity.csv`
 
 代表run内の全構造対。
 
@@ -315,9 +347,9 @@ metric：
 
 ## 5. rank比較・選択固定
 
-## 5.1 `rank_summary.csv`
+### 5.1 `rank_summary.csv`
 
-1行＝固定gridの1 rank。
+固定gridの各rankについて必ず1行を出力する。7行未満は不合格。
 
 列：
 
@@ -344,9 +376,7 @@ metric：
 - one_standard_error_eligible
 - selected
 
-固定gridの7行が必須である。行欠落は禁止する。
-
-## 5.2 `selection_lock.json`
+### 5.2 `selection_lock.json`
 
 必須項目：
 
@@ -362,7 +392,8 @@ metric：
 - selected rank validation metrics
 - rank summary SHA-256
 - selected basis path／SHA-256
-- selected activation path／SHA-256
+- selected fit activation path／SHA-256
+- selected validation activation path／SHA-256
 - contract SHA-256
 - input artifact SHA-256
 - fit bundle SHA-256
@@ -372,14 +403,14 @@ metric：
 
 `holdout accessed`がtrue、欠落、または文字列の場合はlock無効とする。
 
-## 5.3 `selection_audit.json`
+### 5.3 `selection_audit.json`
 
-独立検証器が再計算した選択結果。
+独立検証器による再計算結果。
 
 - recomputed selected rank
 - stored selected rank
 - match
-- gate-by-gate再計算
+- gate-by-gate results
 - hash checks
 - failed checks
 - passed
@@ -388,25 +419,32 @@ metric：
 
 ## 6. holdout成果物
 
-## 6.1 `holdout_activations.npy`
+### 6.1 配列
+
+```text
+selected_model/holdout_activations.npy
+```
 
 形状：`(244, selected_rank)`。
 
-## 6.2 `holdout_reconstruction.npy`
+holdout再構成行列は保存しない。次で独立再計算する。
 
-形状：`(244, 3125)`。
+```text
+X_hat_holdout = holdout_activations @ selected_basis
+```
 
-## 6.3 `holdout_metrics.csv`
+### 6.2 `holdout_metrics.csv`
 
-`reconstruction_metrics.csv` と同じ形式のholdout行を保存する。
+`reconstruction_metrics.csv` と同じ形式でholdout指標を保存する。
 
-## 6.4 `holdout_outcome.json`
+### 6.3 `holdout_outcome.json`
 
 必須項目：
 
 - selected rank
 - selected representative run ID
 - selection lock SHA-256
+- holdout activation SHA-256
 - NMF holdout weighted mean JS
 - mean baseline holdout weighted mean JS
 - baseline improvement rate
@@ -419,18 +457,23 @@ metric：
 - outcome (`confirmed`, `conditional`, `failed`)
 - failed conditions
 
-outcomeは独立検証器が再計算できなければ無効。
+outcomeを独立再計算できなければ無効とする。
 
 ---
 
-## 7. PCA参照成果物
+## 7. PCA参照
 
-- `references/pca_rank_summary.csv`
-- `references/pca_components_rank_<rank>.npy`
-- `references/pca_validation_metrics.csv`
-- `references/pca_holdout_metrics.csv`
+```text
+references/pca_rank_summary.csv
+references/pca_rank_<rank>/weighted_mean.npy
+references/pca_rank_<rank>/components.npy
+references/pca_rank_<rank>/fit_scores.npy
+references/pca_rank_<rank>/validation_scores.npy
+references/pca_validation_metrics.csv
+references/pca_holdout_metrics.csv
+```
 
-PCAについて必須記録：
+必須記録：
 
 - explained variance ratio
 - cumulative explained variance
@@ -443,34 +486,38 @@ PCA成分を `structure_summary.csv` へ混ぜない。
 
 ---
 
-## 8. 感度監査成果物
+## 8. 感度監査
 
-### Frobenius NMF
+### 8.1 Frobenius NMF
 
 - `sensitivity/frobenius_model_runs.csv`
 - `sensitivity/frobenius_structure_matches.csv`
 - `sensitivity/frobenius_summary.csv`
+- `sensitivity/frobenius_models/<run_id>/basis.npy`
+- `sensitivity/frobenius_models/<run_id>/*_activations.npy`
 
-選択rankと隣接grid rankだけを含める。
+選択rankと固定grid上の隣接rankだけを含める。
 
-### grouped subset
+### 8.2 grouped subset
 
 - `sensitivity/subset_definitions.csv`
 - `sensitivity/subset_structure_matches.csv`
 - `sensitivity/subset_summary.csv`
+- `sensitivity/subset_models/<subset_id>/basis.npy`
 
-### world seed
+### 8.3 world seed
 
 - `sensitivity/world_seed_structure_matches.csv`
 - `sensitivity/world_seed_summary.csv`
+- `sensitivity/world_seed_models/<seed>/basis.npy`
 
 ---
 
 ## 9. 品質検査・報告
 
-## 9.1 `quality_checks.json`
+### 9.1 `quality_checks.json`
 
-各checkを次のobject形式で保存する。
+各checkをobject形式で保存する。
 
 ```json
 {
@@ -502,7 +549,7 @@ boolean単独は禁止する。
 - holdout outcome reproducibility
 - artifact manifest validity
 
-## 9.2 `mutation_test_results.json`
+### 9.2 `mutation_test_results.json`
 
 各破壊ケースについて：
 
@@ -513,9 +560,7 @@ boolean単独は禁止する。
 - failure message
 - passed
 
-## 9.3 `results.md`
-
-人間向け結果。
+### 9.3 `results.md`
 
 必須章：
 
@@ -532,7 +577,7 @@ boolean単独は禁止する。
 11. Task 3.1gへ渡す構造
 12. 失敗・制限・未解決事項
 
-## 9.4 `artifact_manifest.json`
+### 9.4 `artifact_manifest.json`
 
 各ファイルについて：
 
@@ -545,20 +590,47 @@ boolean単独は禁止する。
 - NPZ member names, shapes, dtypes
 - JSON top-level schema
 
-manifest自身は自己hash対象外とし、最終archive digestを別に記録する。
+manifest自身は自己hash対象外とする。最終archive digestを別に記録する。
 
 ---
 
-## 10. 完了レポート
+## 10. 保存量の上限管理
 
-Task 3.1f-2以降の各PRでは、次をPR本文へ記録する。
+正式成果物へ保存するのは、再現・独立検証・後続解析に必要な最小集合とする。
+
+保存する：
+
+- 入力bundle
+- 基底
+- 活性度
+- run metadata
+- 指標表
+- 対応表
+- selection lock
+- 監査結果
+
+保存しない：
+
+- 全runの完全再構成行列
+- 一時作業配列
+- solver内部状態
+- 重複した入力コピー
+- デバッグ画像の大量出力
+
+独立検証に必要なら基底と活性度から再生成する。
+
+---
+
+## 11. PR完了報告
+
+Task 3.1f-2以降のPR本文へ記録する。
 
 - 新規タスク／既存タスク
 - base branch
 - working branch
-- 実装したfrozen requirement
-- 実行した正常系テスト
-- 実行した破壊系テスト
+- 実装した固定要件
+- 正常系テスト
+- 破壊系テスト
 - smoke結果
 - formal Actions run ID
 - artifact ID／digest
