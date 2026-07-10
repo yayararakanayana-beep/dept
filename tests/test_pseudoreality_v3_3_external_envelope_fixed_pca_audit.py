@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import subprocess
 import sys
 from pathlib import Path
 
@@ -45,6 +46,18 @@ def _small_holdout_scenarios(steps: int = 1):
         audit.ExternalScenario("holdout_unseen_intensity", "unseen_factor_intensity", "external_information_noise", 0.60, steps, lambda _t: audit._with_factor("external_information_noise", 0.60)),
         audit.ExternalScenario("holdout_late_pulse", "different_pulse_timing", "external_shock", 1.0, steps, lambda _t: audit._with_factor("external_shock", 1.0)),
     ]
+
+
+def _changed_files_from_previous_commit() -> set[str]:
+    try:
+        output = subprocess.check_output(
+            ["git", "diff", "--name-only", "HEAD~1..HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return set()
+    return {line.strip() for line in output.splitlines() if line.strip()}
 
 
 def test_script_uses_real_validation_data_generation_paths() -> None:
@@ -140,7 +153,7 @@ def test_outputs_tables_boundaries_and_no_default_detailed_logs(tmp_path: Path, 
 
 
 def test_no_core_or_action_connection_files_modified() -> None:
-    changed = {line.strip() for line in __import__("subprocess").check_output(["git", "diff", "--name-only", "HEAD~1..HEAD"], text=True).splitlines()}
+    changed = _changed_files_from_previous_commit()
     assert "pseudo_reality/distribution_terrain_v3_2_2.py" not in changed
     source = Path("scripts/pseudoreality_v3_3_external_envelope_fixed_pca_audit.py").read_text().lower()
     assert "connect_h_dept" not in source
