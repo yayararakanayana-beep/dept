@@ -22,15 +22,7 @@
     "external_factors_as_features": false,
     "terrain_fields_as_features": false
   },
-  "rank_grid": [
-    5,
-    8,
-    10,
-    12,
-    15,
-    20,
-    25
-  ],
+  "rank_grid": [5, 8, 10, 12, 15, 20, 25],
   "numeric": {
     "js_epsilon": 1e-12,
     "basis_sum_tolerance": 1e-10,
@@ -49,14 +41,7 @@
     "tolerance": 1e-05,
     "anchor_initialization": "nndsvda",
     "random_initialization": "random",
-    "random_seeds": [
-      31011,
-      31012,
-      31013,
-      31014,
-      31015,
-      31016
-    ],
+    "random_seeds": [31011, 31012, 31013, 31014, 31015, 31016],
     "minimum_converged_random_runs": 5,
     "fit_weighting": "multiply_each_fit_row_by_analysis_weight",
     "basis_normalization": "normalize_each_basis_row_to_sum_1_and_transfer_scale_to_activation"
@@ -65,17 +50,16 @@
     "mean_distribution_baseline": true,
     "weighted_pca": {
       "run_for_all_ranks": true,
+      "solver": "weighted_centered_svd",
       "fit_weighting": "sqrt_analysis_weight_centered_svd",
       "simplex_projection": "euclidean_probability_simplex"
     },
     "frobenius_nmf": {
       "activation": "after_primary_rank_selection",
       "ranks": "selected_rank_and_adjacent_fixed_grid_ranks",
-      "seeds": [
-        31201,
-        31202,
-        31203
-      ],
+      "solver": "coordinate_descent",
+      "loss": "frobenius",
+      "seeds": [31201, 31202, 31203],
       "max_iter": 2000,
       "tolerance": 1e-05,
       "fit_weighting": "multiply_each_fit_row_by_sqrt_analysis_weight"
@@ -102,10 +86,7 @@
       "fit_fraction": 0.8,
       "external_group_key": "external_vector_id",
       "base_group_key": "source_run_id",
-      "external_strata": [
-        "active_factor_count",
-        "vector_origin"
-      ],
+      "external_strata": ["active_factor_count", "vector_origin"],
       "salts": [
         "task3_1f_subset_01",
         "task3_1f_subset_02",
@@ -119,10 +100,7 @@
       "stable_component_fraction_min": 0.8
     },
     "world_seed_sensitivity": {
-      "fit_world_seeds": [
-        0,
-        1
-      ],
+      "fit_world_seeds": [0, 1],
       "median_similarity_conditional_threshold": 0.75,
       "hard_failure_gate": false
     }
@@ -159,6 +137,13 @@
       "holdout_to_validation_mean_js_ratio_max": 1.5,
       "holdout_to_validation_p95_js_ratio_max": 1.5
     }
+  },
+  "artifact_storage": {
+    "store_basis": true,
+    "store_activations": true,
+    "store_full_reconstruction_per_run": false,
+    "recompute_reconstruction_from_basis_and_activations": true,
+    "store_temporary_solver_state": false
   },
   "scope_exclusions": [
     "semantic_structure_names",
