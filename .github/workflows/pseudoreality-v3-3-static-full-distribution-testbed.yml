@@ -1,0 +1,55 @@
+name: PseudoReality v3.3 Task 3.1e Static Full Distribution Testbed
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/pseudoreality_v3_3_static_full_distribution_testbed.py'
+      - 'configs/task3_1e_static_full_distribution_testbed.json'
+      - 'tests/test_pseudoreality_v3_3_static_full_distribution_testbed.py'
+      - '.github/workflows/pseudoreality-v3-3-static-full-distribution-testbed.yml'
+      - 'docs/task3_1e_static_full_distribution_testbed/**'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Task 3.1e profile to run'
+        required: true
+        default: formal
+        type: choice
+        options: [smoke, formal]
+
+jobs:
+  task3-1e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas scipy pytest
+      - name: Run Task 3.1e tests
+        run: python -m pytest tests/test_pseudoreality_v3_3_static_full_distribution_testbed.py -q
+      - name: Run pull-request smoke profile
+        if: github.event_name == 'pull_request'
+        run: python scripts/pseudoreality_v3_3_static_full_distribution_testbed.py --profile smoke --output-root artifacts
+      - name: Run manual profile
+        if: github.event_name == 'workflow_dispatch'
+        run: python scripts/pseudoreality_v3_3_static_full_distribution_testbed.py --profile ${{ inputs.profile }} --output-root artifacts
+      - name: Validate mandatory quality checks
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+          p=pathlib.Path('artifacts/pseudoreality_v3_3_task3_1e_static_full_distribution/quality_checks.json')
+          checks=json.loads(p.read_text())
+          failed=[k for k,v in checks.items() if not v]
+          if failed:
+              raise SystemExit(f'Failed quality checks: {failed}')
+          PY
+      - name: Upload formal artifact
+        if: github.event_name == 'workflow_dispatch' && inputs.profile == 'formal'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pseudoreality-v3-3-task3-1e-static-full-distribution
+          path: artifacts/pseudoreality_v3_3_task3_1e_static_full_distribution
+          retention-days: 14
