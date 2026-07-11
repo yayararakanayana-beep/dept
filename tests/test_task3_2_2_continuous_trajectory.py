@@ -19,7 +19,7 @@ def generated(tmp_path: Path) -> tuple[Path, dict, dict]:
         "smoke",
         scenarios=["stable_continuation", "natural_recovery"],
         seeds=[0, 1],
-        transitions_override=4,
+        transitions_override=10,
         reproducibility_check=False,
     )
     return output, result, config
@@ -45,7 +45,7 @@ def test_state_snapshots_contain_all_required_arrays(generated: tuple[Path, dict
     contract = load_contract(Path(module.ROOT) / config["contract_path"])
     trajectory = sorted((output / "trajectories").glob("traj_*"))[0]
     state_files = sorted((trajectory / "states").glob("*.npz"))
-    assert len(state_files) == 5
+    assert len(state_files) == 11
     with np.load(state_files[0], allow_pickle=False) as bundle:
         required = set(contract["step_record"]["required_state_arrays"])
         assert required.issubset(bundle.files)
