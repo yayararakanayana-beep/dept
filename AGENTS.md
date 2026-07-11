@@ -96,3 +96,11 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task 3.2-3 must create and validate `selection_lock.json` before opening any holdout state or metrics file.
 - After holdout evaluation, Task 3.2-3 model family, feature set, history width, horizon, threshold, and alarm persistence must not change.
 - Task 3.2-3 results are comparison baselines for Task 3.2-4; they do not validate macro-dynamics, irreversibility, game structures, or action readiness.
+- Task 3.2-4 challenge schedules must vary by seed in disturbance timing, duration, magnitude, composition, residual burden, or relapse; repeating one fixed schedule across seeds is not a valid challenge corpus.
+- Task 3.2-4 preprocessing, random projections, PCA bases, delay bases, and dynamics matrices must be fitted on fit data only. Validation and holdout may only be transformed.
+- Task 3.2-4 may use only observed external inputs through time t. Multi-step DMDc forecasts must use an explicitly documented current-input persistence assumption, never actual future inputs.
+- Task 3.2-4 must keep DMD/DMDc/Hankel residual modes neutrally named. Do not rename modes as terrain, circulation, viscosity, diffusion, or external force without later evidence.
+- Task 3.2-4 unexplained residuals must remain in a residual ledger and must not be forced into known macro-dynamics components.
+- Task 3.2-4 must compare against both the original Task 3 locked structure and a fair Task 3 structure retrained on challenge fit data.
+- Task 3.2-4 must create and validate its own selection lock before opening challenge holdout state files. Post-holdout candidate switching is forbidden.
+- Task 3.2-4 is a minimal feasibility probe only. It must not construct formal G_t/K_t, freeze the dynamic relation field, classify game structures, prove irreversibility, or connect the Action Module.
