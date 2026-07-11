@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install test dependency
+        run: python -m pip install --upgrade pip pytest
       - name: Compile contract validator
         run: python -m py_compile scripts/task3_2_1_macro_dynamics_contract.py
       - name: Run Task 3.2-1 tests
