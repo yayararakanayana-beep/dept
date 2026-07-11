@@ -1,0 +1,65 @@
+name: Task 3.2-3 Simple Early Warning
+
+on:
+  pull_request:
+    paths:
+      - 'configs/task3_2_3_simple_early_warning.json'
+      - 'configs/task3_2_2_*.json'
+      - 'scripts/task3_2_1_macro_dynamics_contract.py'
+      - 'scripts/task3_2_2_*.py'
+      - 'scripts/task3_2_3_*.py'
+      - 'tests/test_task3_2_*.py'
+      - 'pseudo_reality/distribution_terrain_v3*.py'
+      - 'docs/task3_2_macro_dynamics_exploration/**'
+      - '.github/workflows/task3-2-3-simple-early-warning.yml'
+      - 'AGENTS.md'
+  workflow_dispatch:
+
+jobs:
+  formal-baselines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+      - name: Compile Task 3.2 modules
+        run: |
+          python -m py_compile scripts/task3_2_1_macro_dynamics_contract.py
+          python -m py_compile scripts/task3_2_2_continuous_trajectory.py
+          python -m py_compile scripts/task3_2_2_reference_calibration.py
+          python -m py_compile scripts/_task3_2_3_core.py
+          python -m py_compile scripts/task3_2_3_simple_early_warning.py
+      - name: Run Task 3.2 targeted tests
+        run: |
+          set -o pipefail
+          python -m pytest -vv \
+            tests/test_task3_2_1_macro_dynamics_contract.py \
+            tests/test_task3_2_2_continuous_trajectory.py \
+            tests/test_task3_2_2_reference_calibration.py \
+            tests/test_task3_2_3_simple_early_warning.py \
+            2>&1 | tee task3_2_3_pytest.log
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-3-pytest-diagnostics
+          path: task3_2_3_pytest.log
+          retention-days: 7
+      - name: Generate formal exploratory trajectory corpus
+        run: python scripts/task3_2_2_continuous_trajectory.py generate --profile exploratory --output work/task3_2_2_exploratory
+      - name: Calibrate trajectory outcomes against same-seed stable references
+        run: python scripts/task3_2_2_reference_calibration.py --input work/task3_2_2_exploratory
+      - name: Run simple prediction and early-warning baselines
+        run: python scripts/task3_2_3_simple_early_warning.py run --input work/task3_2_2_exploratory --output artifacts/task3_2_3_formal
+      - name: Validate persisted Task 3.2-3 output
+        run: python scripts/task3_2_3_simple_early_warning.py validate --input artifacts/task3_2_3_formal
+      - name: Upload formal Task 3.2-3 result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-3-simple-early-warning-formal
+          path: artifacts/task3_2_3_formal
+          retention-days: 30
