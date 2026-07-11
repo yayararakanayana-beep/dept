@@ -1,0 +1,106 @@
+{
+  "task_id": "Task 3.2-4",
+  "title": "Minimal macro-dynamics extraction",
+  "status": "exploratory_macro_dynamics_contract",
+  "task3_config_path": "configs/task3_2_3_simple_early_warning.json",
+  "task2_config_path": "configs/task3_2_2_continuous_trajectory.json",
+  "calibration_config_path": "configs/task3_2_2_reference_calibration.json",
+  "task3_selection_lock_hash": "e733d440c194fa60b4e7f1ffd0555629c5807572c2c1fc770783298bc735a32c",
+  "challenge": {
+    "transitions": 64,
+    "fit_seeds": [10, 11, 12],
+    "validation_seeds": [13],
+    "holdout_seeds": [14],
+    "condition_groups": [
+      "stable_variation",
+      "temporary_disturbance",
+      "delayed_or_failed_recovery",
+      "persistent_deterioration",
+      "fixation_path",
+      "collapse_path"
+    ],
+    "start_step_range": [6, 14],
+    "duration_range": [4, 12],
+    "strength_multiplier_range": [0.7, 1.3],
+    "residual_burden_range": [0.0, 0.4],
+    "relapse_probability": 0.5,
+    "relapse_delay_range": [8, 18]
+  },
+  "representation_candidates": {
+    "input_scopes": ["distribution", "full_state"],
+    "distribution_transforms": ["sqrt"],
+    "full_state_projection_per_array": 12,
+    "latent_dimensions": [4, 8, 12],
+    "dynamics_families": ["static", "dmd", "dmdc", "havok_residual"],
+    "feature_modes": ["macro_only", "task3_plus_macro"],
+    "prediction_horizons": [4, 8, 16],
+    "delay_width": 8,
+    "ridge_regularization": 1e-6,
+    "random_state": 0
+  },
+  "task3_fair_baseline": {
+    "family": "history_logistic",
+    "history_width": 8,
+    "prediction_horizon": 4,
+    "alarm_threshold": 0.2,
+    "alarm_persistence": 1
+  },
+  "alarm_probability_thresholds": [0.2, 0.35, 0.5, 0.65, 0.8],
+  "alarm_persistence_candidates": [1, 2, 3],
+  "near_state_pairs": {
+    "maximum_pairs": 200,
+    "minimum_future_depth_gap": 0.04,
+    "nearest_neighbor_count": 12
+  },
+  "selection_priority": [
+    "event_recall",
+    "median_lead_time_steps",
+    "false_alarm_rate",
+    "near_state_pair_accuracy",
+    "depth_mae",
+    "mode_stability",
+    "feature_count"
+  ],
+  "success_criteria": {
+    "lead_time_improvement_steps": 2.0,
+    "event_recall_improvement": 0.1,
+    "near_state_pair_improvement": 0.15,
+    "depth_mae_relative_improvement": 0.2,
+    "maximum_core_degradation": 0.05
+  },
+  "forbidden_feature_tokens": [
+    "scenario",
+    "seed",
+    "dataset_split",
+    "future",
+    "target",
+    "truth",
+    "label",
+    "outcome",
+    "next_state",
+    "irreversibility"
+  ],
+  "outputs": {
+    "challenge_manifest": "challenge_corpus_manifest.json",
+    "macro_state_schema": "macro_state_schema.json",
+    "macro_feature_schema": "macro_feature_schema.json",
+    "split_manifest": "split_manifest.json",
+    "candidate_comparison": "candidate_comparison.csv",
+    "validation_metrics": "validation_metrics.json",
+    "mode_stability": "mode_stability.csv",
+    "forecast_error": "forecast_error.csv",
+    "residual_ledger": "residual_ledger.csv",
+    "near_state_pair_audit": "near_state_pair_audit.csv",
+    "ablation_results": "ablation_results.csv",
+    "selection_lock": "task3_2_4_selection_lock.json",
+    "selection_lock_validation": "task3_2_4_selection_lock_validation.json",
+    "holdout_metrics": "holdout_metrics.json",
+    "holdout_predictions": "holdout_predictions.csv",
+    "holdout_warning_summary": "holdout_warning_summary.csv",
+    "holdout_near_state_pair_audit": "holdout_near_state_pair_audit.csv",
+    "results_markdown": "task3_2_4_results.md",
+    "completion_markdown": "task3_2_4_completion.md",
+    "handoff_markdown": "task3_2_4_handoff_to_task5.md",
+    "manifest": "manifest.json"
+  }
+}
