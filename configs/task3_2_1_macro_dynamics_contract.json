@@ -1,0 +1,201 @@
+{
+  "task_id": "Task 3.2-1",
+  "title": "Macro-dynamics trajectory state, history, and risk-truth contract",
+  "status": "frozen_for_task2_trajectory_generation",
+  "purpose": "Define what is recorded as X_t, what is retained as history L_t, what is hidden as future truth, and how high-risk outcomes remain scoreable without fixing a macro-dynamics model.",
+  "prediction": {
+    "input_formula": "X_t + L_t",
+    "primary_targets": [
+      "high_risk_approach",
+      "recovery_capability",
+      "irreversibility",
+      "risk_depth",
+      "actionable_time_window"
+    ],
+    "secondary_targets": [
+      "next_state_distribution",
+      "multi_step_state_trajectory"
+    ],
+    "macro_dynamics_components_frozen": false
+  },
+  "world": {
+    "module": "pseudo_reality.distribution_terrain_v3_2_2",
+    "class": "DistributionTerrainV322World",
+    "working_name": "PseudoReality v3.3",
+    "axes": [
+      "resource_slack",
+      "information_quality",
+      "pressure",
+      "exploration_room",
+      "reversibility"
+    ],
+    "n_bins": 5,
+    "cell_count": 3125
+  },
+  "trajectory_metadata": {
+    "required_fields": [
+      "trajectory_id",
+      "scenario_id",
+      "seed",
+      "initial_state_id",
+      "world_module",
+      "world_class",
+      "world_version",
+      "config_version",
+      "total_steps",
+      "dataset_split"
+    ],
+    "dataset_splits": [
+      "fit",
+      "validation",
+      "holdout",
+      "exploratory"
+    ]
+  },
+  "step_record": {
+    "required_fields": [
+      "trajectory_id",
+      "step",
+      "phase",
+      "state_ref",
+      "history_available_through_step",
+      "observed_external_input",
+      "observed_events",
+      "observed_action",
+      "observed_response",
+      "state_arrays_available",
+      "model_input"
+    ],
+    "phase": "pre_transition",
+    "external_factor_ranges": {
+      "external_resource_supply": [-1.0, 1.0],
+      "external_demand": [-1.0, 1.0],
+      "external_competition_pressure": [0.0, 1.0],
+      "external_information_noise": [0.0, 1.0],
+      "external_shock": [0.0, 1.0],
+      "external_constraint_pressure": [0.0, 1.0]
+    },
+    "required_state_arrays": [
+      "distribution",
+      "short_payoff",
+      "medium_payoff",
+      "effective_medium_payoff",
+      "friction",
+      "viscosity",
+      "damage",
+      "rigidity",
+      "recovery_speed",
+      "existing_path_expected_value",
+      "exploration_cost",
+      "exploration_option_value",
+      "exploration_net_expected_value",
+      "expected_value_advantage",
+      "information_memory",
+      "viability_reserve",
+      "route_support",
+      "maintenance_cost",
+      "net_viability_value",
+      "negative_viability_pressure",
+      "operating_cost",
+      "cost_reduction_gain",
+      "cost_reduction_preference"
+    ],
+    "optional_transition_memory_arrays": [
+      "last_flow",
+      "short_gain_information_conversion",
+      "short_path_decline_information",
+      "exploration_experience_information",
+      "support_erosion",
+      "released_mass",
+      "release_reallocation_flow"
+    ],
+    "optional_transition_memory_scalars": [
+      "total_gain_delta_signal",
+      "last_external_deformation_strength",
+      "last_threshold_activation_strength",
+      "last_distribution_weighted_threshold_activation_strength"
+    ],
+    "model_input_required_fields": [
+      "state_ref",
+      "history_available_through_step",
+      "observed_external_input",
+      "observed_events",
+      "observed_action",
+      "observed_response"
+    ]
+  },
+  "truth_record": {
+    "required_fields": [
+      "trajectory_id",
+      "prediction_step",
+      "target_step",
+      "next_state_ref",
+      "future_risk_event",
+      "future_risk_horizon_steps",
+      "recovery_outcome",
+      "recovery_time_steps",
+      "irreversibility_level",
+      "risk_depth",
+      "boundary_crossing_step",
+      "truth_source"
+    ],
+    "future_risk_events": [
+      "none",
+      "persistent_deterioration",
+      "delayed_recovery",
+      "fixation",
+      "relation_lock",
+      "collapse",
+      "divergence",
+      "irreversible_boundary_crossing",
+      "not_evaluated"
+    ],
+    "recovery_outcomes": [
+      "natural_recovery",
+      "delayed_natural_recovery",
+      "no_natural_recovery",
+      "recovered_with_action",
+      "not_recovered_with_tested_action",
+      "not_evaluated"
+    ],
+    "truth_sources": [
+      "observed_trajectory",
+      "counterfactual_replicates",
+      "not_evaluated"
+    ],
+    "irreversibility_levels": [0, 1, 2, 3, 4],
+    "risk_depth_fields": [
+      "return_time_steps",
+      "minimum_effective_action_strength",
+      "recovery_probability",
+      "hazard_persistence_steps",
+      "deterioration_rate",
+      "distance_from_safe_reference",
+      "available_recovery_route_count",
+      "relapse_probability"
+    ]
+  },
+  "forbidden_model_input_fields": [
+    "next_state_ref",
+    "target_step",
+    "future_risk_event",
+    "future_risk_horizon_steps",
+    "recovery_outcome",
+    "recovery_time_steps",
+    "irreversibility_level",
+    "risk_depth",
+    "boundary_crossing_step",
+    "truth_source",
+    "future_external_input",
+    "future_event",
+    "future_random_state",
+    "scenario_final_outcome"
+  ],
+  "storage": {
+    "raw_logs_are_canonical": true,
+    "derived_features_must_be_recomputable": true,
+    "state_arrays_may_be_stored_by_reference": true,
+    "trajectory_level_split_required": true,
+    "random_row_split_forbidden": true
+  }
+}

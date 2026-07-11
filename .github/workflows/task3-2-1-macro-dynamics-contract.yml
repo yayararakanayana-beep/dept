@@ -1,0 +1,28 @@
+name: Task 3.2-1 Macro-Dynamics Data Contract
+
+on:
+  pull_request:
+    paths:
+      - 'configs/task3_2_1_macro_dynamics_contract.json'
+      - 'scripts/task3_2_1_macro_dynamics_contract.py'
+      - 'tests/test_task3_2_1_macro_dynamics_contract.py'
+      - 'docs/task3_2_macro_dynamics_exploration/**'
+      - '.github/workflows/task3-2-1-macro-dynamics-contract.yml'
+      - 'AGENTS.md'
+  workflow_dispatch:
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+      - name: Compile contract validator
+        run: python -m py_compile scripts/task3_2_1_macro_dynamics_contract.py
+      - name: Run Task 3.2-1 tests
+        run: python -m pytest -q tests/test_task3_2_1_macro_dynamics_contract.py
