@@ -44,7 +44,6 @@ jobs:
         run: python -m pytest -q tests/test_task3_1f4_1_group_stability.py
 
   formal-group-stability:
-    if: github.event_name == 'workflow_dispatch'
     needs: unit-tests
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -55,21 +54,22 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_ARTIFACT_ID: '8245413464'
       EXPECTED_ARTIFACT_DIGEST: 'sha256:77570fa06b2a3b50571b6480515d95afe6882878992a767aa738e67b02cce51b'
+      RESOLVED_ARTIFACT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.stage_bc_artifact_id || '8245413464' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Require frozen Stage B/C Artifact ID
-        run: test '${{ inputs.stage_bc_artifact_id }}' = "$EXPECTED_ARTIFACT_ID"
+        run: test "$RESOLVED_ARTIFACT_ID" = "$EXPECTED_ARTIFACT_ID"
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
       - name: Verify and download Stage B/C Artifact only
         run: |
           mkdir -p artifacts/task3_1f4_1/source
-          ACTUAL_DIGEST=$(gh api repos/${{ github.repository }}/actions/artifacts/${{ inputs.stage_bc_artifact_id }} --jq '.digest')
+          ACTUAL_DIGEST=$(gh api repos/${{ github.repository }}/actions/artifacts/$RESOLVED_ARTIFACT_ID --jq '.digest')
           test "$ACTUAL_DIGEST" = "$EXPECTED_ARTIFACT_DIGEST"
-          gh api repos/${{ github.repository }}/actions/artifacts/${{ inputs.stage_bc_artifact_id }}/zip > artifacts/task3_1f4_1/source.zip
+          gh api repos/${{ github.repository }}/actions/artifacts/$RESOLVED_ARTIFACT_ID/zip > artifacts/task3_1f4_1/source.zip
           unzip -q artifacts/task3_1f4_1/source.zip -d artifacts/task3_1f4_1/source
       - name: Prove sealed holdout material is absent
         run: |
@@ -83,7 +83,7 @@ jobs:
             --source-artifact-dir artifacts/task3_1f4_1/source \
             --output-root artifacts/task3_1f4_1/run \
             --contract configs/task3_1f4_1_group_stability_contract.json \
-            --source-artifact-id '${{ inputs.stage_bc_artifact_id }}' \
+            --source-artifact-id "$RESOLVED_ARTIFACT_ID" \
             --source-artifact-digest "$EXPECTED_ARTIFACT_DIGEST" \
             --profile formal
       - name: Independently validate all persisted results
