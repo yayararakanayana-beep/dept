@@ -3,8 +3,8 @@
 ## 1. GitHub Actions
 
 - Workflow：`Task 3.1f-3 Stage B/C`
-- Run ID：`29135717215`
-- 検証head：`4e2fdab860dc8748a44db9d95b524126126eb01f`
+- Run ID：`29135918146`
+- 検証head：`1c0a76c499cfa04c20a178e90c0d80ede0ab394e`
 - 結論：成功
 - モジュールコンパイル：成功
 - Task 3.1f-2回帰テスト：成功
@@ -16,7 +16,7 @@
 
 ## 2. 独立監査
 
-独立監査は18項目すべて合格した。
+独立監査は19項目すべて合格した。
 
 主な再計算量：
 
@@ -36,9 +36,10 @@
 - 構造数別集計
 - one-standard-error rule
 - selection candidate
-- 5部分集合の実モデル
-- world seed 0／1の実モデル
-- Frobenius感度の実モデル
+- 5部分集合のsalt・group・行集合の独立再構成
+- 5部分集合の実モデルと学習行数
+- world seed 0／1の実モデルと学習行数
+- Frobenius感度の実モデルと学習行数
 - holdout未使用
 - selection lockの独立生成
 
@@ -59,10 +60,10 @@ smokeでは固定gridの先頭2構造数、5と8を実行した。
 
 ## 4. GitHub Actions成果物
 
-- Artifact ID：`8243512584`
+- Artifact ID：`8243572725`
 - Artifact名：`task3-1f3-stage-bc-smoke`
-- サイズ：455,560 bytes
-- Digest：`sha256:3981a2e4521f5f202fa714cb0f1baa119d768b81b239a6f3e06c342e4e312bfe`
+- サイズ：455,619 bytes
+- Digest：`sha256:83dbc221ad9b70529f3a4777e47a534eae26e7753a97ac2b2868edaf5d0dcece`
 - 保存期限：2026-07-25
 
 成果物には以下を含む。
