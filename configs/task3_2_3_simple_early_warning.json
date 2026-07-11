@@ -1,0 +1,135 @@
+{
+  "task_id": "Task 3.2-3",
+  "title": "Simple prediction and early-warning baselines",
+  "status": "exploratory_baseline_contract",
+  "generation_config_path": "configs/task3_2_2_continuous_trajectory.json",
+  "calibration_config_path": "configs/task3_2_2_reference_calibration.json",
+  "stable_reference_scenario": "stable_continuation",
+  "history_widths": [2, 4, 8],
+  "prediction_horizons": [4, 8, 16],
+  "alarm_persistence_candidates": [1, 2, 3],
+  "alarm_probability_thresholds": [0.2, 0.35, 0.5, 0.65, 0.8],
+  "model_families": [
+    "always_safe",
+    "current_risk_threshold",
+    "current_state_logistic",
+    "trend_extrapolation",
+    "history_logistic"
+  ],
+  "split_contract": {
+    "fit_seeds": [0, 1, 2],
+    "validation_seeds": [3],
+    "holdout_seeds": [4],
+    "holdout_requires_validated_selection_lock": true,
+    "random_row_split_forbidden": true
+  },
+  "current_weighted_arrays": [
+    "damage",
+    "rigidity",
+    "friction",
+    "viscosity",
+    "recovery_speed",
+    "route_support",
+    "viability_reserve",
+    "negative_viability_pressure",
+    "exploration_cost",
+    "exploration_option_value",
+    "expected_value_advantage",
+    "maintenance_cost",
+    "operating_cost"
+  ],
+  "transition_weighted_arrays": [
+    "last_flow",
+    "support_erosion",
+    "released_mass",
+    "release_reallocation_flow"
+  ],
+  "transition_scalar_fields": [
+    "total_gain_delta_signal",
+    "last_external_deformation_strength",
+    "last_threshold_activation_strength",
+    "last_distribution_weighted_threshold_activation_strength"
+  ],
+  "history_base_features": [
+    "risk_score",
+    "entropy",
+    "concentration",
+    "moved_mass",
+    "weighted_damage",
+    "weighted_rigidity",
+    "weighted_friction",
+    "weighted_viscosity",
+    "weighted_recovery_speed",
+    "weighted_route_support",
+    "weighted_viability_reserve",
+    "weighted_negative_viability_pressure",
+    "external_resource_supply",
+    "external_demand",
+    "external_competition_pressure",
+    "external_information_noise",
+    "external_shock",
+    "external_constraint_pressure"
+  ],
+  "history_statistics": [
+    "delta_1",
+    "mean_gap",
+    "slope",
+    "acceleration",
+    "std",
+    "minimum",
+    "maximum",
+    "reversal_count"
+  ],
+  "model_parameters": {
+    "logistic_C": 1.0,
+    "logistic_max_iter": 3000,
+    "ridge_alpha": 1.0,
+    "random_state": 0
+  },
+  "selection_weights": {
+    "event_recall": 0.35,
+    "average_precision": 0.25,
+    "normalized_lead_time": 0.2,
+    "depth_rank_correlation": 0.1,
+    "false_alarm_rate_penalty": 0.1,
+    "brier_penalty": 0.05
+  },
+  "success_criteria": {
+    "lead_time_median_steps": 4.0,
+    "average_precision_improvement": 0.1,
+    "depth_rank_correlation": 0.5,
+    "minimum_improved_dimensions_for_A": 2
+  },
+  "forbidden_feature_tokens": [
+    "scenario",
+    "seed",
+    "dataset_split",
+    "future",
+    "target",
+    "truth",
+    "label",
+    "outcome",
+    "next_state",
+    "irreversibility"
+  ],
+  "outputs": {
+    "feature_schema": "feature_schema.json",
+    "label_schema": "label_schema.json",
+    "split_manifest": "split_manifest.json",
+    "window_manifest": "window_manifest.csv",
+    "fit_metrics": "fit_metrics.json",
+    "validation_metrics": "validation_metrics.json",
+    "candidate_comparison": "candidate_comparison.csv",
+    "validation_predictions": "validation_predictions.csv",
+    "selection_lock": "selection_lock.json",
+    "selection_lock_validation": "selection_lock_validation.json",
+    "selected_model": "selected_model.json",
+    "holdout_metrics": "holdout_metrics.json",
+    "holdout_predictions": "holdout_predictions.csv",
+    "trajectory_warning_summary": "trajectory_warning_summary.csv",
+    "results_markdown": "task3_2_3_results.md",
+    "completion_markdown": "task3_2_3_completion.md",
+    "handoff_markdown": "task3_2_3_handoff_to_task4.md",
+    "manifest": "manifest.json"
+  }
+}

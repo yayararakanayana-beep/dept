@@ -57,17 +57,52 @@ fixation_candidate: 2
 collapse_or_divergence_candidate: 2
 ```
 
+## Task 3.2-3の完了状態
+
+Task 3.2-3では、30軌道・1,920遷移を使い、次の5基準を比較した。
+
+1. 常時安全予測
+2. 現在リスク閾値
+3. 現在状態ロジスティック回帰
+4. 直近傾向延長
+5. 履歴ロジスティック回帰
+
+選択された正式基準:
+
+```text
+history_logistic__W08__H04
+```
+
+- 履歴幅: 8
+- 予測時間幅: 4
+- 警報閾値: 0.2
+- 警報継続条件: 1
+- holdout高リスク軌道検出率: 1.0
+- holdout警報先行時間中央値: 4ステップ
+- holdout誤警報率: 0
+- holdoutリスク深度順位相関: 1.0
+
+履歴基準は現在状態基準より、誤警報、確率校正、リスク深度数値誤差を改善した。
+
+ただし、検出率、先行時間、深度順位は現在状態基準と同じだったため、履歴の有望性は次と判定した。
+
+```text
+B_partially_promising
+```
+
+Task 4は、このselection lock済み基準を比較対象として使用する。
+
 ## 非固定事項
 
 次はまだ固定していない。
 
 - 地形、流れ、循環、粘性、拡散、外力等の最終分解
-- 履歴幅
+- マクロ力学抽出に使う手法
 - 高リスクの正式な数値閾値
 - 不可逆性の最終数式
 - リスク深度の最終数式
-- 使用するDMD、Koopman、HAVOK等の手法
 - 固定5軸上の正式なG_t・K_t
+- 動的関係場
 - ゲーム構造
 
 ## 正本ファイル
@@ -88,3 +123,13 @@ collapse_or_divergence_candidate: 2
 - `../../configs/task3_2_2_reference_calibration.json`
 - `../../scripts/task3_2_2_continuous_trajectory.py`
 - `../../scripts/task3_2_2_reference_calibration.py`
+
+### Task 3.2-3
+
+- `TASK3_2_3_SCOPE.md`
+- `task3_2_3_results.md`
+- `task3_2_3_completion.md`
+- `task3_2_3_handoff_to_task4.md`
+- `../../configs/task3_2_3_simple_early_warning.json`
+- `../../scripts/task3_2_3_simple_early_warning.py`
+- `../../scripts/_task3_2_3_core.py`

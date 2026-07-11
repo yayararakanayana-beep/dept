@@ -90,3 +90,9 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task 3.2-2 scenario IDs are provenance only and must not be included in model input or copied directly into truth labels.
 - Task 3.2-2 provisional risk scores and outcome labels are exploratory diagnostics, not frozen risk definitions or game-structure classes.
 - Task 3.2-2 must preserve full raw state arrays, observed external inputs, future-truth isolation, and trajectory-level split integrity.
+- Task 3.2-3 is limited to five simple baselines: always-safe, current-risk threshold, current-state logistic, trend extrapolation, and history logistic.
+- Task 3.2-3 may use same-seed stable trajectories only on the truth-calibration side; stable-reference future data must never enter model features.
+- Task 3.2-3 feature matrices must exclude scenario ID, seed, split, future inputs, future states, truth labels, and outcome fields.
+- Task 3.2-3 must create and validate `selection_lock.json` before opening any holdout state or metrics file.
+- After holdout evaluation, Task 3.2-3 model family, feature set, history width, horizon, threshold, and alarm persistence must not change.
+- Task 3.2-3 results are comparison baselines for Task 3.2-4; they do not validate macro-dynamics, irreversibility, game structures, or action readiness.
