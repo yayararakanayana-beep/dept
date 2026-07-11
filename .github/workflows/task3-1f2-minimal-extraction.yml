@@ -58,8 +58,13 @@ jobs:
             --fit-row-map artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/fit_row_map.csv \
             --validation-bundle artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/validation_bundle.npz \
             --validation-row-map artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/validation_row_map.csv \
-            --strict
+            --strict || {
+              cat artifacts/task3_1f/task3_1f_stable_structure_extraction/smoke_minimal_extraction/quality_checks.json || true
+              cat artifacts/task3_1f/task3_1f_stable_structure_extraction/smoke_minimal_extraction/results.md || true
+              exit 1
+            }
       - name: Upload Task 3.1f-2 smoke artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: task3-1f2-minimal-extraction-smoke
