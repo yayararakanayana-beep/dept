@@ -37,7 +37,16 @@ jobs:
           python -m py_compile scripts/task3_2_1_macro_dynamics_contract.py
           python -m py_compile scripts/task3_2_2_continuous_trajectory.py
       - name: Run Task 3.2-1 and Task 3.2-2 tests
-        run: python -m pytest -q tests/test_task3_2_1_macro_dynamics_contract.py tests/test_task3_2_2_continuous_trajectory.py
+        run: |
+          set -o pipefail
+          python -m pytest -vv tests/test_task3_2_1_macro_dynamics_contract.py tests/test_task3_2_2_continuous_trajectory.py 2>&1 | tee task3_2_2_pytest.log
+      - name: Upload pytest diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-2-pytest-diagnostics
+          path: task3_2_2_pytest.log
+          retention-days: 7
       - name: Generate formal smoke trajectory corpus
         run: python scripts/task3_2_2_continuous_trajectory.py generate --profile smoke --output artifacts/task3_2_2_smoke
       - name: Revalidate persisted smoke corpus
