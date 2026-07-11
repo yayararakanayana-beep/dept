@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -65,10 +64,12 @@ def normalize_basis_and_activations(basis: np.ndarray, activations: np.ndarray) 
     return normalized_basis, normalized_activations
 
 
-def transform_fixed_kl_basis(
+def transform_fixed_basis(
     matrix: np.ndarray,
     basis: np.ndarray,
     *,
+    solver: str,
+    beta_loss: str,
     max_iter: int,
     tolerance: float,
     seed: int,
@@ -83,8 +84,8 @@ def transform_fixed_kl_basis(
         n_components=h.shape[0],
         init="custom",
         update_H=False,
-        solver="mu",
-        beta_loss="kullback-leibler",
+        solver=solver,
+        beta_loss=beta_loss,
         tol=tolerance,
         max_iter=max_iter,
         alpha_W=0.0,
@@ -100,7 +101,26 @@ def transform_fixed_kl_basis(
     return np.asarray(w, dtype=np.float64), int(n_iter), bool(n_iter < max_iter)
 
 
-def fit_weighted_kl_nmf(
+def transform_fixed_kl_basis(
+    matrix: np.ndarray,
+    basis: np.ndarray,
+    *,
+    max_iter: int,
+    tolerance: float,
+    seed: int,
+) -> tuple[np.ndarray, int, bool]:
+    return transform_fixed_basis(
+        matrix,
+        basis,
+        solver="mu",
+        beta_loss="kullback-leibler",
+        max_iter=max_iter,
+        tolerance=tolerance,
+        seed=seed,
+    )
+
+
+def _fit_weighted_nmf(
     fit_matrix: np.ndarray,
     fit_weights: np.ndarray,
     validation_matrix: np.ndarray,
@@ -110,6 +130,9 @@ def fit_weighted_kl_nmf(
     init_seed: int,
     max_iter: int,
     tolerance: float,
+    solver: str,
+    beta_loss: str,
+    weight_power: float,
 ) -> NMFResult:
     fit = _validate_probability_matrix(fit_matrix, "fit matrix")
     validation = _validate_probability_matrix(validation_matrix, "validation matrix")
@@ -120,12 +143,13 @@ def fit_weighted_kl_nmf(
         raise ValueError("rank must be positive and no larger than min(fit shape)")
     if init_method not in {"nndsvda", "random"}:
         raise ValueError("unsupported frozen initialization")
-    weighted_fit = fit * weights[:, None]
+    row_scale = weights**weight_power
+    weighted_fit = fit * row_scale[:, None]
     model = NMF(
         n_components=rank,
         init=init_method,
-        solver="mu",
-        beta_loss="kullback-leibler",
+        solver=solver,
+        beta_loss=beta_loss,
         tol=tolerance,
         max_iter=max_iter,
         random_state=None if init_method == "nndsvda" else init_seed,
@@ -136,12 +160,14 @@ def fit_weighted_kl_nmf(
     )
     weighted_activations = model.fit_transform(weighted_fit)
     basis, weighted_activations = normalize_basis_and_activations(model.components_, weighted_activations)
-    fit_activations = weighted_activations / weights[:, None]
+    fit_activations = weighted_activations / row_scale[:, None]
     if not np.isfinite(fit_activations).all() or np.any(fit_activations < 0.0):
         raise ValueError("corrected fit activations are invalid")
-    validation_activations, _, _ = transform_fixed_kl_basis(
+    validation_activations, _, _ = transform_fixed_basis(
         validation,
         basis,
+        solver=solver,
+        beta_loss=beta_loss,
         max_iter=max_iter,
         tolerance=tolerance,
         seed=init_seed,
@@ -154,6 +180,57 @@ def fit_weighted_kl_nmf(
         converged=bool(model.n_iter_ < max_iter),
         init_method=init_method,
         init_seed=init_seed,
+    )
+
+
+def fit_weighted_kl_nmf(
+    fit_matrix: np.ndarray,
+    fit_weights: np.ndarray,
+    validation_matrix: np.ndarray,
+    *,
+    rank: int,
+    init_method: str,
+    init_seed: int,
+    max_iter: int,
+    tolerance: float,
+) -> NMFResult:
+    return _fit_weighted_nmf(
+        fit_matrix,
+        fit_weights,
+        validation_matrix,
+        rank=rank,
+        init_method=init_method,
+        init_seed=init_seed,
+        max_iter=max_iter,
+        tolerance=tolerance,
+        solver="mu",
+        beta_loss="kullback-leibler",
+        weight_power=1.0,
+    )
+
+
+def fit_weighted_frobenius_nmf(
+    fit_matrix: np.ndarray,
+    fit_weights: np.ndarray,
+    validation_matrix: np.ndarray,
+    *,
+    rank: int,
+    init_seed: int,
+    max_iter: int,
+    tolerance: float,
+) -> NMFResult:
+    return _fit_weighted_nmf(
+        fit_matrix,
+        fit_weights,
+        validation_matrix,
+        rank=rank,
+        init_method="random",
+        init_seed=init_seed,
+        max_iter=max_iter,
+        tolerance=tolerance,
+        solver="cd",
+        beta_loss="frobenius",
+        weight_power=0.5,
     )
 
 
@@ -197,8 +274,7 @@ def project_probability_simplex_rows(matrix: np.ndarray) -> np.ndarray:
         candidates = np.nonzero(sorted_row - cumulative / np.arange(1, len(row) + 1) > 0.0)[0]
         rho = int(candidates[-1])
         theta = cumulative[rho] / float(rho + 1)
-        projected = np.maximum(row - theta, 0.0)
-        output[row_index] = projected
+        output[row_index] = np.maximum(row - theta, 0.0)
     if np.max(np.abs(output.sum(axis=1) - 1.0)) > 1e-10 or np.any(output < 0.0):
         raise ValueError("simplex projection failed")
     return output
@@ -222,13 +298,13 @@ def sqrt_js_distance_matrix(a: np.ndarray, b: np.ndarray, epsilon: float = 1e-12
     return output
 
 
-def match_components(basis_a: np.ndarray, basis_b: np.ndarray) -> list[dict[str, Any]]:
+def match_components(basis_a: np.ndarray, basis_b: np.ndarray) -> list[dict[str, float | int]]:
     if basis_a.shape[0] != basis_b.shape[0]:
         raise ValueError("component matching requires equal ranks")
     distances = sqrt_js_distance_matrix(basis_a, basis_b)
     rows, columns = linear_sum_assignment(distances)
     maximum = float(np.sqrt(np.log(2.0)))
-    matches: list[dict[str, Any]] = []
+    matches: list[dict[str, float | int]] = []
     for order, (row, column) in enumerate(zip(rows, columns), start=1):
         left = basis_a[row]
         right = basis_b[column]
