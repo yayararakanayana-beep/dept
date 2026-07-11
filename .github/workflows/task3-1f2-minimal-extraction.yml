@@ -1,0 +1,67 @@
+name: Task 3.1f-2 Minimal Stable-Structure Extraction
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/task3_1f_*.py'
+      - 'scripts/task3_1f_structure_extraction/**'
+      - 'tests/conftest.py'
+      - 'tests/task3_1f_fixture.py'
+      - 'tests/test_task3_1f2_*.py'
+      - 'requirements.txt'
+      - '.github/workflows/task3-1f2-minimal-extraction.yml'
+      - 'docs/task3_1f_stable_structure_extraction/**'
+      - 'configs/task3_1f_structure_extraction_contract.json'
+  workflow_dispatch:
+
+concurrency:
+  group: task3-1f2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest tabulate
+      - name: Run Task 3.1f-2 positive and mutation tests
+        run: python -m pytest tests/test_task3_1f2_minimal_extraction.py tests/test_task3_1f2_mutations.py -q
+      - name: Generate validated Task 3.1e smoke input
+        run: |
+          python scripts/pseudoreality_v3_3_static_full_distribution_testbed.py --profile smoke --output-root artifacts/task3_1e
+          python scripts/pseudoreality_v3_3_static_full_distribution_coverage_audit.py --profile smoke --artifact-root artifacts/task3_1e
+          python scripts/pseudoreality_v3_3_static_full_distribution_validator.py --profile smoke --artifact-root artifacts/task3_1e --strict
+      - name: Freeze Task 3.1f smoke input bundles
+        run: |
+          python scripts/task3_1f_input_freeze.py \
+            --profile smoke \
+            --input-artifact artifacts/task3_1e/pseudoreality_v3_3_task3_1e_static_full_distribution \
+            --output-root artifacts/task3_1f
+      - name: Run minimal weighted KL-NMF extraction
+        run: |
+          python scripts/task3_1f_minimal_extraction.py \
+            --fit-bundle artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/fit_bundle.npz \
+            --fit-row-map artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/fit_row_map.csv \
+            --validation-bundle artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/validation_bundle.npz \
+            --validation-row-map artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/validation_row_map.csv \
+            --output-root artifacts/task3_1f/task3_1f_stable_structure_extraction
+      - name: Independently validate persisted smoke artifacts
+        run: |
+          python scripts/task3_1f_validator.py \
+            --artifact-dir artifacts/task3_1f/task3_1f_stable_structure_extraction/smoke_minimal_extraction \
+            --fit-bundle artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/fit_bundle.npz \
+            --fit-row-map artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/fit_row_map.csv \
+            --validation-bundle artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/validation_bundle.npz \
+            --validation-row-map artifacts/task3_1f/task3_1f_stable_structure_extraction/bundles/validation_row_map.csv \
+            --strict
+      - name: Upload Task 3.1f-2 smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-1f2-minimal-extraction-smoke
+          path: artifacts/task3_1f/task3_1f_stable_structure_extraction
+          retention-days: 14
