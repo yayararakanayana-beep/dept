@@ -37,6 +37,7 @@ ROW_MAP_COLUMNS = [
     "vector_origin",
     "analysis_weight",
 ]
+EVALUATION_COLUMNS = ROW_MAP_COLUMNS + ["matched_base_snapshot_id"]
 
 
 def _snapshot_hashes(snapshot_ids: pd.Series) -> np.ndarray:
@@ -84,6 +85,7 @@ def _load_and_align(input_dir: Path) -> tuple[np.ndarray, pd.DataFrame, pd.DataF
         "source_step",
         "external_vector_id",
         "active_factor_count",
+        "matched_base_snapshot_id",
     }
     required_discovery = {"matrix_row_index", "snapshot_id", "dataset_split", "analysis_weight"}
     if not required_metadata.issubset(metadata.columns):
@@ -153,6 +155,7 @@ def _validate_pairs(input_dir: Path, aligned: pd.DataFrame) -> dict[str, Any]:
             or external["dataset_split"] != base["dataset_split"]
             or int(external["seed"]) != int(base["seed"])
             or int(external["source_step"]) != int(base["source_step"])
+            or str(external["matched_base_snapshot_id"]) != str(row.base_snapshot_id)
             or row.dataset_split != external["dataset_split"]
             or int(row.seed) != int(external["seed"])
             or int(row.source_step) != int(external["source_step"])
@@ -171,8 +174,10 @@ def _write_bundle(output_dir: Path, split: str, mass: np.ndarray, rows: pd.DataF
     split_mass = np.asarray(mass[split_rows["matrix_row_index"].to_numpy(dtype=np.int64)], dtype=np.float64)
     split_rows.insert(0, "bundle_row_index", np.arange(len(split_rows), dtype=np.int64))
     row_map = split_rows[ROW_MAP_COLUMNS]
+    evaluation_metadata = split_rows[EVALUATION_COLUMNS]
     bundle_path = output_dir / "bundles" / f"{split}_bundle.npz"
     map_path = output_dir / "bundles" / f"{split}_row_map.csv"
+    evaluation_path = output_dir / "bundles" / f"{split}_evaluation_metadata.csv"
     np.savez(
         bundle_path,
         mass_matrix=split_mass,
@@ -181,6 +186,7 @@ def _write_bundle(output_dir: Path, split: str, mass: np.ndarray, rows: pd.DataF
         snapshot_id_hash=_snapshot_hashes(row_map["snapshot_id"]),
     )
     row_map.to_csv(map_path, index=False)
+    evaluation_metadata.to_csv(evaluation_path, index=False)
     return {
         "split": split,
         "row_count": len(row_map),
@@ -188,6 +194,8 @@ def _write_bundle(output_dir: Path, split: str, mass: np.ndarray, rows: pd.DataF
         "bundle_sha256": sha256_file(bundle_path),
         "row_map_path": str(map_path.relative_to(output_dir)),
         "row_map_sha256": sha256_file(map_path),
+        "evaluation_metadata_path": str(evaluation_path.relative_to(output_dir)),
+        "evaluation_metadata_sha256": sha256_file(evaluation_path),
     }
 
 
@@ -256,9 +264,7 @@ def freeze_input(
         "holdout_bundle_created": True,
         "holdout_accessed_by_model_selection": False,
     }
-    (output_dir / "input_manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (output_dir / "input_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return output_dir
 
 
