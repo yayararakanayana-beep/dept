@@ -77,3 +77,12 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task22's intended canonical update scope is limited to bounded in-run lower ParameterBox state only.
 - G/K writeback, world direct write, ActionModule internal DEPT connection, and ActionFrame direct generation boundaries remain closed.
 - Task22 is not a Parameter Shadow Box redesign or Task21 classifier rebuild; Task21 real `watch_only` candidates must not be canonically updated.
+
+## Task 3.2 Macro-Dynamics Exploration Boundaries
+
+- `docs/task3_2_macro_dynamics_exploration/TASK3_2_1_SCOPE_FREEZE.md` and `configs/task3_2_1_macro_dynamics_contract.json` are the Task 3.2-1 source of truth.
+- Task 3.2 is an exploratory six-task sequence. Keep the task count and order fixed unless the user explicitly changes them.
+- Task 3.2-1 freezes the data boundary only: prediction input is `X_t + L_t`, raw logs are canonical, future truth is separated, and dataset splits are trajectory-level.
+- Do not freeze terrain, flow, circulation, viscosity, diffusion, external-force, or other macro-dynamics components before the exploration results justify them.
+- Full next-state reconstruction is secondary. The primary prediction purpose is early high-risk detection, irreversibility, risk depth, and actionable time-window estimation.
+- Task 3.2-1 must not construct formal G_t/K_t, classify game structures, connect the Action Module, or claim that a macro-dynamics representation is validated.
