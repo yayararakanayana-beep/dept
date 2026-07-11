@@ -30,13 +30,40 @@ Task 3.2-1では次を実装した。
 - 軌道単位のデータ分割規則
 - Task 2が使用する実行可能な契約検証コードとテスト
 
+## Task 3.2-2の完了状態
+
+Task 3.2-2では次を実装した。
+
+- 6種類の連続軌道シナリオ
+- smoke / exploratoryプロファイル
+- 各時点の23必須状態配列保存
+- 遷移記憶・外部入力・イベント・応答ログ
+- 次状態正解
+- 軌道単位split
+- 同一条件再現性
+- 異seed・異シナリオ差
+- 状態bundle検証
+- SVG可視化とmanifest
+- 同一seed通常軌道による暫定結果補正
+
+正式スモークでは、12軌道・384遷移・396状態を生成し、19テストと全データ検証を通過した。
+
+補正後の暫定結果:
+
+```text
+stable: 2
+persistent_deterioration: 6
+fixation_candidate: 2
+collapse_or_divergence_candidate: 2
+```
+
 ## 非固定事項
 
-次はTask 3.2-1では固定していない。
+次はまだ固定していない。
 
 - 地形、流れ、循環、粘性、拡散、外力等の最終分解
 - 履歴幅
-- 高リスクの数値閾値
+- 高リスクの正式な数値閾値
 - 不可逆性の最終数式
 - リスク深度の最終数式
 - 使用するDMD、Koopman、HAVOK等の手法
@@ -45,7 +72,19 @@ Task 3.2-1では次を実装した。
 
 ## 正本ファイル
 
+### Task 3.2-1
+
 - `TASK3_2_1_SCOPE_FREEZE.md`
 - `task3_2_1_state_log_inventory.md`
 - `../../configs/task3_2_1_macro_dynamics_contract.json`
 - `../../scripts/task3_2_1_macro_dynamics_contract.py`
+
+### Task 3.2-2
+
+- `TASK3_2_2_SCOPE.md`
+- `task3_2_2_results.md`
+- `task3_2_2_completion.md`
+- `../../configs/task3_2_2_continuous_trajectory.json`
+- `../../configs/task3_2_2_reference_calibration.json`
+- `../../scripts/task3_2_2_continuous_trajectory.py`
+- `../../scripts/task3_2_2_reference_calibration.py`

@@ -1,0 +1,244 @@
+{
+  "task_id": "Task 3.2-2",
+  "title": "Small continuous trajectory generation",
+  "contract_path": "configs/task3_2_1_macro_dynamics_contract.json",
+  "world": {
+    "module": "pseudo_reality.distribution_terrain_v3_2_2",
+    "class": "DistributionTerrainV322World",
+    "working_version": "v3.3",
+    "config_version": "task3_2_2_v1"
+  },
+  "profiles": {
+    "smoke": {
+      "transitions": 32,
+      "seeds": [0, 1],
+      "dataset_split": "exploratory",
+      "reproducibility_check": true
+    },
+    "exploratory": {
+      "transitions": 64,
+      "seeds": [0, 1, 2, 3, 4],
+      "split_by_seed": {
+        "0": "fit",
+        "1": "fit",
+        "2": "fit",
+        "3": "validation",
+        "4": "holdout"
+      },
+      "reproducibility_check": true
+    }
+  },
+  "scenario_order": [
+    "stable_continuation",
+    "natural_recovery",
+    "delayed_recovery",
+    "persistent_deterioration",
+    "fixation_candidate",
+    "collapse_candidate"
+  ],
+  "scenarios": {
+    "stable_continuation": {
+      "description": "Zero-input reference trajectory.",
+      "segments": [
+        {
+          "start": 0,
+          "end": null,
+          "event": "stable_reference",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        }
+      ]
+    },
+    "natural_recovery": {
+      "description": "Temporary moderate disturbance followed by complete removal.",
+      "segments": [
+        {
+          "start": 0,
+          "end": 8,
+          "event": "pre_disturbance",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        },
+        {
+          "start": 8,
+          "end": 14,
+          "event": "temporary_disturbance",
+          "external_resource_supply": -0.2,
+          "external_demand": 0.2,
+          "external_competition_pressure": 0.25,
+          "external_information_noise": 0.2,
+          "external_shock": 0.55,
+          "external_constraint_pressure": 0.25
+        },
+        {
+          "start": 14,
+          "end": null,
+          "event": "disturbance_removed",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        }
+      ]
+    },
+    "delayed_recovery": {
+      "description": "Stronger and longer disturbance followed by a weak residual burden.",
+      "segments": [
+        {
+          "start": 0,
+          "end": 8,
+          "event": "pre_disturbance",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        },
+        {
+          "start": 8,
+          "end": 18,
+          "event": "extended_disturbance",
+          "external_resource_supply": -0.45,
+          "external_demand": 0.4,
+          "external_competition_pressure": 0.55,
+          "external_information_noise": 0.5,
+          "external_shock": 0.85,
+          "external_constraint_pressure": 0.7
+        },
+        {
+          "start": 18,
+          "end": null,
+          "event": "residual_burden",
+          "external_resource_supply": -0.15,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.1,
+          "external_information_noise": 0.1,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.2
+        }
+      ]
+    },
+    "persistent_deterioration": {
+      "description": "Persistent multi-factor deterioration after a quiet prefix.",
+      "segments": [
+        {
+          "start": 0,
+          "end": 8,
+          "event": "quiet_prefix",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        },
+        {
+          "start": 8,
+          "end": null,
+          "event": "persistent_deterioration_inputs",
+          "external_resource_supply": -0.8,
+          "external_demand": 0.45,
+          "external_competition_pressure": 0.75,
+          "external_information_noise": 0.65,
+          "external_shock": 0.15,
+          "external_constraint_pressure": 0.65
+        }
+      ]
+    },
+    "fixation_candidate": {
+      "description": "Persistent pressure and constraint intended to test concentration and reduced mobility.",
+      "segments": [
+        {
+          "start": 0,
+          "end": 8,
+          "event": "quiet_prefix",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        },
+        {
+          "start": 8,
+          "end": null,
+          "event": "fixation_pressure",
+          "external_resource_supply": -0.4,
+          "external_demand": 0.9,
+          "external_competition_pressure": 1.0,
+          "external_information_noise": 0.7,
+          "external_shock": 0.25,
+          "external_constraint_pressure": 1.0
+        }
+      ]
+    },
+    "collapse_candidate": {
+      "description": "Extreme combined burden used only to search for collapse or irreversible-boundary candidates.",
+      "segments": [
+        {
+          "start": 0,
+          "end": 6,
+          "event": "quiet_prefix",
+          "external_resource_supply": 0.0,
+          "external_demand": 0.0,
+          "external_competition_pressure": 0.0,
+          "external_information_noise": 0.0,
+          "external_shock": 0.0,
+          "external_constraint_pressure": 0.0
+        },
+        {
+          "start": 6,
+          "end": 14,
+          "event": "extreme_combined_shock",
+          "external_resource_supply": -1.0,
+          "external_demand": 1.0,
+          "external_competition_pressure": 1.0,
+          "external_information_noise": 1.0,
+          "external_shock": 1.0,
+          "external_constraint_pressure": 1.0
+        },
+        {
+          "start": 14,
+          "end": null,
+          "event": "persistent_extreme_burden",
+          "external_resource_supply": -1.0,
+          "external_demand": 0.8,
+          "external_competition_pressure": 1.0,
+          "external_information_noise": 0.9,
+          "external_shock": 0.35,
+          "external_constraint_pressure": 1.0
+        }
+      ]
+    }
+  },
+  "provisional_outcome_rules": {
+    "baseline_steps": 6,
+    "tail_steps": 6,
+    "elevated_risk_delta": 0.015,
+    "sustained_steps": 3,
+    "full_recovery_tolerance": 0.012,
+    "minimum_peak_elevation": 0.02,
+    "recovery_fraction": 0.55,
+    "fixation_concentration_ratio": 1.04,
+    "fixation_mobility_ratio": 0.82,
+    "fixation_rigidity_delta": 0.01,
+    "collapse_risk_score": 0.72,
+    "collapse_risk_delta": 0.12
+  },
+  "numeric": {
+    "state_dtype": "float32",
+    "mass_tolerance": 1e-5,
+    "negative_tolerance": 1e-8
+  }
+}
