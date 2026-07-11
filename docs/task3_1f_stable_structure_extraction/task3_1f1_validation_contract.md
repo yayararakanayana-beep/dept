@@ -75,11 +75,11 @@ holdout bundleを入力に含めない。
 - grouped 80%摂動
 - world seed感度
 
-Stage Bの最後に `selection_lock.json` を作る。
+Stage Bの最後に `selection_candidate.json` を作る。Stage B自身は `selection_lock.json` を作らない。
 
 Stage Bでholdout由来の行数、指標、構造、活性度、画像、統計量を出力した場合、検証失敗とする。
 
-## 1.3 Stage C：selection lock独立検証
+## 1.3 Stage C：selection candidate独立検証・lock作成
 
 独立検証器が以下を再計算する。
 
@@ -98,9 +98,9 @@ Stage Bでholdout由来の行数、指標、構造、活性度、画像、統計
 - one-standard-error rule
 - selected rank
 - representative run medoid
-- lock内各ファイルhash
+- candidate内各ファイルhash
 
-再計算結果と `selection_lock.json` が一致しない場合、holdoutへ進まない。
+再計算結果と `selection_candidate.json` が一致し、独立検証が合格した場合だけ、独立検証器が `selection_lock.json` を作る。一致しない場合はholdoutへ進まない。
 
 ## 1.4 Stage D：holdout一度限り評価
 
@@ -142,7 +142,7 @@ Stage C合格後にだけ実行する。
 - baseline改善率
 - validation比率
 - final outcome
--構造・活性度・row mapの対応
+- 構造・活性度・row mapの対応
 - artifact manifestのhash
 
 すべて一致した場合のみ正式成果物をPASSとする。
