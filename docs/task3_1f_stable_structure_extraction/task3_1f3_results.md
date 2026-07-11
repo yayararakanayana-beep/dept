@@ -1,26 +1,106 @@
-# Task 3.1f-3 Results
+# Task 3.1f-3 検証結果
 
-## Local validation
+## 1. GitHub Actions
 
-- Targeted Task 3.1f tests executed: 28 passed.
-- Positive coverage includes formal 49-run plan expansion, multi-rank smoke execution, all seven initializations per smoke rank, independent lock creation, one-standard-error selection, deterministic grouped subsets, and required artifact production.
-- Negative coverage includes missing seed, forged convergence, modified basis hash, and producer-created lock rejection.
+- Workflow：`Task 3.1f-3 Stage B/C`
+- Run ID：`29135717215`
+- 検証head：`4e2fdab860dc8748a44db9d95b524126126eb01f`
+- 結論：成功
+- モジュールコンパイル：成功
+- Task 3.1f-2回帰テスト：成功
+- Task 3.1f-3正常系・破壊系テスト：成功
+- Stage B／C smoke実行：成功
+- 保存済み成果物の独立監査：成功
 
-## Smoke artifact
+テストはTask 3.1f-2の17件とTask 3.1f-3の13件、合計30件を実行した。
 
-Local smoke artifact path during testing was generated under pytest temporary directories. GitHub Actions uploads the artifact as `task3-1f3-stage-bc-smoke` and includes `selection_audit.json`, `selection_lock.json`, `artifact_manifest.json`, and Stage B/C CSV/JSON outputs.
+## 2. 独立監査
 
-Artifact ID, workflow run ID, and GitHub artifact digest are not available from local execution; these are populated by the CI run after the pull request is opened.
+独立監査は18項目すべて合格した。
 
-## Holdout access
+主な再計算量：
 
-Holdout was not accessed. Stage B/C runner interfaces accept only fit and validation inputs, and the independent selection lock records `holdout_accessed: false`.
+- 再構成指標：14,960件
+- 外部要因作用後／通常分布の対応変形指標：5,440件
+- run間構造対応：273件
+- 再構成指標の最大差：`9.974659986866641e-17`
+- 対応変形指標の最大差：`4.440892098500626e-16`
+- 構造対応の最大差：`2.351169259284802e-11`
 
-## Scientific status
+確認済み：
 
-No final scientific Task 3.1f rank result was produced. The smoke result is a reduced-scale workflow validation only and must not be interpreted as the formal Task 3.1f selected rank.
+- 固定構造数・seedの実行範囲
+- モデルhash・形状・基底総和
+- seed間の成果物使い回しなし
+- 収束証拠
+- 構造数別集計
+- one-standard-error rule
+- selection candidate
+- 5部分集合の実モデル
+- world seed 0／1の実モデル
+- Frobenius感度の実モデル
+- holdout未使用
+- selection lockの独立生成
 
-## Unresolved items
+## 3. smoke結果
 
-- Full formal Stage B/C execution on the full corpus is deferred to Task 3.1f-4.
-- Holdout evaluation remains out of scope until after an independently validated formal `selection_lock.json` exists.
+smokeでは固定gridの先頭2構造数、5と8を実行した。
+
+- 構造数5：適格
+- 構造数8：smoke反復範囲ではランダムrunが収束せず不適格
+- smoke選択構造数：5
+- 代表run：`nmf_kl_rank05_seed31012`
+- 5部分集合の構造生存率：1.0
+- world seed 0の中央値類似度：`0.868493`
+- world seed 1の中央値類似度：`0.835166`
+- 選択5構造：すべてsmoke上では`stable_structure`
+
+これは縮小データによる実行経路検証であり、正式なTask 3.1f科学結果ではない。
+
+## 4. GitHub Actions成果物
+
+- Artifact ID：`8243512584`
+- Artifact名：`task3-1f3-stage-bc-smoke`
+- サイズ：455,560 bytes
+- Digest：`sha256:3981a2e4521f5f202fa714cb0f1baa119d768b81b239a6f3e06c342e4e312bfe`
+- 保存期限：2026-07-25
+
+成果物には以下を含む。
+
+- 学習用／検証用evidence bundle
+- 14本のKL-NMFモデル
+- 重み付き主成分分析参照
+- 平均分布基準
+- 対応変形指標
+- 構造対応
+- 構造数別集計
+- 5部分集合の再学習モデル
+- world seed 0／1再学習モデル
+- Frobenius感度モデル
+- selection candidate
+- 独立selection audit
+- selection lock
+- 品質検査
+- 破壊系検査記録
+- 全成果物manifest
+
+## 5. 破壊系
+
+少なくとも次を個別に破壊し、独立監査が拒否することを確認した。
+
+- seed run欠落
+- 収束値の偽造
+- 基底hash改変
+- 安定構造率の固定値化
+- 対応変形指標の固定0化
+- producer作成selection lock
+- holdout由来ファイル混入
+- grouped subsetのgroup保持偽装
+
+## 6. 科学的境界
+
+- holdoutは使用していない。
+- 正式7構造数・49runはまだ実行していない。
+- smoke選択構造数5を正式結果として扱わない。
+- Task 3.1gへ渡す正式構造はまだ決定していない。
+- 次工程はTask 3.1f-4の正式Stage B／C実行とholdout評価である。
