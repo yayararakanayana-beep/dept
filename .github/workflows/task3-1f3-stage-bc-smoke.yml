@@ -1,4 +1,4 @@
-name: Task 3.1f-3 Stage B/C
+name: Task 3.1f Stable Structure Validation
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
       - 'scripts/task3_1f**'
       - 'scripts/task3_1f_structure_extraction/**'
       - 'tests/task3_1f3_fixture.py'
+      - 'tests/task3_1f4_fixture.py'
       - 'tests/test_task3_1f*.py'
       - 'requirements.txt'
       - '.github/workflows/task3-1f3-stage-bc-smoke.yml'
@@ -24,14 +25,14 @@ on:
         type: string
 
 concurrency:
-  group: task3-1f3-${{ github.event.pull_request.number || github.ref }}-${{ inputs.run_profile || 'smoke' }}
+  group: task3-1f-${{ github.event.pull_request.number || github.ref }}-${{ inputs.run_profile || 'smoke' }}
   cancel-in-progress: true
 
 jobs:
   smoke:
     if: github.event_name == 'pull_request' || inputs.run_profile == 'smoke'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -40,9 +41,20 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest tabulate
       - name: Compile Task 3.1f modules
-        run: python -m compileall -q scripts/task3_1f_structure_extraction scripts/task3_1f3_stage_bc.py scripts/task3_1f3_selection_validator.py
-      - name: Run Task 3.1f-2 and repaired Task 3.1f-3 tests
-        run: python -m pytest -q tests/test_task3_1f2_minimal_extraction.py tests/test_task3_1f2_mutations.py tests/test_task3_1f3_batch.py
+        run: >
+          python -m compileall -q
+          scripts/task3_1f_structure_extraction
+          scripts/task3_1f3_stage_bc.py
+          scripts/task3_1f3_selection_validator.py
+          scripts/task3_1f4_holdout.py
+          scripts/task3_1f4_final_validator.py
+      - name: Run Task 3.1f smoke tests
+        run: >
+          python -m pytest -q
+          tests/test_task3_1f2_minimal_extraction.py
+          tests/test_task3_1f2_mutations.py
+          tests/test_task3_1f3_batch.py
+          tests/test_task3_1f4_holdout.py
       - name: Generate dedicated Stage B/C smoke bundles
         run: |
           python - <<'PY'
@@ -181,11 +193,60 @@ jobs:
             --validation-evaluation-metadata $B/validation_evaluation_metadata.csv \
             --output-root artifacts/task3_1f_formal/run
       - name: Independently validate formal Stage B/C
-        run: python scripts/task3_1f3_selection_validator.py --artifact-dir artifacts/task3_1f_formal/run/task3_1f3_stage_bc_formal --strict
+        run: >
+          python scripts/task3_1f3_selection_validator.py
+          --artifact-dir artifacts/task3_1f_formal/run/task3_1f3_stage_bc_formal
+          --strict
       - name: Upload formal Stage B/C artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: task3-1f3-stage-bc-formal
           path: artifacts/task3_1f_formal/run/task3_1f3_stage_bc_formal
+          retention-days: 30
+
+  formal-holdout-evaluate:
+    needs: [formal-input-freeze, formal-fit-validate]
+    if: github.event_name == 'workflow_dispatch' && inputs.run_profile == 'formal_stage_bc_entrypoint'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt tabulate
+      - name: Download validated selection artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: task3-1f3-stage-bc-formal
+          path: artifacts/task3_1f_formal/selection
+      - name: Download sealed holdout input
+        uses: actions/download-artifact@v4
+        with:
+          name: task3-1f-formal-holdout-input
+          path: artifacts/task3_1f_formal/holdout
+      - name: Evaluate locked model on holdout
+        run: |
+          python scripts/task3_1f4_holdout.py \
+            --selection-artifact-dir artifacts/task3_1f_formal/selection \
+            --holdout-bundle artifacts/task3_1f_formal/holdout/holdout_bundle.npz \
+            --holdout-row-map artifacts/task3_1f_formal/holdout/holdout_row_map.csv \
+            --holdout-evaluation-metadata artifacts/task3_1f_formal/holdout/holdout_evaluation_metadata.csv \
+            --output-root artifacts/task3_1f_formal/final
+      - name: Independently validate holdout outcome
+        run: >
+          python scripts/task3_1f4_final_validator.py
+          --artifact-dir artifacts/task3_1f_formal/final/task3_1f4_holdout_formal
+          --strict
+      - name: Upload formal Task 3.1f-4 artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-1f4-formal-holdout
+          path: artifacts/task3_1f_formal/final/task3_1f4_holdout_formal
           retention-days: 30
