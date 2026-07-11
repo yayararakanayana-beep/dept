@@ -136,5 +136,5 @@ def test_generation_config_has_six_contiguous_scenarios() -> None:
         segments = config["scenarios"][scenario_id]["segments"]
         assert segments[0]["start"] == 0
         assert segments[-1]["end"] is None
-        for left, right in zip(segments, segments[1:], strict=True):
+        for left, right in zip(segments, segments[1:]):
             assert left["end"] == right["start"]
