@@ -1,0 +1,124 @@
+{
+  "contract_version": "task3.1f-4.1-rc1",
+  "status": "frozen",
+  "task": {
+    "number": "3.1f-4.1",
+    "name": "cross_rank_structure_group_stability_audit",
+    "automatic_rank_selection": false,
+    "selection_lock_creation_prohibited": true,
+    "existing_task3_1f4_result_mutation_prohibited": true
+  },
+  "input": {
+    "stage_bc_artifact_id": 8245413464,
+    "stage_bc_artifact_name": "task3-1f3-stage-bc-formal",
+    "stage_bc_artifact_digest": "sha256:77570fa06b2a3b50571b6480515d95afe6882878992a767aa738e67b02cce51b",
+    "fit_rows": 1082,
+    "validation_rows": 256,
+    "cell_count": 3125
+  },
+  "holdout": {
+    "access_prohibited": true,
+    "artifact_id": 8244723312,
+    "download_prohibited": true,
+    "read_prohibited": true,
+    "derived_metric_use_prohibited": true
+  },
+  "ranks": [5, 8, 10, 15],
+  "cross_rank_pairs": [[5, 8], [5, 10], [5, 15], [8, 10], [8, 15], [10, 15]],
+  "native_axes": [
+    "resource_slack",
+    "information_quality",
+    "pressure",
+    "exploration_room",
+    "reversibility"
+  ],
+  "native_grid": {
+    "n_bins": 5,
+    "reshape_order": "C",
+    "pair_count": 10
+  },
+  "group_matching": {
+    "method": "deterministic_forward_beam_nonnegative_convex_mixture",
+    "weight_fit": "nonnegative_least_squares_with_sum_encouragement_then_normalization",
+    "max_group_size": 4,
+    "beam_width": 32,
+    "similarity_metric": "sqrt_jensen_shannon_similarity_natural_log",
+    "similarity_threshold": 0.85,
+    "intermediate_threshold": 0.80,
+    "minimum_member_weight": 0.10,
+    "smallest_passing_group_preferred": true
+  },
+  "native_signature": {
+    "one_axis_marginals": true,
+    "axis_mean_bin": true,
+    "axis_variance": true,
+    "axis_entropy": true,
+    "axis_contrast_against_weighted_fit_global": true,
+    "axis_contribution_share_is_descriptive_not_causal": true,
+    "all_pairwise_joint_distributions": true,
+    "mutual_information": true,
+    "normalized_mutual_information": true,
+    "signed_bin_correlation": true
+  },
+  "activation_consistency": {
+    "group_members_selected_from_basis_only": true,
+    "coefficients_fit_on_fit_only": true,
+    "validation_retuning_prohibited": true,
+    "metrics": [
+      "pearson",
+      "spearman",
+      "cosine",
+      "normalized_mae",
+      "p95_absolute_error",
+      "top10_overlap"
+    ]
+  },
+  "stability": {
+    "group_similarity_threshold": 0.85,
+    "required_subset_survival_count": 4,
+    "seed_survival_rate": 0.75,
+    "minimum_seed_comparison_runs": 3,
+    "insufficient_runs_status": "evidence_limited"
+  },
+  "subset_refit": {
+    "ranks": [5, 8, 10, 15],
+    "reuse_existing_rank5_models": true,
+    "subset_definition": "reuse_task3_1f_frozen_grouped_80_percent_subsets",
+    "count": 5,
+    "initialization": "nndsvda",
+    "solver": "mu",
+    "loss": "kullback-leibler",
+    "max_iter": 2000,
+    "tolerance": 0.00001,
+    "regularization": "none",
+    "validation_refit_prohibited": true
+  },
+  "execution": {
+    "smoke_max_iter": 80,
+    "formal_timeout_minutes": 360
+  },
+  "recommendation": {
+    "automatic_selection_prohibited": true,
+    "allowed_roles": [
+      "compact_macro_candidate",
+      "normal_operation_dictionary_candidate",
+      "detailed_dictionary_candidate",
+      "conditional_dictionary_candidate",
+      "diagnostic_only",
+      "rejected"
+    ],
+    "single_weighted_total_score_prohibited": true
+  },
+  "scope_exclusions": [
+    "holdout_evaluation",
+    "semantic_axis_naming",
+    "final_core_axis_count_decision",
+    "K_t_implementation",
+    "incomplete_observation_environment",
+    "game_structure_prediction",
+    "action_selection",
+    "action_outcome_evaluation",
+    "new_rank_search",
+    "model_family_switch"
+  ]
+}
