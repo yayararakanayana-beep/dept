@@ -5,7 +5,8 @@
 - Task 3.1e：完了・`main`へマージ済み
 - Task 3.1f：範囲固定済み
 - Task 3.1f-1：比較設計・検証契約・出力仕様を確定
-- 次工程：Task 3.1f-2 最小構造抽出基盤の実装
+- Task 3.1f-2：最小構造抽出基盤・独立検証・smokeを実装
+- 次工程：Task 3.1f-3 固定rank・初期値条件の一括実行基盤
 
 ## 契約文書
 
@@ -19,6 +20,10 @@
    - 実行段階、正常系、破壊系、停止条件、GitHub Actions分離
 5. `task3_1f1_output_schema.md`
    - 成果物、列、配列形状、hash、保存量管理
+6. `task3_1f2_implementation.md`
+   - 最小実装の範囲、smoke条件、holdout境界
+7. `task3_1f2_results.md`
+   - ローカル・GitHub Actions検証結果
 
 ## 優先順位
 
@@ -45,11 +50,15 @@ Task 3.1e正式質量分布
 → 安定構造だけをTask 3.1gへ渡す
 ```
 
+Task 3.1f-2では、このうち入力固定、fit／validation最小抽出、参照手法、独立再計算まで実装した。構造数選択、selection lock、holdout評価はまだ行っていない。
+
 ## 運用分担
 
-- ChatGPT：設計、Task 3.1f-2の通常実装、監査、修正
+- ChatGPT：設計、通常実装、監査、修正
 - Codex：固定済み条件の重い単作業だけ
 - GitHub Actions：正式rank走査、長時間検証、holdout分離、成果物保存
+
+各サブタスクは個別PRとして`main`へマージしてよい。Task 3.1f全体の完了後、GitHub上で全到達点とTask 3.1gへの引き継ぎをまとめる。
 
 ## 変更時の必須報告
 
