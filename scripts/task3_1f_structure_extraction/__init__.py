@@ -10,6 +10,8 @@ from .models import (
     transform_fixed_kl_basis,
 )
 from .runner import run_smoke
+from .batch import formal_run_plan, grouped_subsets, representative_runs, run_plan, run_stage_bc_smoke, select_rank
+from .selection_validator import validate_selection
 from .validator import validate_smoke
 
 __all__ = [name for name in globals() if not name.startswith("_")]

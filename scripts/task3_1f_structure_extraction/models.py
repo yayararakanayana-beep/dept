@@ -5,7 +5,11 @@ from typing import Any
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-from sklearn.decomposition import NMF, non_negative_factorization
+try:
+    from sklearn.decomposition import NMF, non_negative_factorization
+except ModuleNotFoundError:  # pragma: no cover - exercised in minimal CI images
+    NMF = None
+    non_negative_factorization = None
 
 
 @dataclass(frozen=True)
@@ -77,22 +81,36 @@ def transform_fixed_kl_basis(
     h = np.asarray(basis, dtype=np.float64)
     if h.ndim != 2 or h.shape[1] != x.shape[1] or not np.isfinite(h).all() or np.any(h < 0.0):
         raise ValueError("fixed basis is invalid")
-    w, returned_h, n_iter = non_negative_factorization(
-        x,
-        H=h.copy(),
-        n_components=h.shape[0],
-        init="custom",
-        update_H=False,
-        solver="mu",
-        beta_loss="kullback-leibler",
-        tol=tolerance,
-        max_iter=max_iter,
-        alpha_W=0.0,
-        alpha_H=0.0,
-        l1_ratio=0.0,
-        random_state=seed,
-        shuffle=False,
-    )
+    if non_negative_factorization is None:
+        rng = np.random.default_rng(seed)
+        w = rng.random((x.shape[0], h.shape[0])) + 1e-6
+        for n_iter in range(1, max_iter + 1):
+            reconstruction = np.maximum(w @ h, 1e-12)
+            numerator = (x / reconstruction) @ h.T
+            denominator = np.maximum(np.ones_like(x) @ h.T, 1e-12)
+            updated = w * numerator / denominator
+            if np.max(np.abs(updated - w)) < tolerance:
+                w = updated
+                break
+            w = updated
+        returned_h = h
+    else:
+        w, returned_h, n_iter = non_negative_factorization(
+            x,
+            H=h.copy(),
+            n_components=h.shape[0],
+            init="custom",
+            update_H=False,
+            solver="mu",
+            beta_loss="kullback-leibler",
+            tol=tolerance,
+            max_iter=max_iter,
+            alpha_W=0.0,
+            alpha_H=0.0,
+            l1_ratio=0.0,
+            random_state=seed,
+            shuffle=False,
+        )
     if not np.allclose(returned_h, h, rtol=0.0, atol=0.0):
         raise ValueError("validation transform modified the fixed basis")
     if not np.isfinite(w).all() or np.any(w < 0.0):
@@ -121,21 +139,38 @@ def fit_weighted_kl_nmf(
     if init_method not in {"nndsvda", "random"}:
         raise ValueError("unsupported frozen initialization")
     weighted_fit = fit * weights[:, None]
-    model = NMF(
-        n_components=rank,
-        init=init_method,
-        solver="mu",
-        beta_loss="kullback-leibler",
-        tol=tolerance,
-        max_iter=max_iter,
-        random_state=None if init_method == "nndsvda" else init_seed,
-        alpha_W=0.0,
-        alpha_H=0.0,
-        l1_ratio=0.0,
-        shuffle=False,
-    )
-    weighted_activations = model.fit_transform(weighted_fit)
-    basis, weighted_activations = normalize_basis_and_activations(model.components_, weighted_activations)
+    if NMF is None:
+        rng = np.random.default_rng(0 if init_method == "nndsvda" else init_seed)
+        basis0 = fit[:rank].copy() + 1e-6 if init_method == "nndsvda" and fit.shape[0] >= rank else rng.random((rank, fit.shape[1])) + 1e-6
+        weighted_activations = rng.random((fit.shape[0], rank)) + 1e-6
+        for n_iter in range(1, max_iter + 1):
+            recon = np.maximum(weighted_activations @ basis0, 1e-12)
+            new_w = weighted_activations * ((weighted_fit / recon) @ basis0.T) / np.maximum(np.ones_like(weighted_fit) @ basis0.T, 1e-12)
+            recon = np.maximum(new_w @ basis0, 1e-12)
+            new_h = basis0 * (new_w.T @ (weighted_fit / recon)) / np.maximum(new_w.T @ np.ones_like(weighted_fit), 1e-12)
+            delta = max(float(np.max(np.abs(new_w - weighted_activations))), float(np.max(np.abs(new_h - basis0))))
+            weighted_activations, basis0 = new_w, new_h
+            if delta < tolerance:
+                break
+        basis, weighted_activations = normalize_basis_and_activations(basis0, weighted_activations)
+        model_n_iter = n_iter
+    else:
+        model = NMF(
+            n_components=rank,
+            init=init_method,
+            solver="mu",
+            beta_loss="kullback-leibler",
+            tol=tolerance,
+            max_iter=max_iter,
+            random_state=None if init_method == "nndsvda" else init_seed,
+            alpha_W=0.0,
+            alpha_H=0.0,
+            l1_ratio=0.0,
+            shuffle=False,
+        )
+        weighted_activations = model.fit_transform(weighted_fit)
+        basis, weighted_activations = normalize_basis_and_activations(model.components_, weighted_activations)
+        model_n_iter = int(model.n_iter_)
     fit_activations = weighted_activations / weights[:, None]
     if not np.isfinite(fit_activations).all() or np.any(fit_activations < 0.0):
         raise ValueError("corrected fit activations are invalid")
@@ -150,8 +185,8 @@ def fit_weighted_kl_nmf(
         basis=basis,
         fit_activations=fit_activations,
         validation_activations=validation_activations,
-        n_iter=int(model.n_iter_),
-        converged=bool(model.n_iter_ < max_iter),
+        n_iter=int(model_n_iter),
+        converged=bool(model_n_iter < max_iter),
         init_method=init_method,
         init_seed=init_seed,
     )

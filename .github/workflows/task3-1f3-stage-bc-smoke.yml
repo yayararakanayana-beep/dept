@@ -1,0 +1,62 @@
+name: Task 3.1f-3 Stage B/C Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'configs/task3_1f_structure_extraction_contract.json'
+      - 'scripts/task3_1f**'
+      - 'scripts/task3_1f_structure_extraction/**'
+      - 'tests/test_task3_1f*.py'
+      - '.github/workflows/task3-1f3-stage-bc-smoke.yml'
+  workflow_dispatch:
+    inputs:
+      run_profile:
+        description: 'Execution profile; formal is an entry point for Task 3.1f-4 and is not run on PRs.'
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, formal_stage_bc_entrypoint]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt pytest
+      - name: Run Task 3.1f-2 and 3.1f-3 tests
+        run: pytest -q tests/test_task3_1f2_minimal_extraction.py tests/test_task3_1f2_mutations.py tests/test_task3_1f3_batch.py
+      - name: Generate validated smoke input and run Stage B/C smoke
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tests.task3_1f_fixture import build_smoke_task3_1e_artifact
+          from task3_1f_structure_extraction import freeze_input, run_stage_bc_smoke
+          from task3_1f_structure_extraction.contract import DEFAULT_CONTRACT
+          root = Path('artifacts/task3_1f3_ci')
+          input_artifact = build_smoke_task3_1e_artifact(root / 'input')
+          frozen = freeze_input(input_artifact, root / 'frozen', 'smoke', DEFAULT_CONTRACT)
+          bundles = frozen / 'task3_1f_stable_structure_extraction' / 'bundles'
+          out = run_stage_bc_smoke(
+              bundles / 'fit_bundle.npz', bundles / 'fit_row_map.csv',
+              bundles / 'validation_bundle.npz', bundles / 'validation_row_map.csv',
+              root / 'run', DEFAULT_CONTRACT,
+          )
+          print(out)
+          PY
+      - name: Run independent selection validator
+        run: python scripts/task3_1f3_selection_validator.py --artifact-dir artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke --strict
+      - name: Show quality evidence on failure
+        if: failure()
+        run: |
+          cat artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke/selection_audit.json || true
+          cat artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke/quality_checks.json || true
+      - name: Upload smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-1f3-stage-bc-smoke
+          path: artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke
