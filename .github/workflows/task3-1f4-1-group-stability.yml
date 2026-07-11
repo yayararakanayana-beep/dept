@@ -1,0 +1,101 @@
+name: Task 3.1f-4.1 Structure-Group Stability Audit
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/task3_1f4_1_group_stability.py'
+      - 'scripts/task3_1f4_1_group_stability_validator.py'
+      - 'scripts/task3_1f4_1_group_stability_impl/**'
+      - 'configs/task3_1f4_1_group_stability_contract.json'
+      - 'tests/test_task3_1f4_1_group_stability.py'
+      - '.github/workflows/task3-1f4-1-group-stability.yml'
+      - 'docs/task3_1f_stable_structure_extraction/TASK3_1F4_1_GROUP_STABILITY_CONTRACT.md'
+      - 'requirements.txt'
+  workflow_dispatch:
+    inputs:
+      stage_bc_artifact_id:
+        description: 'Frozen Task 3.1f Stage B/C Artifact ID'
+        required: true
+        default: '8245413464'
+        type: string
+
+concurrency:
+  group: task3-1f4-1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+      - name: Compile Task 3.1f-4.1 modules
+        run: >
+          python -m compileall -q
+          scripts/task3_1f4_1_group_stability.py
+          scripts/task3_1f4_1_group_stability_validator.py
+          scripts/task3_1f4_1_group_stability_impl
+      - name: Run Task 3.1f-4.1 tests
+        run: python -m pytest -q tests/test_task3_1f4_1_group_stability.py
+
+  formal-group-stability:
+    if: github.event_name == 'workflow_dispatch'
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_ARTIFACT_ID: '8245413464'
+      EXPECTED_ARTIFACT_DIGEST: 'sha256:77570fa06b2a3b50571b6480515d95afe6882878992a767aa738e67b02cce51b'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require frozen Stage B/C Artifact ID
+        run: test '${{ inputs.stage_bc_artifact_id }}' = "$EXPECTED_ARTIFACT_ID"
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+      - name: Verify and download Stage B/C Artifact only
+        run: |
+          mkdir -p artifacts/task3_1f4_1/source
+          ACTUAL_DIGEST=$(gh api repos/${{ github.repository }}/actions/artifacts/${{ inputs.stage_bc_artifact_id }} --jq '.digest')
+          test "$ACTUAL_DIGEST" = "$EXPECTED_ARTIFACT_DIGEST"
+          gh api repos/${{ github.repository }}/actions/artifacts/${{ inputs.stage_bc_artifact_id }}/zip > artifacts/task3_1f4_1/source.zip
+          unzip -q artifacts/task3_1f4_1/source.zip -d artifacts/task3_1f4_1/source
+      - name: Prove sealed holdout material is absent
+        run: |
+          if find artifacts/task3_1f4_1/source -type f -iname '*holdout*' | grep -q .; then
+            echo 'Task 3.1f-4.1 must not receive holdout material'
+            exit 1
+          fi
+      - name: Run formal cross-rank structure-group audit
+        run: |
+          python scripts/task3_1f4_1_group_stability.py \
+            --source-artifact-dir artifacts/task3_1f4_1/source \
+            --output-root artifacts/task3_1f4_1/run \
+            --contract configs/task3_1f4_1_group_stability_contract.json \
+            --source-artifact-id '${{ inputs.stage_bc_artifact_id }}' \
+            --source-artifact-digest "$EXPECTED_ARTIFACT_DIGEST" \
+            --profile formal
+      - name: Independently validate all persisted results
+        run: |
+          python scripts/task3_1f4_1_group_stability_validator.py \
+            --artifact-dir artifacts/task3_1f4_1/run/task3_1f4_1_group_stability \
+            --source-artifact-dir artifacts/task3_1f4_1/source \
+            --strict
+      - name: Upload Task 3.1f-4.1 formal Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-1f4-1-group-stability-formal
+          path: artifacts/task3_1f4_1/run/task3_1f4_1_group_stability
+          retention-days: 30
