@@ -8,6 +8,7 @@ from typing import Any, Mapping, Sequence
 import task3_2_4_challenge_corpus as _core
 
 _original_comparison_writer = _core.t2._write_comparison_csv
+_original_build_scenario = _core.build_scenario
 
 
 def _flexible_writer(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
@@ -39,7 +40,7 @@ ChallengeError = _core.ChallengeError
 def build_scenario(condition: str, seed: int, config: Mapping[str, Any]):
     if condition not in config["challenge"]["condition_groups"]:
         raise ChallengeError(f"unknown condition {condition}")
-    return _core.build_scenario(condition, seed, config)
+    return _original_build_scenario(condition, seed, config)
 
 
 _core.build_scenario = build_scenario
