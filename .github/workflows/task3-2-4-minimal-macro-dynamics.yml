@@ -1,0 +1,81 @@
+name: Task 3.2-4 Minimal Macro-Dynamics
+
+on:
+  pull_request:
+    paths:
+      - 'configs/task3_2_*.json'
+      - 'scripts/task3_2_*.py'
+      - 'scripts/_task3_2_3_core.py'
+      - 'tests/test_task3_2_*.py'
+      - 'pseudo_reality/distribution_terrain_v3*.py'
+      - 'docs/task3_2_macro_dynamics_exploration/**'
+      - '.github/workflows/task3-2-4-minimal-macro-dynamics.yml'
+      - 'AGENTS.md'
+  workflow_dispatch:
+
+jobs:
+  formal-macro-dynamics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+      - name: Compile Task 3.2 modules
+        run: |
+          python -m py_compile scripts/task3_2_1_macro_dynamics_contract.py
+          python -m py_compile scripts/task3_2_2_continuous_trajectory.py
+          python -m py_compile scripts/task3_2_2_reference_calibration.py
+          python -m py_compile scripts/_task3_2_3_core.py
+          python -m py_compile scripts/task3_2_3_simple_early_warning.py
+          python -m py_compile scripts/task3_2_4_challenge_corpus.py
+          python -m py_compile scripts/task3_2_4_challenge_runner.py
+          python -m py_compile scripts/task3_2_4_macro_dynamics.py
+          python -m py_compile scripts/task3_2_4_result_runner.py
+      - name: Run Task 3.2 targeted tests
+        run: |
+          set -o pipefail
+          python -m pytest -vv \
+            tests/test_task3_2_1_macro_dynamics_contract.py \
+            tests/test_task3_2_2_continuous_trajectory.py \
+            tests/test_task3_2_2_reference_calibration.py \
+            tests/test_task3_2_3_simple_early_warning.py \
+            tests/test_task3_2_3_judgement.py \
+            tests/test_task3_2_4_challenge_corpus.py \
+            tests/test_task3_2_4_macro_dynamics.py \
+            tests/test_task3_2_4_judgement.py \
+            2>&1 | tee task3_2_4_pytest.log
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-4-pytest-diagnostics
+          path: task3_2_4_pytest.log
+          retention-days: 7
+      - name: Generate Task 3 reference corpus
+        run: python scripts/task3_2_2_continuous_trajectory.py generate --profile exploratory --output work/task3_reference_corpus
+      - name: Calibrate Task 3 reference corpus
+        run: python scripts/task3_2_2_reference_calibration.py --input work/task3_reference_corpus
+      - name: Generate seed-varying Task 4 challenge corpus
+        run: python scripts/task3_2_4_challenge_runner.py generate --output work/task4_challenge_corpus
+      - name: Calibrate Task 4 challenge corpus
+        run: python scripts/task3_2_2_reference_calibration.py --input work/task4_challenge_corpus
+      - name: Validate persisted challenge corpus
+        run: python scripts/task3_2_4_challenge_runner.py validate --input work/task4_challenge_corpus
+      - name: Run Task 4 macro-dynamics extraction and comparison
+        run: |
+          python scripts/task3_2_4_result_runner.py run \
+            --challenge-corpus work/task4_challenge_corpus \
+            --reference-corpus work/task3_reference_corpus \
+            --output artifacts/task3_2_4_formal
+      - name: Validate persisted Task 4 output
+        run: python scripts/task3_2_4_result_runner.py validate --input artifacts/task3_2_4_formal
+      - name: Upload formal Task 4 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-4-minimal-macro-dynamics-formal
+          path: artifacts/task3_2_4_formal
+          retention-days: 30
