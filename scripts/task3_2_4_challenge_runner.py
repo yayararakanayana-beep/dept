@@ -34,7 +34,15 @@ def _flexible_writer(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
 _core.t2._write_comparison_csv = _flexible_writer
 
 ChallengeError = _core.ChallengeError
-build_scenario = _core.build_scenario
+
+
+def build_scenario(condition: str, seed: int, config: Mapping[str, Any]):
+    if condition not in config["challenge"]["condition_groups"]:
+        raise ChallengeError(f"unknown condition {condition}")
+    return _core.build_scenario(condition, seed, config)
+
+
+_core.build_scenario = build_scenario
 generate = _core.generate
 load_config = _core.load_config
 validate = _core.validate
