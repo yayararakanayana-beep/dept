@@ -1,0 +1,26 @@
+{
+  "task_id": "Task 3.2-2",
+  "status": "exploratory_provisional",
+  "stable_reference_scenario": "stable_continuation",
+  "comparison": "same_seed_stable_reference",
+  "rules": {
+    "baseline_steps": 6,
+    "tail_steps": 6,
+    "elevated_relative_risk_delta": 0.015,
+    "sustained_steps": 3,
+    "full_recovery_tolerance": 0.012,
+    "minimum_peak_elevation": 0.02,
+    "recovery_fraction": 0.55,
+    "fixation_concentration_ratio": 1.10,
+    "fixation_mobility_ratio": 0.82,
+    "fixation_rigidity_delta": 0.25,
+    "collapse_absolute_risk_score": 0.50,
+    "collapse_relative_risk_delta": 0.20
+  },
+  "boundary": {
+    "scenario_id_is_not_truth": true,
+    "labels_are_not_game_structures": true,
+    "irreversibility_is_not_fully_evaluated": true,
+    "action_strength_fields_remain_null": true
+  }
+}
