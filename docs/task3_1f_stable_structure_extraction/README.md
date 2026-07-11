@@ -7,7 +7,8 @@
 - Task 3.1f-1：比較設計・検証契約・出力仕様を確定
 - Task 3.1f-2：最小構造抽出基盤・独立検証・smokeを実装
 - Task 3.1f-3：固定rank・初期値条件のStage B/C fit-validation batch、選択候補、独立selection audit、smoke lockを実装
-- 次工程：Task 3.1f-4 GitHub Actions上の正式fit／validation実行とholdout評価
+- Task 3.1f-4：holdout評価器、最終独立検証器、縮小改ざんテスト、正式workflowを実装
+- 次工程：GitHub Actionsで正式fit／validation走査と一度限りのholdout評価を実行
 
 ## 契約文書
 
@@ -29,6 +30,8 @@
    - Stage B/C batch・selection candidate・独立validator実装
 9. `task3_1f3_results.md`
    - Task 3.1f-3 smoke検証結果、未解決項目、holdout未アクセス記録
+10. `task3_1f4_implementation.md`
+   - holdout評価、最終独立再計算、主要改ざん検出、正式workflow
 
 ## 優先順位
 
@@ -55,10 +58,11 @@ Task 3.1e正式質量分布
 → validationだけで構造数候補を作成
 → 独立監査に合格した場合だけselection lockを作成
 → holdoutを一度だけ評価
+→ 最終独立監査で結果を確定
 → 安定構造だけをTask 3.1gへ渡す
 ```
 
-Task 3.1f-2では、このうち入力固定、fit／validation最小抽出、参照手法、独立再計算まで実装した。Task 3.1f-3では、Stage B/Cの固定grid batch、selection candidate、独立selection audit、smoke selection lockまでを実装した。holdout評価と最終科学判定はまだ行っていない。
+Task 3.1f-2では入力固定、fit／validation最小抽出、参照手法、独立再計算まで実装した。Task 3.1f-3ではStage B/Cの固定grid batch、selection candidate、独立selection audit、smoke selection lockまでを実装した。Task 3.1f-4では、lock後にだけ動くholdout評価器と最終独立検証器を実装した。正式データでの49runとholdout評価はまだ実行していない。
 
 ## 運用分担
 

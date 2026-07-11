@@ -16,6 +16,8 @@ from .stage_bc_subsets import grouped_subsets
 from .stage_bc_selection_core import representative_runs, select_rank
 from .batch import run_stage_bc, run_stage_bc_formal, run_stage_bc_smoke
 from .selection_validator import validate_selection
+from .holdout import evaluate_holdout
+from .final_validator import validate_final
 from .validator import validate_smoke
 
 __all__ = [name for name in globals() if not name.startswith("_")]
