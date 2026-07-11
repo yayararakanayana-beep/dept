@@ -86,3 +86,7 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Do not freeze terrain, flow, circulation, viscosity, diffusion, external-force, or other macro-dynamics components before the exploration results justify them.
 - Full next-state reconstruction is secondary. The primary prediction purpose is early high-risk detection, irreversibility, risk depth, and actionable time-window estimation.
 - Task 3.2-1 must not construct formal G_t/K_t, classify game structures, connect the Action Module, or claim that a macro-dynamics representation is validated.
+- Task 3.2-2 may generate small continuous v3.3 trajectory corpora, but it must not modify the world dynamics to manufacture target outcomes.
+- Task 3.2-2 scenario IDs are provenance only and must not be included in model input or copied directly into truth labels.
+- Task 3.2-2 provisional risk scores and outcome labels are exploratory diagnostics, not frozen risk definitions or game-structure classes.
+- Task 3.2-2 must preserve full raw state arrays, observed external inputs, future-truth isolation, and trajectory-level split integrity.
