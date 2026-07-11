@@ -1,0 +1,72 @@
+name: Task 3.2-2 Continuous Trajectories
+
+on:
+  pull_request:
+    paths:
+      - 'configs/task3_2_1_macro_dynamics_contract.json'
+      - 'configs/task3_2_2_continuous_trajectory.json'
+      - 'scripts/task3_2_1_macro_dynamics_contract.py'
+      - 'scripts/task3_2_2_continuous_trajectory.py'
+      - 'tests/test_task3_2_1_macro_dynamics_contract.py'
+      - 'tests/test_task3_2_2_continuous_trajectory.py'
+      - 'pseudo_reality/distribution_terrain_v3*.py'
+      - 'docs/task3_2_macro_dynamics_exploration/**'
+      - '.github/workflows/task3-2-2-continuous-trajectories.yml'
+      - 'AGENTS.md'
+  workflow_dispatch:
+    inputs:
+      run_exploratory:
+        description: 'Also generate the 30-trajectory exploratory corpus'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+      - name: Compile Task 3.2 modules
+        run: |
+          python -m py_compile scripts/task3_2_1_macro_dynamics_contract.py
+          python -m py_compile scripts/task3_2_2_continuous_trajectory.py
+      - name: Run Task 3.2-1 and Task 3.2-2 tests
+        run: python -m pytest -q tests/test_task3_2_1_macro_dynamics_contract.py tests/test_task3_2_2_continuous_trajectory.py
+      - name: Generate formal smoke trajectory corpus
+        run: python scripts/task3_2_2_continuous_trajectory.py generate --profile smoke --output artifacts/task3_2_2_smoke
+      - name: Revalidate persisted smoke corpus
+        run: python scripts/task3_2_2_continuous_trajectory.py validate --input artifacts/task3_2_2_smoke
+      - name: Upload smoke trajectory artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-2-continuous-trajectories-smoke
+          path: artifacts/task3_2_2_smoke
+          retention-days: 30
+
+  exploratory:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_exploratory
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+      - name: Generate exploratory trajectory corpus
+        run: python scripts/task3_2_2_continuous_trajectory.py generate --profile exploratory --output artifacts/task3_2_2_exploratory
+      - name: Revalidate persisted exploratory corpus
+        run: python scripts/task3_2_2_continuous_trajectory.py validate --input artifacts/task3_2_2_exploratory
+      - name: Upload exploratory trajectory artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-2-continuous-trajectories-exploratory
+          path: artifacts/task3_2_2_exploratory
+          retention-days: 30
