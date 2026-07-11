@@ -1,62 +1,136 @@
-name: Task 3.1f-3 Stage B/C Smoke
+name: Task 3.1f-3 Stage B/C
 
 on:
   pull_request:
     paths:
-      - 'configs/task3_1f_structure_extraction_contract.json'
       - 'scripts/task3_1f**'
       - 'scripts/task3_1f_structure_extraction/**'
+      - 'tests/task3_1f3_fixture.py'
       - 'tests/test_task3_1f*.py'
+      - 'requirements.txt'
       - '.github/workflows/task3-1f3-stage-bc-smoke.yml'
+      - 'docs/task3_1f_stable_structure_extraction/**'
   workflow_dispatch:
     inputs:
       run_profile:
-        description: 'Execution profile; formal is an entry point for Task 3.1f-4 and is not run on PRs.'
+        description: 'Execution profile'
         required: true
         default: smoke
         type: choice
         options: [smoke, formal_stage_bc_entrypoint]
+      task3_1e_artifact_id:
+        description: 'Formal Task 3.1e artifact ID; required for formal entrypoint'
+        required: false
+        type: string
+
+concurrency:
+  group: task3-1f3-${{ github.event.pull_request.number || github.ref }}-${{ inputs.run_profile || 'smoke' }}
+  cancel-in-progress: true
 
 jobs:
   smoke:
+    if: github.event_name == 'pull_request' || inputs.run_profile == 'smoke'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt pytest
-      - name: Run Task 3.1f-2 and 3.1f-3 tests
-        run: pytest -q tests/test_task3_1f2_minimal_extraction.py tests/test_task3_1f2_mutations.py tests/test_task3_1f3_batch.py
-      - name: Generate validated smoke input and run Stage B/C smoke
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest tabulate
+      - name: Compile Task 3.1f modules
+        run: python -m compileall -q scripts/task3_1f_structure_extraction scripts/task3_1f3_stage_bc.py scripts/task3_1f3_selection_validator.py
+      - name: Run Task 3.1f-2 and repaired Task 3.1f-3 tests
+        run: python -m pytest -q tests/test_task3_1f2_minimal_extraction.py tests/test_task3_1f2_mutations.py tests/test_task3_1f3_batch.py
+      - name: Generate dedicated Stage B/C smoke bundles
         run: |
           python - <<'PY'
           from pathlib import Path
-          from tests.task3_1f_fixture import build_smoke_task3_1e_artifact
-          from task3_1f_structure_extraction import freeze_input, run_stage_bc_smoke
-          from task3_1f_structure_extraction.contract import DEFAULT_CONTRACT
-          root = Path('artifacts/task3_1f3_ci')
-          input_artifact = build_smoke_task3_1e_artifact(root / 'input')
-          frozen = freeze_input(input_artifact, root / 'frozen', 'smoke', DEFAULT_CONTRACT)
-          bundles = frozen / 'task3_1f_stable_structure_extraction' / 'bundles'
-          out = run_stage_bc_smoke(
-              bundles / 'fit_bundle.npz', bundles / 'fit_row_map.csv',
-              bundles / 'validation_bundle.npz', bundles / 'validation_row_map.csv',
-              root / 'run', DEFAULT_CONTRACT,
-          )
-          print(out)
+          from tests.task3_1f3_fixture import build_stage_bc_smoke_bundles
+          build_stage_bc_smoke_bundles(Path('artifacts/task3_1f3_ci/input'))
           PY
-      - name: Run independent selection validator
-        run: python scripts/task3_1f3_selection_validator.py --artifact-dir artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke --strict
-      - name: Show quality evidence on failure
-        if: failure()
+      - name: Run real Stage B/C smoke path
         run: |
-          cat artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke/selection_audit.json || true
-          cat artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke/quality_checks.json || true
+          python scripts/task3_1f3_stage_bc.py \
+            --profile smoke \
+            --fit-bundle artifacts/task3_1f3_ci/input/fit_bundle.npz \
+            --fit-row-map artifacts/task3_1f3_ci/input/fit_row_map.csv \
+            --fit-evaluation-metadata artifacts/task3_1f3_ci/input/fit_evaluation_metadata.csv \
+            --validation-bundle artifacts/task3_1f3_ci/input/validation_bundle.npz \
+            --validation-row-map artifacts/task3_1f3_ci/input/validation_row_map.csv \
+            --validation-evaluation-metadata artifacts/task3_1f3_ci/input/validation_evaluation_metadata.csv \
+            --output-root artifacts/task3_1f3_ci/run \
+            --smoke-ranks 2
+      - name: Independently validate persisted Stage B/C artifacts
+        run: |
+          python scripts/task3_1f3_selection_validator.py \
+            --artifact-dir artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke \
+            --strict || {
+              cat artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke/selection_audit.json || true
+              cat artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke/quality_checks.json || true
+              exit 1
+            }
       - name: Upload smoke artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: task3-1f3-stage-bc-smoke
           path: artifacts/task3_1f3_ci/run/task3_1f3_stage_bc_smoke
+          retention-days: 14
+
+  formal-stage-bc-entrypoint:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_profile == 'formal_stage_bc_entrypoint'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require formal Task 3.1e artifact ID
+        run: test -n '${{ inputs.task3_1e_artifact_id }}'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt tabulate
+      - name: Download formal Task 3.1e artifact
+        run: |
+          mkdir -p artifacts/task3_1e_download
+          gh api repos/${{ github.repository }}/actions/artifacts/${{ inputs.task3_1e_artifact_id }}/zip > artifacts/task3_1e_download/input.zip
+          unzip -q artifacts/task3_1e_download/input.zip -d artifacts/task3_1e_download/unpacked
+          sha256sum artifacts/task3_1e_download/input.zip
+      - name: Locate and freeze formal Task 3.1e input
+        run: |
+          INPUT_DIR=$(find artifacts/task3_1e_download/unpacked -type f -name mass_matrix.npy -printf '%h\n' | head -n 1)
+          test -n "$INPUT_DIR"
+          INPUT_SHA=$(sha256sum artifacts/task3_1e_download/input.zip | awk '{print $1}')
+          python scripts/task3_1f_input_freeze.py \
+            --profile formal \
+            --input-artifact "$INPUT_DIR" \
+            --input-archive-sha256 "$INPUT_SHA" \
+            --output-root artifacts/task3_1f_formal
+      - name: Run formal Stage B/C
+        run: |
+          B=artifacts/task3_1f_formal/task3_1f_stable_structure_extraction/bundles
+          python scripts/task3_1f3_stage_bc.py \
+            --profile formal \
+            --fit-bundle $B/fit_bundle.npz \
+            --fit-row-map $B/fit_row_map.csv \
+            --fit-evaluation-metadata $B/fit_evaluation_metadata.csv \
+            --validation-bundle $B/validation_bundle.npz \
+            --validation-row-map $B/validation_row_map.csv \
+            --validation-evaluation-metadata $B/validation_evaluation_metadata.csv \
+            --output-root artifacts/task3_1f_formal/run
+      - name: Independently validate formal Stage B/C
+        run: python scripts/task3_1f3_selection_validator.py --artifact-dir artifacts/task3_1f_formal/run/task3_1f3_stage_bc_formal --strict
+      - name: Upload formal Stage B/C artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-1f3-stage-bc-formal
+          path: artifacts/task3_1f_formal/run/task3_1f3_stage_bc_formal
+          retention-days: 30
