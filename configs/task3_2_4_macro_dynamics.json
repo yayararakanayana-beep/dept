@@ -12,7 +12,7 @@
     "validation_seeds": [13],
     "holdout_seeds": [14],
     "condition_groups": [
-      "stable_variation",
+      "stable_continuation",
       "temporary_disturbance",
       "delayed_or_failed_recovery",
       "persistent_deterioration",
