@@ -13,10 +13,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy
-try:
-    import sklearn
-except ModuleNotFoundError:
-    sklearn = None
+import sklearn
 
 from .contract import DEFAULT_CONTRACT, canonical_contract_text, load_contract, sha256_file, sha256_text
 from .metrics import pca_reconstruction, reconstruction_metric_rows
@@ -228,7 +225,7 @@ def run_smoke(
     (output_dir / "environment_manifest.json").write_text(json.dumps({
         "python": sys.version, "platform": platform.platform(), "architecture": platform.machine(),
         "numpy": np.__version__, "scipy": scipy.__version__, "pandas": pd.__version__,
-        "scikit_learn": getattr(sklearn, "__version__", "unavailable"),
+        "scikit_learn": sklearn.__version__,
     }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     summary = {
         "stage": "task3.1f-2-smoke-minimal-extraction", "profile": "smoke", "rank": rank,
