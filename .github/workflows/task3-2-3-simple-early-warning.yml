@@ -41,6 +41,7 @@ jobs:
             tests/test_task3_2_2_continuous_trajectory.py \
             tests/test_task3_2_2_reference_calibration.py \
             tests/test_task3_2_3_simple_early_warning.py \
+            tests/test_task3_2_3_judgement.py \
             2>&1 | tee task3_2_3_pytest.log
       - name: Upload test diagnostics
         if: always()
