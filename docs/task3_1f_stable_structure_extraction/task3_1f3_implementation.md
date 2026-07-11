@@ -1,34 +1,103 @@
-# Task 3.1f-3 Implementation
+# Task 3.1f-3 実装記録
 
-Task 3.1f-3 adds a Stage B/C fit-validation batch path on top of the Task 3.1f-2 minimal extraction scaffold.
+## 1. 位置づけ
 
-## Implemented path
+Task 3.1f-3では、Task 3.1f-2の最小抽出基盤を、固定契約に従ったStage B／Cの一括実行・構造数選択候補・独立監査へ拡張した。
 
-- Formal run-plan construction reads the frozen rank grid and initialization seeds from `configs/task3_1f_structure_extraction_contract.json` and expands them to 49 primary KL-NMF runs.
-- The Stage B/C smoke runner accepts only fit and validation bundles plus row maps; it has no holdout bundle or holdout row-map argument.
-- Evaluation-only metadata is preserved in `evaluation_metadata.csv` and remains separate from the mass feature matrix.
-- Smoke execution uses the same code path as the Stage B/C batch logic, reduced to the first two frozen ranks and a lower iteration cap.
-- The batch path persists KL-NMF runs, weighted PCA references, weighted mean baseline metrics, component matches, rank summaries, structure summaries, perturbation diagnostics, Frobenius sensitivity metadata, and a selection candidate.
-- The producer writes `selection_candidate.json` only. It does not certify the selection lock.
-- A separate independent validator recomputes rank/seed coverage, hashes, convergence evidence, rank summaries, medoid/selection evidence, perturbation diagnostics, and lock eligibility before writing `selection_lock.json`.
+本タスクはholdoutを使用しない。正式holdout評価と最終科学判定はTask 3.1f-4以降で行う。
 
-## Smoke scale
+## 2. 実装した主経路
 
-Smoke profile:
+- 固定契約から構造数`5, 8, 10, 12, 15, 20, 25`を読み込む。
+- 各構造数について決定論的基準run 1本と固定ランダムseed 6本を構築する。
+- 正式実行計画を`7構造数 × 7run = 49run`として生成する。
+- 学習用と検証用だけをStage B／Cへ渡し、holdout入力をCLI・runner・成果物から排除する。
+- 外部要因値や対応情報は評価専用メタデータへ分離し、NMF入力特徴量へ混ぜない。
+- 重み付き一般化KL非負行列分解を実行し、基底・学習用活性度・検証用活性度・反復回数・収束状態を保存する。
+- 全対象構造数について重み付き主成分分析と重み付き平均分布基準を実行する。
+- 再構成指標を重み付き／重みなし、通常／外部要因作用後、step、活性要因数、vector origin別に保存する。
+- 外部要因作用後分布と対応通常分布について、分布距離・変形保持・signed差分の評価指標を実計算する。
+- Jensen–Shannon距離とHungarian法でrun間構造を対応付けする。
+- 代表runを最低誤差ではなく、対応構造類似度のmedoidとして選ぶ。
+- 代表runの各構造について、他runにおける生存率を構造単位で算出する。
+- 重複構造率、未使用構造率、通常／外部分布誤差比、検証用群の完全性を含む全適格条件を適用する。
+- 適格構造数だけにone-standard-error ruleを適用し、最小の適格構造数を選択候補とする。
 
-- ranks: first two frozen ranks, 5 and 8;
-- initializations per smoke rank: deterministic anchor plus all six frozen random seeds;
-- maximum KL-NMF iterations: reduced for CI;
-- formal scientific result: false;
-- holdout accessed: false.
+## 3. 実計算へ修正した感度監査
 
-## Formal readiness
+初版PRに存在した固定値・空成果物・定義表だけの代用は除去した。
 
-Formal run-plan construction is available and verifies the frozen 7 × 7 primary KL-NMF plan. The full 1,582-row formal run is intentionally not executed in pull-request CI and remains a Task 3.1f-4 GitHub Actions execution concern.
+### grouped 80%摂動
 
-## Boundaries
+- 固定salt 5個で決定論的部分集合を作る。
+- 外部要因作用後分布は`external_vector_id`単位、通常分布は`source_run_id`単位で一括採否する。
+- 各部分集合でKL-NMFを実際に再学習する。
+- 選択代表基底と構造対応を行い、中央値・構造別生存数・安定構造率を保存する。
 
-- No holdout evaluation is implemented or executed.
-- No Task 3.1g semantic naming is implemented.
-- PCA and Frobenius references are persisted as references/diagnostics and do not affect primary rank selection.
-- The frozen contract file is not modified.
+### world seed感度
+
+- world seed 0だけ、world seed 1だけの学習用データでKL-NMFを実際に再学習する。
+- 選択構造数は変更せず、代表基底との構造類似度を診断値として保存する。
+
+### Frobenius感度
+
+- 選択構造数と固定grid上の隣接構造数を対象に、固定seed 3本ずつFrobenius NMFを実際に学習する。
+- 感度結果を主構造数選択へ混ぜない。
+
+## 4. 独立監査
+
+生成側は`selection_candidate.json`までを作成し、`selection_lock.json`を作成しない。
+
+別モジュールの独立検証器が保存済み成果物から次を再計算する。
+
+- 固定構造数・seedの実行漏れ
+- モデルhash・形状・非負性・基底総和
+- seed間の成果物使い回し
+- 収束証拠
+- 再構成指標
+- 対応変形指標
+- 構造対応
+- medoid代表run
+- 構造単位の生存率
+- 重複・未使用構造率
+- 全適格条件
+- one-standard-error rule
+- 5部分集合の実学習成果物
+- world seed実学習成果物
+- Frobenius実学習成果物
+- selection candidateと選択モデルのhash
+
+全検査が成功した場合だけ、独立検証器が完全な`selection_lock.json`を作成する。
+
+生成側と監査側はrank summaryや選択関数を共有しない。
+
+## 5. smokeと正式実行
+
+### smoke
+
+- 固定gridの先頭2構造数：5、8
+- 各構造数7run
+- 同一のStage B／C経路
+- 同一の感度監査・独立監査経路
+- 計算量だけ縮小
+- `formal_scientific_result: false`
+
+### formal entrypoint
+
+GitHub Actionsの手動実行入口を追加した。
+
+- 正式Task 3.1e成果物を取得する。
+- 固定digestと入力契約を検査する。
+- 全7構造数・49run・最大2,000反復を実行する。
+- 独立Stage C監査を実行する。
+- 正式Stage B／C成果物を保存する。
+
+PR検証では正式長時間実行を行わない。
+
+## 6. 境界
+
+- holdout評価は実装・実行していない。
+- Task 3.1gの意味論名付けは行っていない。
+- smokeの選択構造数を正式科学結果として扱わない。
+- 固定契約ファイルは変更していない。
+- scikit-learn不在時の別アルゴリズムへの自動切替は行わない。
