@@ -34,6 +34,7 @@ jobs:
           python -m py_compile scripts/task3_2_4_challenge_corpus.py
           python -m py_compile scripts/task3_2_4_challenge_runner.py
           python -m py_compile scripts/task3_2_4_macro_dynamics.py
+          python -m py_compile scripts/task3_2_4_result_runner.py
       - name: Run Task 3.2 targeted tests
         run: |
           set -o pipefail
@@ -45,6 +46,7 @@ jobs:
             tests/test_task3_2_3_judgement.py \
             tests/test_task3_2_4_challenge_corpus.py \
             tests/test_task3_2_4_macro_dynamics.py \
+            tests/test_task3_2_4_judgement.py \
             2>&1 | tee task3_2_4_pytest.log
       - name: Upload test diagnostics
         if: always()
@@ -65,12 +67,12 @@ jobs:
         run: python scripts/task3_2_4_challenge_runner.py validate --input work/task4_challenge_corpus
       - name: Run Task 4 macro-dynamics extraction and comparison
         run: |
-          python scripts/task3_2_4_macro_dynamics.py run \
+          python scripts/task3_2_4_result_runner.py run \
             --challenge-corpus work/task4_challenge_corpus \
             --reference-corpus work/task3_reference_corpus \
             --output artifacts/task3_2_4_formal
       - name: Validate persisted Task 4 output
-        run: python scripts/task3_2_4_macro_dynamics.py validate --input artifacts/task3_2_4_formal
+        run: python scripts/task3_2_4_result_runner.py validate --input artifacts/task3_2_4_formal
       - name: Upload formal Task 4 artifact
         uses: actions/upload-artifact@v4
         with:
