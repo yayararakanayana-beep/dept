@@ -56,7 +56,7 @@ def weighted_quantile(values: np.ndarray, weights: np.ndarray, quantile: float) 
     sorted_values = data[order]
     sorted_weights = w[order]
     cumulative = np.cumsum(sorted_weights)
-    threshold = quantile * float(cumulative[-1])
+    threshold = quantile * float(sorted_weights.sum(dtype=np.float64))
     index = min(int(np.searchsorted(cumulative, threshold, side="left")), len(sorted_values) - 1)
     return float(sorted_values[index])
 

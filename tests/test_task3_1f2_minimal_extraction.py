@@ -104,3 +104,18 @@ def test_component_matching_is_permutation_invariant() -> None:
     recovered = {item["component_index_a"]: permutation[item["component_index_b"]] for item in matches}
     assert recovered == {index: index for index in range(5)}
     assert max(item["js_distance"] for item in matches) < 1e-9
+
+
+def test_weighted_median_uses_identical_total_definition() -> None:
+    from task3_1f_structure_extraction.metrics import weighted_quantile as generated_quantile
+    from task3_1f_structure_extraction.validator import _weighted_quantile as audited_quantile
+
+    values = np.arange(16, dtype=np.float64)
+    weights = np.asarray([
+        0.5476190476190476, 0.5476190476190476, 0.5476190476190476, 0.5476190476190476,
+        0.5476190476190476, 0.5476190476190476, 0.8214285714285714, 0.8214285714285714,
+        0.8214285714285714, 0.8214285714285714, 0.5476190476190476, 0.5476190476190476,
+        0.5476190476190476, 0.5476190476190476, 0.5476190476190476, 0.5476190476190476,
+    ], dtype=np.float64)
+    assert generated_quantile(values, weights, 0.5) == 8.0
+    assert audited_quantile(values, weights, 0.5) == 8.0
