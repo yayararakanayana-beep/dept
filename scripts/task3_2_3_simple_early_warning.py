@@ -1,13 +1,17 @@
 """Public runner for Task 3.2-3 simple early-warning baselines."""
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 
 import _task3_2_3_core as _core
 from _task3_2_3_core import *  # noqa: F401,F403
+
+ROOT = _core.ROOT
+EXTERNAL_FIELDS = _core.EXTERNAL_FIELDS
+CorpusEntry = _core.CorpusEntry
 
 
 def _apply_alarm(
@@ -16,7 +20,7 @@ def _apply_alarm(
     threshold: float,
     persistence: int,
 ) -> np.ndarray:
-    """Apply a consecutive-threshold alarm without relying on namedtuple field rewriting."""
+    """Apply a consecutive-threshold alarm without namedtuple field rewriting."""
     result = np.zeros(len(frame), dtype=np.int64)
     working = frame[["trajectory_id", "step"]].copy()
     working["position"] = np.arange(len(frame), dtype=np.int64)
@@ -41,4 +45,4 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = list(_core.__all__) + ["main"]
+__all__ = list(_core.__all__) + ["CorpusEntry", "EXTERNAL_FIELDS", "ROOT", "main"]
