@@ -63,6 +63,8 @@
     "action_duration_steps": 8,
     "delays": [0, 4, 8],
     "strengths": [0.35, 0.7, 1.0],
+    "replicate_count": 2,
+    "replicate_distribution_noise": 0.0001,
     "probe_families": [
       "no_action",
       "resource_relief",
@@ -96,7 +98,7 @@
   "structural_truth": {
     "recovery_probability_threshold": 0.5,
     "escape_budget": 0.5,
-    "shrinking_current_value_slope_tolerance": 0.002,
+    "shrinking_current_value_slope_tolerance": 0.01,
     "shrinking_escape_cost_increase": 0.02,
     "shrinking_reachable_value_decline": 0.01,
     "shrinking_reachable_range_decline": 0.01,
