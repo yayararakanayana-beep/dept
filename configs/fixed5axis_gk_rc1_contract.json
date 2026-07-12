@@ -1,0 +1,155 @@
+{
+  "task_id": "Fixed5Axis-GK-RC1",
+  "title": "Fixed five-axis G_t and K_t foundation contract",
+  "contract_version": "fixed5axis_gk_rc1",
+  "status": "frozen_for_implementation",
+  "purpose": "Preserve the complete current distribution and its complete ordered history for later macro-dynamics, relation-field, game-structure, and risk-structure prediction research.",
+  "axes": {
+    "order": [
+      "resource_slack",
+      "information_quality",
+      "pressure",
+      "exploration_room",
+      "reversibility"
+    ],
+    "bins": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "shape": [5, 5, 5, 5, 5],
+    "cell_count": 3125
+  },
+  "gt": {
+    "definition": "pre-transition probability mass distribution on the fixed five-axis grid",
+    "canonical_dtype": "float64",
+    "phase": "pre_transition",
+    "source_mode": "reference_full",
+    "mass_tolerance": 1e-10,
+    "negative_tolerance": 0.0,
+    "flatten_order": "C",
+    "automatic_clipping_forbidden": true,
+    "automatic_renormalization_forbidden": true
+  },
+  "kt": {
+    "definition": "complete ordered append-only history of canonical G_t frames",
+    "canonical_layer": "ordered_gt_references",
+    "derived_transition_layer_is_canonical": false,
+    "derived_window_layer_is_canonical": false,
+    "allowed_continuity_status": [
+      "initial",
+      "continuous",
+      "gap",
+      "duplicate",
+      "out_of_order",
+      "source_mismatch"
+    ],
+    "admissible_continuity_status": [
+      "initial",
+      "continuous"
+    ],
+    "overwrite_forbidden": true
+  },
+  "input": {
+    "numeric_source_array": "distribution",
+    "required_source_files": [
+      "metadata.json",
+      "steps.jsonl"
+    ],
+    "forbidden_numeric_inputs": [
+      "truth.jsonl",
+      "summary.json",
+      "metrics.jsonl",
+      "future_state",
+      "future_external_input",
+      "future_event",
+      "future_action",
+      "risk_truth",
+      "recovery_truth",
+      "scenario_final_outcome",
+      "terrain_truth",
+      "flow_truth"
+    ],
+    "provenance_only_fields": [
+      "dataset_split",
+      "seed",
+      "scenario_id",
+      "world_version",
+      "world_config_hash"
+    ]
+  },
+  "separate_logs": {
+    "observed_external_input": true,
+    "observed_action": true,
+    "observed_event": true,
+    "validation_truth_isolated": true
+  },
+  "storage": {
+    "gt_file": "gt_mass.npy",
+    "history_ledger_file": "history_ledger.csv",
+    "provenance_file": "provenance.json",
+    "manifest_file": "manifest.json",
+    "external_log_file": "observed_external_input.jsonl",
+    "action_log_file": "observed_action.jsonl",
+    "event_log_file": "observed_event.jsonl",
+    "derived_directory": "derived",
+    "canonical_manifest_excludes_derived": true,
+    "hash_algorithm": "sha256"
+  },
+  "derived_interfaces": {
+    "transition_metrics": {
+      "required_identity_fields": [
+        "from_t",
+        "to_t",
+        "delta_t",
+        "derivation_name",
+        "derivation_version",
+        "source_gt_hash_from",
+        "source_gt_hash_to"
+      ],
+      "initial_metrics": [
+        "jensen_shannon_distance",
+        "hellinger_distance",
+        "entropy_delta",
+        "concentration_delta",
+        "axis_centroid_delta",
+        "axis_spread_delta"
+      ]
+    },
+    "history_windows": {
+      "supported_selectors": [
+        "start_t_end_t",
+        "last_n",
+        "full_history"
+      ],
+      "window_lengths_frozen": false
+    }
+  },
+  "adoption": {
+    "representation_hard_gate": [
+      "axis_contract_exact",
+      "shape_exact",
+      "dtype_float64",
+      "finite_values",
+      "non_negative_mass",
+      "unit_total_mass",
+      "deterministic_rebuild",
+      "lossless_reload",
+      "ordered_unique_time",
+      "continuity_anomaly_detection",
+      "derived_recomputable",
+      "no_future_information",
+      "no_provenance_field_as_numeric_input",
+      "trajectory_level_split",
+      "validation_truth_isolation",
+      "no_world_writeback",
+      "append_only_history"
+    ],
+    "research_gates": [
+      "external_response_separates_from_normal_variation",
+      "history_adds_value_beyond_current_gt",
+      "validation_and_holdout_stability"
+    ],
+    "judgements": {
+      "A": "formal_adoption",
+      "B": "limited_adoption",
+      "C": "rejected"
+    }
+  }
+}
