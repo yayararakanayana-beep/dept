@@ -1,0 +1,97 @@
+{
+  "task_id": "Fixed5Axis-GK-Validation-RC1",
+  "title": "Fixed five-axis G_t and K_t adoption validation",
+  "contract_version": "fixed5axis_gk_validation_rc1",
+  "foundation_contract": "configs/fixed5axis_gk_rc1_contract.json",
+  "profiles": {
+    "smoke": {
+      "transitions": 8,
+      "pulse_start": 2,
+      "pulse_end": 5,
+      "fit_seeds": [0],
+      "validation_seeds": [1],
+      "holdout_seeds": [2],
+      "scenario_names": ["baseline", "resource_shortage", "information_noise"],
+      "pca_components": 4,
+      "history_width_candidates": [1, 2],
+      "ridge_alphas": [0.001, 0.1, 10.0]
+    },
+    "formal": {
+      "transitions": 16,
+      "pulse_start": 4,
+      "pulse_end": 10,
+      "fit_seeds": [0, 1, 2],
+      "validation_seeds": [3, 4],
+      "holdout_seeds": [5, 6],
+      "scenario_names": [
+        "baseline",
+        "resource_shortage",
+        "demand_increase",
+        "competition_pressure",
+        "information_noise",
+        "shock",
+        "constraint_pressure",
+        "resource_noise_composite",
+        "pressure_constraint_composite"
+      ],
+      "pca_components": 12,
+      "history_width_candidates": [1, 2, 4, 6],
+      "ridge_alphas": [0.0001, 0.01, 1.0, 100.0]
+    }
+  },
+  "strength_by_split": {
+    "fit": 0.50,
+    "validation": 0.65,
+    "holdout": 0.80
+  },
+  "scenario_external_vectors": {
+    "baseline": {},
+    "resource_shortage": {"external_resource_supply": -1.0},
+    "demand_increase": {"external_demand": 1.0},
+    "competition_pressure": {"external_competition_pressure": 1.0},
+    "information_noise": {"external_information_noise": 1.0},
+    "shock": {"external_shock": 1.0},
+    "constraint_pressure": {"external_constraint_pressure": 1.0},
+    "resource_noise_composite": {
+      "external_resource_supply": -0.8,
+      "external_information_noise": 0.8,
+      "external_demand": 0.4
+    },
+    "pressure_constraint_composite": {
+      "external_competition_pressure": 0.8,
+      "external_constraint_pressure": 0.8,
+      "external_shock": 0.3
+    }
+  },
+  "external_response": {
+    "normal_variation_quantile": 0.99,
+    "minimum_threshold": 1e-12,
+    "minimum_scenario_seed_detection_rate": 0.50,
+    "minimum_median_peak_to_threshold_ratio": 1.0
+  },
+  "history_value": {
+    "minimum_relative_rmse_improvement_for_pass": 0.01,
+    "minimum_relative_rmse_improvement_for_partial": 0.0,
+    "require_all_destruction_ablations_worse_for_pass": true
+  },
+  "information_sufficiency": {
+    "representations": ["axis_means", "axis_marginals", "pairwise_marginals", "full_distribution"],
+    "full_distribution_not_worse_tolerance": 0.05
+  },
+  "holdout_policy": {
+    "selection_lock_required": true,
+    "lock_file": "threshold_lock.json",
+    "lock_validation_file": "threshold_lock_validation.json",
+    "post_holdout_change_forbidden": true
+  },
+  "adoption": {
+    "A_requires": [
+      "representation_hard_gate_passed",
+      "external_response_gate_passed",
+      "history_value_gate_passed",
+      "holdout_gate_passed"
+    ],
+    "B_definition": "foundation is valid but one or more scientific gates are partial or not passed",
+    "C_definition": "representation hard gate failed or external response and history value both failed"
+  }
+}
