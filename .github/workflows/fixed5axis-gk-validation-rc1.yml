@@ -1,0 +1,55 @@
+name: Fixed five-axis G_t K_t validation RC1
+
+on:
+  pull_request:
+    paths:
+      - "configs/fixed5axis_gk_rc1_contract.json"
+      - "configs/fixed5axis_gk_validation_rc1.json"
+      - "scripts/fixed5axis_gk_rc1.py"
+      - "scripts/fixed5axis_gk_validation_rc1.py"
+      - "scripts/fixed5axis_gk_validation_rc1_corrected.py"
+      - "tests/test_fixed5axis_gk_rc1.py"
+      - "tests/test_fixed5axis_gk_validation_rc1.py"
+      - "pseudo_reality/distribution_terrain_v3*.py"
+      - ".github/workflows/fixed5axis-gk-validation-rc1.yml"
+  workflow_dispatch:
+
+jobs:
+  formal-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Compile validation modules
+        run: |
+          python -m py_compile scripts/fixed5axis_gk_rc1.py
+          python -m py_compile scripts/fixed5axis_gk_validation_rc1.py
+          python -m py_compile scripts/fixed5axis_gk_validation_rc1_corrected.py
+      - name: Run targeted tests
+        run: |
+          python -m pytest -vv \
+            tests/test_fixed5axis_gk_rc1.py \
+            tests/test_fixed5axis_gk_validation_rc1.py
+      - name: Run formal validation
+        run: |
+          python scripts/fixed5axis_gk_validation_rc1_corrected.py run \
+            --profile formal \
+            --output artifacts/fixed5axis_gk_validation_rc1
+      - name: Validate persisted artifact
+        run: |
+          python scripts/fixed5axis_gk_validation_rc1_corrected.py validate \
+            --input artifacts/fixed5axis_gk_validation_rc1
+      - name: Upload formal artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-gk-validation-rc1-formal
+          path: artifacts/fixed5axis_gk_validation_rc1
+          retention-days: 30
