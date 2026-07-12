@@ -1,0 +1,36 @@
+name: Relation field grid RF-2 RC1
+
+on:
+  pull_request:
+    paths:
+      - "configs/relation_field_rc1_contract.json"
+      - "configs/relation_field_grid_rc1_contract.json"
+      - "scripts/relation_field_grid_rc1.py"
+      - "tests/test_relation_field_grid_rc1.py"
+      - "docs/relation_field_rc1/RF2_GRID_CONNECTIVITY.md"
+      - ".github/workflows/relation-field-grid-rc1.yml"
+  workflow_dispatch:
+
+jobs:
+  grid-contract-and-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m py_compile scripts/relation_field_grid_rc1.py
+      - run: python -m pytest -q tests/test_relation_field_grid_rc1.py
+      - run: |
+          python scripts/relation_field_grid_rc1.py build \
+            --output artifacts/relation_field_grid_rc1
+          python scripts/relation_field_grid_rc1.py validate \
+            --input artifacts/relation_field_grid_rc1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-grid-rf2-rc1
+          path: artifacts/relation_field_grid_rc1
+          retention-days: 30
