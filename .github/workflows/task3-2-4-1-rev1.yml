@@ -3,7 +3,7 @@ name: Task 3.2-4.1 Rev1 Formal Validation
 on:
   pull_request:
     paths:
-      - 'scripts/task3_2_4_1_rev1.py'
+      - 'scripts/task3_2_4_1_rev1*.py'
       - 'configs/task3_2_4_1_rev1.json'
       - 'tests/test_task3_2_4_1_rev1.py'
       - 'docs/task3_2_4_1_rev1_design.md'
@@ -32,6 +32,10 @@ jobs:
       - name: Compile Rev1 modules
         run: |
           python -m py_compile scripts/task3_2_4_1_structural_risk.py
+          python -m py_compile scripts/task3_2_4_1_rev1_common.py
+          python -m py_compile scripts/task3_2_4_1_rev1_boundaries.py
+          python -m py_compile scripts/task3_2_4_1_rev1_truth.py
+          python -m py_compile scripts/task3_2_4_1_rev1_prediction.py
           python -m py_compile scripts/task3_2_4_1_rev1.py
       - name: Run Rev1 contract tests
         run: python -m pytest -vv tests/test_task3_2_4_1_rev1.py
