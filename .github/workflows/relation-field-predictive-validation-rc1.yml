@@ -180,24 +180,24 @@ jobs:
                   {
                       "case_id": "neutral_suffix",
                       "partition": "development",
-                      "trajectory_dir": str(neutral),
-                      "grid_artifact_dir": "artifacts/relation_field_grid_rc1",
-                      "rf5_artifact_dir": "artifacts/relation_field_temporal_consistency_rc1",
-                      "rf6_artifact_dir": "artifacts/relation_field_hodge_decomposition_rc1",
-                      "rf7_artifact_dir": "artifacts/relation_field_shape_dynamics_rc1",
-                      "rf8_artifact_dir": "artifacts/relation_field_axis_coupling_innovation_rc1",
-                      "rf9_artifact_dir": "artifacts/relation_field_risk_structure_rc1"
+                      "trajectory_dir": "rf10_demo_neutral",
+                      "grid_artifact_dir": "relation_field_grid_rc1",
+                      "rf5_artifact_dir": "relation_field_temporal_consistency_rc1",
+                      "rf6_artifact_dir": "relation_field_hodge_decomposition_rc1",
+                      "rf7_artifact_dir": "relation_field_shape_dynamics_rc1",
+                      "rf8_artifact_dir": "relation_field_axis_coupling_innovation_rc1",
+                      "rf9_artifact_dir": "relation_field_risk_structure_rc1"
                   },
                   {
                       "case_id": "divergent_suffix",
                       "partition": "development",
-                      "trajectory_dir": str(divergent),
-                      "grid_artifact_dir": "artifacts/relation_field_grid_rc1",
-                      "rf5_artifact_dir": "artifacts/relation_field_temporal_consistency_rc1",
-                      "rf6_artifact_dir": "artifacts/relation_field_hodge_decomposition_rc1",
-                      "rf7_artifact_dir": "artifacts/relation_field_shape_dynamics_rc1",
-                      "rf8_artifact_dir": "artifacts/relation_field_axis_coupling_innovation_rc1",
-                      "rf9_artifact_dir": "artifacts/relation_field_risk_structure_rc1"
+                      "trajectory_dir": "rf10_demo_divergent",
+                      "grid_artifact_dir": "relation_field_grid_rc1",
+                      "rf5_artifact_dir": "relation_field_temporal_consistency_rc1",
+                      "rf6_artifact_dir": "relation_field_hodge_decomposition_rc1",
+                      "rf7_artifact_dir": "relation_field_shape_dynamics_rc1",
+                      "rf8_artifact_dir": "relation_field_axis_coupling_innovation_rc1",
+                      "rf9_artifact_dir": "relation_field_risk_structure_rc1"
                   }
               ]
           }
