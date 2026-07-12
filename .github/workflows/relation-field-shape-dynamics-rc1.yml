@@ -1,0 +1,164 @@
+name: Relation field shape dynamics RF-7 RC1
+
+on:
+  pull_request:
+    paths:
+      - "configs/relation_field_shape_dynamics_rc1.json"
+      - "scripts/relation_field_shape_dynamics_rc1.py"
+      - "tests/test_relation_field_shape_dynamics_rc1.py"
+      - "docs/relation_field_rc1/RF7_SHAPE_DYNAMICS.md"
+      - "scripts/relation_field_hodge_decomposition_rc1.py"
+      - "scripts/relation_field_temporal_consistency_rc1.py"
+      - "scripts/relation_field_single_transition_rc1.py"
+      - "scripts/relation_field_grid_rc1.py"
+      - ".github/workflows/relation-field-shape-dynamics-rc1.yml"
+  workflow_dispatch:
+
+jobs:
+  shape-dynamics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - name: Compile RF-2 through RF-7 modules
+        run: |
+          python -m py_compile scripts/relation_field_grid_rc1.py
+          python -m py_compile scripts/relation_field_single_transition_rc1.py
+          python -m py_compile scripts/relation_field_temporal_consistency_rc1.py
+          python -m py_compile scripts/relation_field_hodge_decomposition_rc1.py
+          python -m py_compile scripts/relation_field_shape_dynamics_rc1.py
+      - name: Run RF-2 through RF-7 regression tests
+        run: |
+          python -m pytest -q \
+            tests/test_relation_field_grid_rc1.py \
+            tests/test_relation_field_single_transition_rc1.py \
+            tests/test_relation_field_temporal_consistency_rc1.py \
+            tests/test_relation_field_temporal_precision_rc1.py \
+            tests/test_relation_field_hodge_decomposition_rc1.py \
+            tests/test_relation_field_shape_dynamics_rc1.py
+      - name: Build RF-2 grid artifact
+        run: |
+          python scripts/relation_field_grid_rc1.py build \
+            --output artifacts/relation_field_grid_rc1
+      - name: Create deterministic split-merge K_t fixture
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import sys
+          from pathlib import Path
+          import numpy as np
+
+          sys.path.insert(0, "scripts")
+          from relation_field_grid_rc1 import cell_id_from_indices
+          from relation_field_single_transition_rc1 import (
+              GENESIS_HASH,
+              _compute_gt_hash,
+              _compute_history_chain_hash,
+          )
+
+          root = Path("artifacts/rf7_demo_trajectory")
+          root.mkdir(parents=True, exist_ok=False)
+
+          def distribution(entries):
+              flat = np.zeros(3125, dtype=np.float64)
+              for indices, mass in entries.items():
+                  flat[cell_id_from_indices(indices)] = mass
+              return flat.reshape((5, 5, 5, 5, 5))
+
+          center = distribution({(2, 2, 2, 2, 2): 1.0})
+          split = distribution({(2, 2, 2, 2, 1): 0.5, (2, 2, 2, 2, 3): 0.5})
+          frames = [center, split, center]
+          np.save(root / "gt_mass.npy", np.stack(frames), allow_pickle=False)
+
+          fields = (
+              "trajectory_id", "source_trajectory_id", "t", "phase", "gt_row_index",
+              "gt_hash", "previous_gt_hash", "history_chain_hash", "delta_t",
+              "continuity_status", "admissible_for_research", "source_state_ref",
+              "source_state_hash",
+          )
+          rows = []
+          previous_gt_hash = ""
+          chain_hash = GENESIS_HASH
+          for t, frame in enumerate(frames):
+              frame_digest = hashlib.sha256(np.ascontiguousarray(frame).tobytes()).hexdigest()
+              source_state_hash = hashlib.sha256(f"rf7-demo-state-{t}-{frame_digest}".encode()).hexdigest()
+              gt_hash = _compute_gt_hash(
+                  trajectory_id="traj_rf7_demo",
+                  t=t,
+                  distribution=frame,
+                  source_state_hash=source_state_hash,
+              )
+              chain_hash = _compute_history_chain_hash(chain_hash, gt_hash, t)
+              rows.append({
+                  "trajectory_id": "traj_rf7_demo",
+                  "source_trajectory_id": "traj_rf7_demo",
+                  "t": t,
+                  "phase": "pre_transition",
+                  "gt_row_index": t,
+                  "gt_hash": gt_hash,
+                  "previous_gt_hash": previous_gt_hash,
+                  "history_chain_hash": chain_hash,
+                  "delta_t": 0 if t == 0 else 1,
+                  "continuity_status": "initial" if t == 0 else "continuous",
+                  "admissible_for_research": True,
+                  "source_state_ref": f"states/step_{t:06d}.npz",
+                  "source_state_hash": source_state_hash,
+              })
+              previous_gt_hash = gt_hash
+          with (root / "history_ledger.csv").open("w", encoding="utf-8", newline="") as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
+              writer.writeheader()
+              writer.writerows(rows)
+          PY
+      - name: Build RF-5 temporal candidate field
+        run: |
+          python scripts/relation_field_temporal_consistency_rc1.py build \
+            --trajectory artifacts/rf7_demo_trajectory \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_temporal_consistency_rc1 \
+            --start-t 0 \
+            --to-t 2
+      - name: Build RF-6 Hodge decomposition
+        run: |
+          python scripts/relation_field_hodge_decomposition_rc1.py build \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_hodge_decomposition_rc1
+      - name: Build RF-7 shape dynamics twice
+        run: |
+          python scripts/relation_field_shape_dynamics_rc1.py build \
+            --trajectory artifacts/rf7_demo_trajectory \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --rf6-artifact artifacts/relation_field_hodge_decomposition_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_shape_dynamics_rc1_a
+          python scripts/relation_field_shape_dynamics_rc1.py build \
+            --trajectory artifacts/rf7_demo_trajectory \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --rf6-artifact artifacts/relation_field_hodge_decomposition_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_shape_dynamics_rc1_b
+      - name: Verify deterministic rebuild
+        run: |
+          diff -qr \
+            artifacts/relation_field_shape_dynamics_rc1_a \
+            artifacts/relation_field_shape_dynamics_rc1_b
+      - name: Validate RF-7 artifact
+        run: |
+          python scripts/relation_field_shape_dynamics_rc1.py validate \
+            --input artifacts/relation_field_shape_dynamics_rc1_a \
+            --trajectory artifacts/rf7_demo_trajectory \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --rf6-artifact artifacts/relation_field_hodge_decomposition_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-shape-dynamics-rf7-rc1
+          path: artifacts/relation_field_shape_dynamics_rc1_a
+          retention-days: 30
