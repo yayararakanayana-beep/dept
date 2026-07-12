@@ -1,0 +1,130 @@
+{
+  "task_id": "RelationField-RF9-RC1",
+  "title": "Integrated structural risk candidates without future prediction",
+  "contract_version": "relation_field_risk_structure_rc1",
+  "status": "implemented_for_rf10_predictive_validation",
+  "parent_contracts": {
+    "temporal_candidate_field": "configs/relation_field_temporal_consistency_rc1.json",
+    "hodge_decomposition": "configs/relation_field_hodge_decomposition_rc1.json",
+    "shape_dynamics": "configs/relation_field_shape_dynamics_rc1.json",
+    "axis_coupling_innovation": "configs/relation_field_axis_coupling_innovation_rc1.json"
+  },
+  "purpose": "Integrate RF-6-derived gradient/circulation energy ranges, RF-7 shape/channel/boundary dynamics, and RF-8 same-axis feedback, innovation, ambiguity, and unresolved residual into conservative structural risk candidates while preserving supporting evidence, counterevidence, and uncertainty and without producing a scalar risk score or future prediction.",
+  "input": {
+    "required": [
+      "RF-5 temporal candidate-field artifact",
+      "RF-6 Hodge-decomposition artifact",
+      "RF-7 shape-dynamics artifact",
+      "RF-8 axis-coupling and innovation artifact",
+      "canonical trajectory prefix only for parent artifact validation"
+    ],
+    "minimum_transition_count": 3,
+    "all_parent_identities_must_match": true,
+    "rf8_validation_must_pass_before_integration": true,
+    "future_history_suffix_read_forbidden": true,
+    "external_input_action_event_or_truth_read_forbidden": true,
+    "canonical_G_t_or_K_t_direct_feature_use_forbidden": true,
+    "canonical_and_parent_writeback_forbidden": true,
+    "canonical_or_parent_payload_copy_forbidden": true
+  },
+  "alignment": {
+    "risk_row_definition": "RF8 lag i compares transition i and i+1 and is aligned to RF7 and RF8 evidence at target transition i+1",
+    "first_transition_has_no_risk_row": true,
+    "aligned_risk_row_count": "transition_count_minus_one",
+    "transition_time_source": "RF7 transition_shape_metrics transition_times at target transition"
+  },
+  "risk_structure": {
+    "shape_convergence_signal": "contraction OR concentration OR coalescence",
+    "shape_divergence_signal": "expansion OR dispersion OR fragmentation",
+    "same_axis_amplification_signal": "any RF8 same-direction amplification axis at the aligned lag",
+    "same_axis_attenuation_or_cessation_signal": "any RF8 same-direction attenuation or axis cessation at the aligned lag",
+    "boundary_recovery_weakening_signal": "RF7 boundary sticking OR persistent boundary mass with declining mass-weighted inward flow",
+    "boundary_recovery_strengthening_counterevidence": "inward-flow increase OR channel widening OR direction reversal OR expansion OR dispersion",
+    "observed_return_suppression_candidate": "boundary recovery weakening AND no recovery-strengthening counterevidence",
+    "overconvergence_candidate": "shape convergence AND flow-channel narrowing AND same-axis amplification",
+    "fixation_candidate": "overconvergence AND observed return suppression",
+    "divergence_candidate": "shape divergence AND flow-channel widening AND same-axis attenuation or cessation",
+    "recovery_margin_reduction_candidate": "boundary recovery weakening AND no recovery-strengthening counterevidence",
+    "new_drive_coincident_candidate": "history-conditioned new drive at the same target transition AND at least one structural candidate",
+    "gradient_dominance_consensus": "RF7 RF6-derived gradient-energy minimum exceeds circulation-energy maximum",
+    "circulation_dominance_consensus": "RF7 RF6-derived circulation-energy minimum exceeds gradient-energy maximum",
+    "energy_dominance_tolerance": 1e-12,
+    "boundary_recovery_change_tolerance": 1e-09,
+    "boundary_persistence_threshold": 0.5,
+    "gradient_or_circulation_dominance_is_modifier_not_risk": true
+  },
+  "unresolved_residual": {
+    "observed_change_l1": "two_times_RF7_total_variation_distance",
+    "residual_fraction": "RF8 residual_l1 divided by observed_change_l1",
+    "dominance_rule": "RF8 residual_l1 minimum exceeds absolute floor and is at least the configured fraction of observed change for every saved optimal candidate",
+    "dominance_fraction": 0.5,
+    "absolute_floor": 1e-09,
+    "history_innovation_must_remain_separate": true,
+    "residual_dominance_is_model_inadequacy_candidate_not_external_factor": true
+  },
+  "aggregation": {
+    "single_scalar_risk_score_forbidden": true,
+    "weighted_sum_across_candidate_types_forbidden": true,
+    "candidate_types_remain_parallel": true,
+    "supporting_evidence_ledger_required": true,
+    "counterevidence_ledger_required": true,
+    "absence_of_candidate_is_not_safety_proof": true,
+    "risk_candidate_boolean_conjunctions_required": true
+  },
+  "semantic_limits": {
+    "true_irreversibility_claim": false,
+    "future_risk_prediction_claim": false,
+    "causal_claim": false,
+    "attractor_or_repeller_claim": false,
+    "external_factor_claim": false,
+    "safety_proof_claim": false,
+    "observed_return_suppression_is_not_true_irreversibility": true,
+    "gradient_or_circulation_dominance_is_not_attraction_or_repulsion": true,
+    "new_drive_is_not_external_input": true
+  },
+  "acceptance": {
+    "overconvergence_and_fixation_synthetic_recovery_required": true,
+    "divergence_synthetic_recovery_required": true,
+    "return_counterevidence_must_block_fixation": true,
+    "new_drive_without_structural_candidate_must_remain_noncoincident": true,
+    "unresolved_residual_dominance_synthetic_recovery_required": true,
+    "parent_identity_gate_required": true,
+    "future_suffix_independence_inherited_and_rechecked": true,
+    "deterministic_rebuild_required": true,
+    "manifest_required": true,
+    "source_not_modified_required": true,
+    "scientific_claim": "B_limited_structural_risk_candidates_without_prediction"
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "identity_file": "identity.json",
+    "metrics_file": "risk_structure_metrics.npz",
+    "candidates_file": "risk_structure_candidates.json",
+    "evidence_file": "risk_evidence_ledger.json",
+    "counterevidence_file": "risk_counterevidence_ledger.json",
+    "diagnostics_file": "risk_structure_diagnostics.json",
+    "uncertainty_file": "uncertainty.json",
+    "provenance_file": "provenance.json",
+    "summary_file": "summary.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "produce_single_scalar_risk_score",
+    "call_observed_return_suppression_true_irreversibility",
+    "call_gradient_dominance_attraction",
+    "call_circulation_dominance_relation_lock_without_later_validation",
+    "call_history_conditioned_new_drive_external_input_or_external_shock",
+    "merge_history_innovation_into_unresolved_transport_residual",
+    "infer_safety_from_absence_of_candidate",
+    "read_G_after_RF5_to_t",
+    "read_external_input_action_event_or_truth",
+    "modify_or_copy canonical G_t K_t or parent artifacts",
+    "perform_future_risk_prediction",
+    "perform_action_selection"
+  ]
+}
