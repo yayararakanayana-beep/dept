@@ -1,0 +1,295 @@
+name: Relation field predictive validation RF-10 RC1
+
+on:
+  pull_request:
+    paths:
+      - "configs/relation_field_predictive_validation_rc1.json"
+      - "scripts/relation_field_predictive_validation_rc1.py"
+      - "tests/test_relation_field_predictive_validation_rc1.py"
+      - "docs/relation_field_rc1/RF10_PREDICTIVE_VALIDATION.md"
+      - "scripts/relation_field_risk_structure_rc1.py"
+      - "scripts/relation_field_axis_coupling_innovation_rc1.py"
+      - "scripts/relation_field_shape_dynamics_rc1.py"
+      - "scripts/relation_field_hodge_decomposition_rc1.py"
+      - "scripts/relation_field_temporal_consistency_rc1.py"
+      - "scripts/relation_field_single_transition_rc1.py"
+      - "scripts/relation_field_grid_rc1.py"
+      - ".github/workflows/relation-field-predictive-validation-rc1.yml"
+  workflow_dispatch:
+
+jobs:
+  predictive-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - name: Compile RF-2 through RF-10 modules
+        run: |
+          python -m py_compile scripts/relation_field_grid_rc1.py
+          python -m py_compile scripts/relation_field_single_transition_rc1.py
+          python -m py_compile scripts/relation_field_temporal_consistency_rc1.py
+          python -m py_compile scripts/relation_field_hodge_decomposition_rc1.py
+          python -m py_compile scripts/relation_field_shape_dynamics_rc1.py
+          python -m py_compile scripts/relation_field_axis_coupling_innovation_rc1.py
+          python -m py_compile scripts/relation_field_risk_structure_rc1.py
+          python -m py_compile scripts/relation_field_predictive_validation_rc1.py
+      - name: Run RF-2 through RF-10 regression tests
+        run: |
+          python -m pytest -q \
+            tests/test_relation_field_grid_rc1.py \
+            tests/test_relation_field_single_transition_rc1.py \
+            tests/test_relation_field_temporal_consistency_rc1.py \
+            tests/test_relation_field_temporal_precision_rc1.py \
+            tests/test_relation_field_hodge_decomposition_rc1.py \
+            tests/test_relation_field_shape_dynamics_rc1.py \
+            tests/test_relation_field_axis_coupling_innovation_rc1.py \
+            tests/test_relation_field_risk_structure_rc1.py \
+            tests/test_relation_field_predictive_validation_rc1.py
+      - name: Build RF-2 grid artifact
+        run: |
+          python scripts/relation_field_grid_rc1.py build \
+            --output artifacts/relation_field_grid_rc1
+      - name: Create shared-prefix future trajectories and RF-10 case manifest
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+          import numpy as np
+
+          sys.path.insert(0, "scripts")
+          from relation_field_grid_rc1 import cell_id_from_indices
+          from relation_field_single_transition_rc1 import (
+              GENESIS_HASH,
+              _compute_gt_hash,
+              _compute_history_chain_hash,
+          )
+
+          root = Path("artifacts")
+
+          def point(indices):
+              flat = np.zeros(3125, dtype=np.float64)
+              flat[cell_id_from_indices(indices)] = 1.0
+              return flat.reshape((5, 5, 5, 5, 5))
+
+          def mixture(items):
+              flat = np.zeros(3125, dtype=np.float64)
+              for indices, mass in items:
+                  flat[cell_id_from_indices(indices)] += float(mass)
+              assert np.isclose(np.sum(flat), 1.0)
+              return flat.reshape((5, 5, 5, 5, 5))
+
+          prefix = [
+              point((0, 2, 2, 2, 2)),
+              point((1, 2, 2, 2, 2)),
+              point((2, 2, 2, 2, 2)),
+              point((3, 2, 2, 2, 2)),
+              point((3, 3, 2, 2, 2)),
+          ]
+          neutral_future = [
+              point((2, 3, 2, 2, 2)),
+              point((2, 2, 2, 2, 2)),
+              point((3, 2, 2, 2, 2)),
+              point((3, 3, 2, 2, 2)),
+          ]
+          divergent_future = [
+              mixture([
+                  ((3, 3, 2, 2, 2), 0.5),
+                  ((2, 3, 2, 2, 2), 0.5),
+              ]),
+              mixture([
+                  ((3, 3, 2, 2, 2), 0.25),
+                  ((2, 3, 2, 2, 2), 0.25),
+                  ((3, 2, 2, 2, 2), 0.25),
+                  ((2, 2, 2, 2, 2), 0.25),
+              ]),
+              mixture([
+                  ((a, b, c, 2, 2), 0.125)
+                  for a in (2, 3)
+                  for b in (2, 3)
+                  for c in (1, 2)
+              ]),
+              mixture([
+                  ((a, b, c, d, 2), 0.0625)
+                  for a in (2, 3)
+                  for b in (2, 3)
+                  for c in (1, 2)
+                  for d in (1, 2)
+              ]),
+          ]
+
+          fields = (
+              "trajectory_id", "source_trajectory_id", "t", "phase", "gt_row_index",
+              "gt_hash", "previous_gt_hash", "history_chain_hash", "delta_t",
+              "continuity_status", "admissible_for_research", "source_state_ref",
+              "source_state_hash",
+          )
+
+          def write_trajectory(path, frames):
+              path.mkdir(parents=True, exist_ok=False)
+              np.save(path / "gt_mass.npy", np.stack(frames), allow_pickle=False)
+              rows = []
+              previous_gt_hash = ""
+              chain_hash = GENESIS_HASH
+              for t, frame in enumerate(frames):
+                  frame_digest = hashlib.sha256(np.ascontiguousarray(frame).tobytes()).hexdigest()
+                  source_state_hash = hashlib.sha256(f"rf10-demo-{t}-{frame_digest}".encode()).hexdigest()
+                  gt_hash = _compute_gt_hash(
+                      trajectory_id="traj_rf10_demo_shared_prefix",
+                      t=t,
+                      distribution=frame,
+                      source_state_hash=source_state_hash,
+                  )
+                  chain_hash = _compute_history_chain_hash(chain_hash, gt_hash, t)
+                  rows.append({
+                      "trajectory_id": "traj_rf10_demo_shared_prefix",
+                      "source_trajectory_id": "traj_rf10_demo_shared_prefix",
+                      "t": t,
+                      "phase": "pre_transition",
+                      "gt_row_index": t,
+                      "gt_hash": gt_hash,
+                      "previous_gt_hash": previous_gt_hash,
+                      "history_chain_hash": chain_hash,
+                      "delta_t": 0 if t == 0 else 1,
+                      "continuity_status": "initial" if t == 0 else "continuous",
+                      "admissible_for_research": True,
+                      "source_state_ref": f"states/step_{t:06d}.npz",
+                      "source_state_hash": source_state_hash,
+                  })
+                  previous_gt_hash = gt_hash
+              with (path / "history_ledger.csv").open("w", encoding="utf-8", newline="") as handle:
+                  writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
+                  writer.writeheader()
+                  writer.writerows(rows)
+
+          neutral = root / "rf10_demo_neutral"
+          divergent = root / "rf10_demo_divergent"
+          write_trajectory(neutral, prefix + neutral_future)
+          write_trajectory(divergent, prefix + divergent_future)
+
+          case_manifest = {
+              "manifest_version": "relation_field_predictive_validation_case_manifest_rc1",
+              "cases": [
+                  {
+                      "case_id": "neutral_suffix",
+                      "partition": "development",
+                      "trajectory_dir": str(neutral),
+                      "grid_artifact_dir": "artifacts/relation_field_grid_rc1",
+                      "rf5_artifact_dir": "artifacts/relation_field_temporal_consistency_rc1",
+                      "rf6_artifact_dir": "artifacts/relation_field_hodge_decomposition_rc1",
+                      "rf7_artifact_dir": "artifacts/relation_field_shape_dynamics_rc1",
+                      "rf8_artifact_dir": "artifacts/relation_field_axis_coupling_innovation_rc1",
+                      "rf9_artifact_dir": "artifacts/relation_field_risk_structure_rc1"
+                  },
+                  {
+                      "case_id": "divergent_suffix",
+                      "partition": "development",
+                      "trajectory_dir": str(divergent),
+                      "grid_artifact_dir": "artifacts/relation_field_grid_rc1",
+                      "rf5_artifact_dir": "artifacts/relation_field_temporal_consistency_rc1",
+                      "rf6_artifact_dir": "artifacts/relation_field_hodge_decomposition_rc1",
+                      "rf7_artifact_dir": "artifacts/relation_field_shape_dynamics_rc1",
+                      "rf8_artifact_dir": "artifacts/relation_field_axis_coupling_innovation_rc1",
+                      "rf9_artifact_dir": "artifacts/relation_field_risk_structure_rc1"
+                  }
+              ]
+          }
+          Path("artifacts/rf10_cases.json").write_text(
+              json.dumps(case_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+      - name: Build RF-5 temporal candidate field through cutoff t=4
+        run: |
+          python scripts/relation_field_temporal_consistency_rc1.py build \
+            --trajectory artifacts/rf10_demo_neutral \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_temporal_consistency_rc1 \
+            --start-t 0 \
+            --to-t 4
+      - name: Build RF-6 Hodge decomposition
+        run: |
+          python scripts/relation_field_hodge_decomposition_rc1.py build \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_hodge_decomposition_rc1
+      - name: Build RF-7 shape dynamics
+        run: |
+          python scripts/relation_field_shape_dynamics_rc1.py build \
+            --trajectory artifacts/rf10_demo_neutral \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --rf6-artifact artifacts/relation_field_hodge_decomposition_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_shape_dynamics_rc1
+      - name: Build RF-8 axis coupling and innovation
+        run: |
+          python scripts/relation_field_axis_coupling_innovation_rc1.py build \
+            --trajectory artifacts/rf10_demo_neutral \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --rf6-artifact artifacts/relation_field_hodge_decomposition_rc1 \
+            --rf7-artifact artifacts/relation_field_shape_dynamics_rc1 \
+            --output artifacts/relation_field_axis_coupling_innovation_rc1
+      - name: Build RF-9 structural risk candidates
+        run: |
+          python scripts/relation_field_risk_structure_rc1.py build \
+            --trajectory artifacts/rf10_demo_neutral \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --rf5-artifact artifacts/relation_field_temporal_consistency_rc1 \
+            --rf6-artifact artifacts/relation_field_hodge_decomposition_rc1 \
+            --rf7-artifact artifacts/relation_field_shape_dynamics_rc1 \
+            --rf8-artifact artifacts/relation_field_axis_coupling_innovation_rc1 \
+            --output artifacts/relation_field_risk_structure_rc1
+      - name: Build RF-10 predictive validation twice
+        run: |
+          python scripts/relation_field_predictive_validation_rc1.py build \
+            --case-manifest artifacts/rf10_cases.json \
+            --output artifacts/relation_field_predictive_validation_rc1_a
+          python scripts/relation_field_predictive_validation_rc1.py build \
+            --case-manifest artifacts/rf10_cases.json \
+            --output artifacts/relation_field_predictive_validation_rc1_b
+      - name: Verify deterministic rebuild
+        run: |
+          diff -qr \
+            artifacts/relation_field_predictive_validation_rc1_a \
+            artifacts/relation_field_predictive_validation_rc1_b
+      - name: Validate RF-10 artifact
+        run: |
+          python scripts/relation_field_predictive_validation_rc1.py validate \
+            --input artifacts/relation_field_predictive_validation_rc1_a \
+            --case-manifest artifacts/rf10_cases.json
+      - name: Verify suffix separation in built artifact
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/relation_field_predictive_validation_rc1_a")
+          snapshot = json.loads((root / "prediction_snapshot.json").read_text(encoding="utf-8"))
+          left, right = snapshot["cases"]
+          assert left["candidate"] == right["candidate"]
+          assert left["component_baseline"] == right["component_baseline"]
+          assert left["cutoff_t"] == right["cutoff_t"] == 4
+          assert left["nonfinal_RF9_rows_evaluated"] is False
+
+          rows = json.loads((root / "sample_ledger.json").read_text(encoding="utf-8"))["rows"]
+          neutral = next(row for row in rows if row["case_id"] == "neutral_suffix" and row["horizon"] == 4)
+          divergent = next(row for row in rows if row["case_id"] == "divergent_suffix" and row["horizon"] == 4)
+          assert neutral["outcomes"]["future_dispersion_outcome"] is False
+          assert divergent["outcomes"]["future_dispersion_outcome"] is True
+
+          validation = json.loads((root / "validation.json").read_text(encoding="utf-8"))
+          assert validation["predictive_accuracy_claim_allowed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-predictive-validation-rf10-rc1
+          path: artifacts/relation_field_predictive_validation_rc1_a
+          retention-days: 30
