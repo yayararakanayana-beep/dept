@@ -1,0 +1,195 @@
+{
+  "task_id": "Task 3.2-4.1 Rev1",
+  "title": "Structural truth, continuation assumptions, and adaptive action boundaries",
+  "status": "formal_rev1_validation",
+  "task2_config_path": "configs/task3_2_2_continuous_trajectory.json",
+  "task3_config_path": "configs/task3_2_3_simple_early_warning.json",
+  "calibration_config_path": "configs/task3_2_2_reference_calibration.json",
+  "task1_contract_path": "configs/task3_2_1_macro_dynamics_contract.json",
+  "challenge": {
+    "transitions": 64,
+    "fit_seeds": [30, 31, 32],
+    "validation_seeds": [33],
+    "holdout_seeds": [34],
+    "condition_groups": [
+      "stable_continuation",
+      "temporary_disturbance",
+      "delayed_or_failed_recovery",
+      "persistent_deterioration",
+      "fixation_path",
+      "collapse_path"
+    ],
+    "start_step_range": [6, 14],
+    "duration_range": [4, 12],
+    "strength_multiplier_range": [0.7, 1.3],
+    "residual_burden_range": [0.0, 0.4],
+    "relapse_probability": 0.5,
+    "relapse_delay_range": [8, 18]
+  },
+  "representation_candidates": {
+    "input_scopes": ["distribution", "full_state"],
+    "distribution_transforms": ["sqrt"],
+    "full_state_projection_per_array": 12,
+    "latent_dimensions": [4, 8, 12],
+    "dynamics_families": ["static", "dmd", "dmdc", "havok_residual"],
+    "feature_modes": ["macro_only", "task3_plus_macro"],
+    "prediction_horizons": [4, 8, 16],
+    "delay_width": 8,
+    "ridge_regularization": 1e-6,
+    "random_state": 0
+  },
+  "fixed_macro_candidate": {
+    "input_scope": "distribution",
+    "latent_dimension": 8,
+    "dynamics_family": "dmdc",
+    "prediction_horizon": 16,
+    "history_width": 8
+  },
+  "snapshot_selection": {
+    "steps": [12, 28, 44],
+    "minimum_history_width": 8,
+    "maximum_snapshots_per_trajectory": 3
+  },
+  "safe_region": {
+    "reference_scenario": "stable_continuation",
+    "risk_quantile": 0.98,
+    "lower_quantile": 0.02,
+    "upper_quantile": 0.98,
+    "numeric_margin": 0.01,
+    "sustained_steps": 4,
+    "post_action_followup_steps": 8
+  },
+  "branch_probe": {
+    "action_duration_steps": 8,
+    "replicate_count": 1,
+    "replicate_distribution_noise": 0.0001,
+    "continuation_horizon_steps": 16,
+    "continuation_conditions": [
+      "C0_current_input_fixed_then_neutral",
+      "C1_immediate_neutral",
+      "C2_original_future_replay",
+      "C3_same_seed_stable_future_replay"
+    ],
+    "primary_conditions": [
+      "C2_original_future_replay",
+      "C3_same_seed_stable_future_replay"
+    ],
+    "probe_families": [
+      "no_action",
+      "resource_relief",
+      "constraint_relief",
+      "information_relief",
+      "combined_relief"
+    ],
+    "coarse_strengths": [0.35, 0.70],
+    "combined_strong_strength": 1.0,
+    "coarse_delays": [0, 4],
+    "action_axes": {
+      "no_action": [],
+      "resource_relief": ["external_resource_supply", "external_demand"],
+      "constraint_relief": ["external_competition_pressure", "external_constraint_pressure"],
+      "information_relief": ["external_information_noise", "external_shock"],
+      "combined_relief": [
+        "external_resource_supply",
+        "external_demand",
+        "external_competition_pressure",
+        "external_constraint_pressure",
+        "external_information_noise",
+        "external_shock"
+      ]
+    },
+    "cost_weights": {
+      "intensity_axis_step": 0.02,
+      "time_to_recovery": 0.01,
+      "peak_risk": 0.5,
+      "relapse_after_recovery": 0.5
+    }
+  },
+  "adaptive_boundary": {
+    "maximum_refinements_per_boundary": 3,
+    "maximum_boundary_branches": 1080,
+    "maximum_probability_cases": 40,
+    "additional_replicates_per_case": 10,
+    "maximum_probability_branches": 400,
+    "delay_minimum_resolution": 1,
+    "strength_minimum_resolution": 0.05
+  },
+  "structural_truth": {
+    "recovery_probability_threshold": 0.5,
+    "structural_contraction_minimum_evidence": 2,
+    "conditional_escape_cost_increase": 0.02,
+    "safe_range_decline": 0.01,
+    "geometric_spread_decline": 0.01,
+    "successful_family_diversity_decline": 0.1,
+    "last_action_window_decline": 2,
+    "maintenance_cost_increase": 0.01,
+    "recovery_probability_decline": 0.25,
+    "relapse_rate_increase": 0.1
+  },
+  "prediction": {
+    "candidate_families": ["current_risk", "task3", "task4", "task3_plus_task4"],
+    "binary_targets": [
+      "dangerous_shrinking",
+      "c2_escape_observed",
+      "c3_escape_observed",
+      "environment_dependent_deterioration",
+      "intrinsic_recovery_loss",
+      "continuation_sensitive",
+      "action_boundary_exists"
+    ],
+    "continuous_targets": [
+      "c2_conditional_escape_cost",
+      "c3_conditional_escape_cost",
+      "c2_last_action_window",
+      "c3_last_action_window",
+      "c3_safe_reachable_range"
+    ],
+    "ridge_alpha": 1.0,
+    "logistic_C": 1.0,
+    "random_state": 0,
+    "selection_primary_target": "dangerous_shrinking"
+  },
+  "split_contract": {
+    "holdout_requires_validated_selection_lock": true,
+    "branch_inherits_source_split": true,
+    "random_branch_split_forbidden": true,
+    "post_holdout_reselection_forbidden": true
+  },
+  "budget": {
+    "expected_coarse_branches": 3600,
+    "maximum_boundary_branches": 1080,
+    "maximum_probability_branches": 400,
+    "absolute_maximum_branches": 5100
+  },
+  "forbidden_feature_tokens": [
+    "scenario", "seed", "split", "snapshot_step", "branch_result", "escape_observed",
+    "escape_cost", "recovery_probability", "reachable", "last_action_window", "relapse",
+    "irreversibility", "shrinking", "future", "truth", "label", "outcome", "boundary"
+  ],
+  "outputs": {
+    "branch_contract": "rev1_branch_contract.json",
+    "continuation_contract": "continuation_assumption_contract.json",
+    "structural_truth_schema": "rev1_structural_truth_schema.json",
+    "boundary_schema": "adaptive_boundary_schema.json",
+    "split_manifest": "split_manifest.json",
+    "safe_region_schema": "safe_region_schema.json",
+    "coarse_branches": "coarse_branch_results.csv",
+    "boundary_branches": "boundary_branch_results.csv",
+    "probability_branches": "probability_branch_results.csv",
+    "branch_budget": "branch_budget.json",
+    "structural_truth": "rev1_structural_truth.csv",
+    "boundary_ledger": "action_boundary_ledger.csv",
+    "prediction_comparison": "prediction_candidate_comparison.csv",
+    "validation_predictions": "validation_predictions.csv",
+    "validation_metrics": "validation_metrics.json",
+    "time_confounding_audit": "time_confounding_audit.json",
+    "selection_lock": "task3_2_4_1_rev1_selection_lock.json",
+    "selection_lock_validation": "task3_2_4_1_rev1_selection_lock_validation.json",
+    "holdout_predictions": "holdout_predictions.csv",
+    "holdout_metrics": "holdout_metrics.json",
+    "results_markdown": "task3_2_4_1_rev1_results.md",
+    "completion_markdown": "task3_2_4_1_rev1_completion.md",
+    "handoff_markdown": "task3_2_4_1_rev1_handoff.md",
+    "manifest": "manifest.json"
+  }
+}
