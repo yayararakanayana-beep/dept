@@ -50,15 +50,28 @@ jobs:
             --input work/task4_1b_corpus
       - name: Run Task 4.1b lightweight audit
         run: |
+          set -o pipefail
           python audits/task4_1b_lightweight_audit.py run \
             --corpus work/task4_1b_corpus \
             --formal-artifact work/task4_1_formal \
-            --output artifacts/task4_1b_audit
+            --output artifacts/task4_1b_audit \
+            2>&1 | tee task4_1b_audit.log
       - name: Validate Task 4.1b artifact
         run: python audits/task4_1b_lightweight_audit.py validate --input artifacts/task4_1b_audit
       - name: Upload Task 4.1b artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: task4-1b-lightweight-audit
           path: artifacts/task4_1b_audit
           retention-days: 30
+      - name: Upload Task 4.1b diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task4-1b-lightweight-audit-diagnostics
+          path: |
+            task4_1b_audit.log
+            artifacts/task4_1b_audit
+          if-no-files-found: warn
+          retention-days: 7
