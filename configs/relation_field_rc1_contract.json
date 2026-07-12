@@ -1,0 +1,278 @@
+{
+  "task_id": "RelationField-RF1-RC1",
+  "title": "Fixed five-axis dynamic relation field contract",
+  "contract_version": "relation_field_rc1",
+  "status": "frozen_for_rf2_to_rf4",
+  "foundation_contract": "configs/fixed5axis_gk_rc1_contract.json",
+  "purpose": "Derive a recomputable uncertainty-bearing effective relation field from canonical fixed-five-axis G_t and ordered K_t without preclassifying internal and external causes.",
+  "definition": {
+    "relation_field": "A recomputable effective generating field that explains observed distribution deformation using local flow, gradient, circulation, diffusion-contraction, axis coupling, novel drive, unresolved residual, and uncertainty.",
+    "true_field_claim_forbidden": true,
+    "internal_external_preclassification_forbidden": true,
+    "semantic_cause_naming_required": false,
+    "prediction_output": false,
+    "risk_prediction_output": false,
+    "action_output": false
+  },
+  "axes": {
+    "order": [
+      "resource_slack",
+      "information_quality",
+      "pressure",
+      "exploration_room",
+      "reversibility"
+    ],
+    "bins": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "shape": [5, 5, 5, 5, 5],
+    "cell_count": 3125,
+    "immutable_reference_coordinates": true
+  },
+  "canonical_input": {
+    "gt": {
+      "definition": "canonical current occupancy distribution on the fixed five-axis grid",
+      "file": "gt_mass.npy",
+      "dtype": "float64",
+      "frame_shape": [5, 5, 5, 5, 5],
+      "normalized_total_mass": 1.0,
+      "mass_tolerance": 1e-10,
+      "read_only": true
+    },
+    "kt": {
+      "definition": "complete ordered append-only history of canonical G_t frames",
+      "ledger_file": "history_ledger.csv",
+      "read_only": true,
+      "admissible_continuity_status": ["initial", "continuous"],
+      "history_order_is_evidence": true,
+      "window_is_derived_not_canonical": true
+    }
+  },
+  "causality": {
+    "field_at_t_may_use": ["G_0_through_G_t", "history_ledger_through_t", "derived_fields_ending_at_or_before_t"],
+    "field_at_t_must_not_use": ["G_after_t", "future_external_input", "future_event", "future_action", "future_truth"],
+    "observed_transition_field": {
+      "definition": "field evidence reconstructed from the already observed transition G_from_t to G_to_t",
+      "requires": ["G_from_t", "G_to_t"],
+      "time_index": "to_t",
+      "must_not_claim_forecast": true,
+      "must_not_read_after_to_t": true
+    },
+    "dynamic_relation_field": {
+      "definition": "time-consistent field estimated from K_t and observed transition fields ending at or before t",
+      "time_index": "t",
+      "must_not_read_after_t": true
+    }
+  },
+  "input_boundary": {
+    "required_numeric_inputs": ["canonical_G_t", "canonical_K_t_order"],
+    "optional_validation_only_inputs": [
+      "observed_external_input_log",
+      "observed_action_log",
+      "observed_event_log",
+      "terrain_truth",
+      "flow_truth",
+      "risk_truth"
+    ],
+    "forbidden_numeric_inputs": [
+      "scenario_id",
+      "seed",
+      "dataset_split",
+      "world_version",
+      "world_config_hash",
+      "observed_external_input_log",
+      "observed_action_log",
+      "observed_event_log",
+      "truth.jsonl",
+      "summary.json",
+      "metrics.jsonl",
+      "terrain_truth",
+      "flow_truth",
+      "risk_truth",
+      "recovery_truth",
+      "future_state",
+      "future_external_input",
+      "future_event",
+      "future_action"
+    ],
+    "provenance_only_fields": [
+      "trajectory_id",
+      "source_trajectory_id",
+      "scenario_id",
+      "seed",
+      "dataset_split",
+      "world_version",
+      "world_config_hash"
+    ],
+    "additional_logs_are_required_for_generation": false,
+    "additional_logs_may_be_used_for_posthoc_interpretation": true
+  },
+  "components": {
+    "occupancy": {
+      "status": "required_reference",
+      "canonical_copy_forbidden": true,
+      "store_source_hash_reference": true
+    },
+    "local_flow": {
+      "status": "rf3_required",
+      "representation": "directed_nonnegative_edge_flow_with_derived_signed_net",
+      "minimum_fields": [
+        "source_cell_id",
+        "target_cell_id",
+        "axis_index",
+        "direction",
+        "flow_amount",
+        "distance",
+        "confidence"
+      ],
+      "must_reconstruct_observed_delta": true
+    },
+    "gradient_component": {
+      "status": "rf6_reserved",
+      "recomposable": true
+    },
+    "circulation_component": {
+      "status": "rf6_reserved",
+      "recomposable": true
+    },
+    "harmonic_component": {
+      "status": "rf6_reserved",
+      "recomposable": true
+    },
+    "diffusion_contraction": {
+      "status": "rf7_reserved",
+      "must_distinguish_translation_from_shape_change": true
+    },
+    "axis_coupling": {
+      "status": "rf8_reserved",
+      "local_not_global_only": true
+    },
+    "novel_drive": {
+      "status": "rf8_reserved",
+      "definition": "structured zero-sum change not adequately explained by the previously estimated field",
+      "must_not_be_labeled_external_by_default": true,
+      "must_not_create_net_mass_in_rc1": true
+    },
+    "unresolved_residual": {
+      "status": "rf3_required",
+      "must_be_preserved": true,
+      "must_not_be_forced_into_existing_components": true
+    },
+    "uncertainty": {
+      "status": "rf3_required",
+      "required_types": [
+        "identifiability",
+        "evidence_sufficiency",
+        "temporal_stability",
+        "out_of_range"
+      ]
+    }
+  },
+  "inference_principles": [
+    "observed_delta_reconstruction",
+    "locality",
+    "minimum_action",
+    "temporal_consistency",
+    "multi_trajectory_consistency",
+    "sparse_field_update",
+    "residual_preservation"
+  ],
+  "mass_semantics": {
+    "rc1_distribution_is_normalized": true,
+    "rc1_infers_relative_distribution_dynamics_only": true,
+    "net_source_sink_inference_supported": false,
+    "non_normalized_mass_extension_deferred": true,
+    "future_total_mass_symbol": "M_t",
+    "future_non_normalized_distribution_symbol": "mu_t"
+  },
+  "storage": {
+    "root_manifest": "manifest.json",
+    "contract_copy": "contract.json",
+    "trajectory_directory": "trajectories/<trajectory_id>",
+    "trajectory_manifest": "relation_field_manifest.json",
+    "provenance_file": "provenance.json",
+    "field_directory": "fields/t_<t:06d>",
+    "required_rf3_rf4_files": [
+      "identity.json",
+      "local_flow_edges.csv",
+      "local_flow.npz",
+      "reconstruction.json",
+      "unresolved_residual.npz",
+      "uncertainty.json",
+      "manifest.json"
+    ],
+    "reserved_component_paths": {
+      "gradient": "decomposition/gradient_component.npz",
+      "circulation": "decomposition/circulation_component.npz",
+      "harmonic": "decomposition/harmonic_component.npz",
+      "diffusion_contraction": "decomposition/diffusion_contraction.json",
+      "axis_coupling": "axis_coupling.npz",
+      "novel_drive": "novel_drive.npz"
+    },
+    "identity_required_fields": [
+      "relation_field_id",
+      "trajectory_id",
+      "t",
+      "from_t",
+      "to_t",
+      "source_gt_hash_from",
+      "source_gt_hash_to",
+      "source_history_chain_hash",
+      "source_history_start_t",
+      "source_history_end_t",
+      "grid_contract_version",
+      "derivation_version"
+    ],
+    "manifest_hash_algorithm": "sha256",
+    "derived_artifact_recomputable": true,
+    "canonical_gt_kt_copy_forbidden": true,
+    "source_writeback_forbidden": true,
+    "atomic_write_required": true,
+    "overwrite_existing_field_forbidden": true
+  },
+  "prohibitions": [
+    "modify_canonical_gt",
+    "modify_canonical_kt",
+    "copy_gt_as_new_canonical_state",
+    "automatic_clip_or_renormalize_input",
+    "use_future_state_for_field_at_t",
+    "use_scenario_or_truth_as_numeric_feature",
+    "preclassify_internal_vs_external_cause",
+    "label_novel_drive_as_external_without_independent_evidence",
+    "discard_unresolved_residual",
+    "hide_nonuniqueness_behind_single_confidence_score",
+    "claim_true_world_dynamics",
+    "perform_risk_prediction",
+    "perform_action_selection",
+    "write_back_to_world_or_source_artifact"
+  ],
+  "rf1_acceptance": {
+    "required": [
+      "machine_readable_contract_present",
+      "human_readable_contract_present",
+      "foundation_axis_contract_exact",
+      "causal_cutoff_explicit",
+      "storage_layout_explicit",
+      "component_statuses_explicit",
+      "prohibitions_explicit",
+      "automated_contract_test_passed"
+    ],
+    "scientific_relation_field_claim": "not_evaluated"
+  },
+  "task_sequence": {
+    "rf1": "contract_and_storage_boundary",
+    "rf2": "fixed_grid_connectivity",
+    "rf3": "single_transition_local_flow_inversion",
+    "rf4": "single_transition_flow_audit",
+    "checkpoint_after_rf4": true,
+    "rf5_to_rf10_locked_but_not_started": true
+  },
+  "non_goals": [
+    "risk_structure_prediction",
+    "general_future_prediction",
+    "action_generation",
+    "h_dept_pressure_connection",
+    "semantic_cause_classification",
+    "true_dynamics_identification",
+    "fixed_history_window_selection",
+    "real_world_deployment"
+  ]
+}
