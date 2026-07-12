@@ -1,0 +1,169 @@
+{
+  "task_id": "RelationField-RF4-RC1",
+  "title": "Single observed transition local-flow audit",
+  "contract_version": "relation_field_single_transition_audit_rc1",
+  "status": "formal_audit_for_rf4_checkpoint",
+  "parent_contracts": {
+    "relation_field": "configs/relation_field_rc1_contract.json",
+    "grid": "configs/relation_field_grid_rc1_contract.json",
+    "single_transition": "configs/relation_field_single_transition_rc1_contract.json"
+  },
+  "purpose": "Audit whether RF-3 produces a numerically valid minimum-action representative local flow, while exposing non-uniqueness, solver sensitivity, residual-penalty sensitivity, and locality dependence before proceeding to temporal relation-field construction.",
+  "scenario_suite": [
+    {
+      "name": "no_change",
+      "source": {},
+      "target": {},
+      "expected_minimum_coordinate_cost": 0.0,
+      "expected_alternative_optimum": false
+    },
+    {
+      "name": "adjacent_unique",
+      "source": {"0": 1.0},
+      "target": {"1": 1.0},
+      "expected_minimum_coordinate_cost": 0.25,
+      "expected_alternative_optimum": false
+    },
+    {
+      "name": "reverse_adjacent_unique",
+      "source": {"1": 1.0},
+      "target": {"0": 1.0},
+      "expected_minimum_coordinate_cost": 0.25,
+      "expected_alternative_optimum": false
+    },
+    {
+      "name": "two_step_unique",
+      "source": {"0": 1.0},
+      "target": {"2": 1.0},
+      "expected_minimum_coordinate_cost": 0.5,
+      "expected_alternative_optimum": false
+    },
+    {
+      "name": "square_ambiguous",
+      "source": {"0": 1.0},
+      "target": {"6": 1.0},
+      "expected_minimum_coordinate_cost": 0.5,
+      "expected_alternative_optimum": true
+    },
+    {
+      "name": "cube_ambiguous",
+      "source": {"0": 1.0},
+      "target": {"31": 1.0},
+      "expected_minimum_coordinate_cost": 0.75,
+      "expected_alternative_optimum": true
+    },
+    {
+      "name": "split_unique",
+      "source": {"0": 1.0},
+      "target": {"1": 0.5, "5": 0.5},
+      "expected_minimum_coordinate_cost": 0.25,
+      "expected_alternative_optimum": false
+    }
+  ],
+  "minimum_action_audit": {
+    "primal_dual_gap_tolerance": 1e-08,
+    "dual_feasibility_tolerance": 1e-09,
+    "expected_cost_tolerance": 1e-09,
+    "reconstruction_tolerance": 1e-09,
+    "residual_l1_tolerance": 1e-09,
+    "require_no_simultaneous_opposite_flow": true
+  },
+  "alternative_solution_audit": {
+    "scenario_names": [
+      "no_change",
+      "adjacent_unique",
+      "two_step_unique",
+      "square_ambiguous",
+      "cube_ambiguous",
+      "split_unique"
+    ],
+    "secondary_objective_seeds": [0, 1, 2, 3, 4, 5],
+    "primary_objective_slack": 1e-10,
+    "flow_signature_threshold": 1e-08,
+    "flow_signature_decimals": 8,
+    "candidate_difference_l1_threshold": 1e-06,
+    "ambiguous_scenarios_must_have_multiple_witnesses": true,
+    "unique_scenarios_must_not_have_multiple_witnesses": true
+  },
+  "solver_sensitivity_audit": {
+    "scenario_names": [
+      "adjacent_unique",
+      "square_ambiguous",
+      "cube_ambiguous"
+    ],
+    "methods": ["highs-ds", "highs-ipm", "highs"],
+    "objective_spread_tolerance": 1e-09,
+    "reconstruction_tolerance": 1e-09,
+    "flow_identity_is_not_required_when_primary_objective_matches": true
+  },
+  "residual_penalty_audit": {
+    "scenario_name": "adjacent_unique",
+    "penalties": [5.25, 0.5, 0.1],
+    "transport_preferred_penalties": [5.25, 0.5],
+    "residual_preferred_penalties": [0.1],
+    "zero_residual_tolerance": 1e-09,
+    "residual_activation_minimum_l1": 1.9
+  },
+  "locality_counterfactual": {
+    "scenario_name": "two_step_unique",
+    "source_cell_id": 0,
+    "target_cell_id": 2,
+    "synthetic_shortcut_coordinate_cost": 0.25,
+    "expected_local_grid_cost": 0.5,
+    "expected_shortcut_cost": 0.25,
+    "diagnostic_only": true,
+    "must_show_locality_assumption_is_material": true
+  },
+  "adoption_logic": {
+    "engineering_basis_A_requires": [
+      "all_baseline_scenarios_pass",
+      "all_minimum_action_certificates_pass",
+      "alternative_solution_expectations_pass",
+      "solver_objective_invariance_pass",
+      "residual_penalty_behavior_pass",
+      "deterministic_rebuild_pass",
+      "manifest_integrity_pass"
+    ],
+    "scientific_relation_field_status_if_engineering_A": "B_limited_adoption_as_single_transition_basis",
+    "reasons_A_is_not_claimed_scientifically": [
+      "multi_axis_transitions_can_have_multiple_equal_cost_flows",
+      "only_single_observed_transitions_are audited",
+      "K_t_temporal_consistency_is_not_yet implemented",
+      "risk_structure_prediction_is_not evaluated",
+      "locality_contract_materially_changes_the_representative_flow"
+    ],
+    "continue_to_rf5_when": [
+      "engineering_basis_A_passes",
+      "ambiguity_is_explicitly_detected_and_preserved",
+      "no_true_dynamics_claim_is_made"
+    ]
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "summary_file": "summary.json",
+    "scenario_results_file": "scenario_results.jsonl",
+    "minimum_action_file": "minimum_action_certificates.json",
+    "alternative_solution_file": "alternative_solution_audit.json",
+    "alternative_candidates_file": "alternative_candidates.npz",
+    "solver_sensitivity_file": "solver_sensitivity.json",
+    "residual_penalty_file": "residual_penalty_sensitivity.json",
+    "locality_counterfactual_file": "locality_counterfactual.json",
+    "adoption_decision_file": "adoption_decision.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "modify_rf1_rf2_rf3_contracts",
+    "read_external_input_action_event_or_truth_as_audit_features",
+    "claim_alternative_witness_search_is_exhaustive",
+    "claim_unique_true_flow",
+    "claim_future_prediction",
+    "claim_risk_prediction",
+    "perform_action_selection",
+    "silently_ignore_solver_or_residual_sensitivity"
+  ]
+}
