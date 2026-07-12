@@ -1,0 +1,28 @@
+{
+  "task_id": "Task 3.2-4.1 Rev1.1",
+  "formal_artifact_run_id": 29185381191,
+  "formal_artifact_name": "task3-2-4-1-rev1-formal",
+  "relapse_audit": {
+    "success_probability_threshold": 0.5,
+    "relapse_increase_threshold": 0.1,
+    "low_cost_absolute_tolerance": 0.02,
+    "low_cost_relative_tolerance": 0.1,
+    "nonstable_retention_minimum": 0.8,
+    "irreversibility_retention_required": 1.0
+  },
+  "c2_cost_audit": {
+    "absolute_error_outlier_floor": 0.25,
+    "mad_multiplier": 3.0,
+    "boundary_strength_gap_max": 0.1,
+    "minimum_observed_rows_for_model_change_claim": 20
+  },
+  "boundaries": {
+    "new_branch_execution": false,
+    "formal_truth_writeback": false,
+    "predictor_retraining": false,
+    "holdout_reselection": false,
+    "source_trajectory_writeback": false,
+    "parameter_box_write": false,
+    "action_module_connection": false
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "task_id": "Task 3.2-4.1 Rev1.1 Applied",
+  "base_config_path": "configs/task3_2_4_1_rev1.json",
+  "formal_artifact_run_id": 29185381191,
+  "formal_artifact_name": "task3-2-4-1-rev1-formal",
+  "selection_contract": {
+    "candidate_family": "task4",
+    "reuse_original_selection_lock": true,
+    "post_holdout_reselection_forbidden": true
+  },
+  "relapse_truth": {
+    "success_probability_threshold": 0.5,
+    "low_cost_absolute_tolerance": 0.02,
+    "low_cost_relative_tolerance": 0.1,
+    "relapse_increase_threshold": 0.1,
+    "scope": "low_cost_success_frontier"
+  },
+  "c2_cost_model": {
+    "mode": "active_regime_strength_residual",
+    "active_probability_threshold": 0.5,
+    "minimum_active_samples": 2,
+    "minimum_passive_samples": 2,
+    "ridge_alpha": 1.0,
+    "logistic_C": 1.0,
+    "maximum_required_strength": 1.0
+  },
+  "boundaries": {
+    "new_branch_execution": false,
+    "branch_ledger_reused": true,
+    "source_trajectory_writeback": false,
+    "parameter_box_write": false,
+    "action_module_connection": false,
+    "candidate_reselection": false
+  }
+}
