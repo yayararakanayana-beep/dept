@@ -1,0 +1,56 @@
+name: Task 3.2-4.1 Rev1.1 Focused Audit
+
+on:
+  pull_request:
+    paths:
+      - 'audits/task4_1_rev1_1_focused_audit.py'
+      - 'audit_configs/task4_1_rev1_1.json'
+      - 'audit_tests/test_task4_1_rev1_1_focused_audit.py'
+      - 'audit_docs/task4_1_rev1_1_focused_audit.md'
+      - '.github/workflows/task4-1-rev1-1-focused-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  focused-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ${{ github.workspace }}/audits:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install pandas numpy pytest
+      - name: Compile audit
+        run: python -m py_compile audits/task4_1_rev1_1_focused_audit.py
+      - name: Run contract tests
+        run: python -m pytest -vv audit_tests/test_task4_1_rev1_1_focused_audit.py
+      - name: Download frozen Rev1 formal artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: task3-2-4-1-rev1-formal
+          path: work/task4_1_rev1_formal
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 29185381191
+      - name: Run focused audit
+        run: |
+          python audits/task4_1_rev1_1_focused_audit.py run \
+            --artifact work/task4_1_rev1_formal \
+            --output artifacts/task4_1_rev1_1
+      - name: Validate focused audit artifact
+        run: |
+          python audits/task4_1_rev1_1_focused_audit.py validate \
+            --input artifacts/task4_1_rev1_1
+      - name: Upload focused audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: task4-1-rev1-1-focused-audit
+          path: artifacts/task4_1_rev1_1
+          retention-days: 30
