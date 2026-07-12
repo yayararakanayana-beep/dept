@@ -7,6 +7,7 @@ on:
       - "configs/fixed5axis_gk_validation_rc1.json"
       - "scripts/fixed5axis_gk_rc1.py"
       - "scripts/fixed5axis_gk_validation_rc1.py"
+      - "scripts/fixed5axis_gk_validation_rc1_corrected.py"
       - "tests/test_fixed5axis_gk_rc1.py"
       - "tests/test_fixed5axis_gk_validation_rc1.py"
       - "pseudo_reality/distribution_terrain_v3*.py"
@@ -31,6 +32,7 @@ jobs:
         run: |
           python -m py_compile scripts/fixed5axis_gk_rc1.py
           python -m py_compile scripts/fixed5axis_gk_validation_rc1.py
+          python -m py_compile scripts/fixed5axis_gk_validation_rc1_corrected.py
       - name: Run targeted tests
         run: |
           python -m pytest -vv \
@@ -38,12 +40,12 @@ jobs:
             tests/test_fixed5axis_gk_validation_rc1.py
       - name: Run formal validation
         run: |
-          python scripts/fixed5axis_gk_validation_rc1.py run \
+          python scripts/fixed5axis_gk_validation_rc1_corrected.py run \
             --profile formal \
             --output artifacts/fixed5axis_gk_validation_rc1
       - name: Validate persisted artifact
         run: |
-          python scripts/fixed5axis_gk_validation_rc1.py validate \
+          python scripts/fixed5axis_gk_validation_rc1_corrected.py validate \
             --input artifacts/fixed5axis_gk_validation_rc1
       - name: Upload formal artifact
         uses: actions/upload-artifact@v4
