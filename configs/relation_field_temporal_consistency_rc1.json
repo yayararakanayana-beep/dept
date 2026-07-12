@@ -54,7 +54,7 @@
     "method": "deterministic_beam_dynamic_programming",
     "beam_width": 64,
     "descriptor_l1_weight": 1.0,
-    "primary_excess_weight": 1000000.0,
+    "primary_excess_weight": 1.0,
     "optimal_path_score_slack": 1e-09,
     "maximum_optimal_paths_saved": 64,
     "representative_tie_break": "lexicographically_smallest_candidate_index_path",
