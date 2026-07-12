@@ -151,7 +151,8 @@ def test_builds_canonical_gt_and_complete_kt_without_truth_leak_or_writeback(tmp
     assert not (target / "metrics.jsonl").exists()
 
     validation = validate_trajectory_artifact(target, contract)
-    assert validation["representation_hard_gate"] == "passed"
+    assert validation["artifact_integrity_gate"] == "passed"
+    assert validation["representation_hard_gate"] == "partial"
     assert validation["adoption_judgement"].startswith("B_")
 
 
@@ -169,33 +170,27 @@ def test_invalid_mass_is_rejected_without_clipping_or_renormalization(tmp_path: 
     assert not (tmp_path / "output" / "trajectories" / "traj_test_seed000").exists()
 
 
-def test_history_accumulator_rejects_gap_duplicate_and_out_of_order(tmp_path: Path) -> None:
+def test_history_accumulator_records_gap_duplicate_out_of_order_and_source_mismatch(tmp_path: Path) -> None:
     contract = load_contract(ROOT / "configs" / "fixed5axis_gk_rc1_contract.json")
     source_hash = "a" * 64
     accumulator = HistoryAccumulator(contract=contract, trajectory_id="traj")
-    accumulator.append(
-        t=0,
-        phase="pre_transition",
-        distribution=_distribution(0),
-        source_state_ref="states/step_000000.npz",
-        source_state_hash=source_hash,
-    )
-    with pytest.raises(Fixed5AxisGKError, match="duplicate"):
+    for t, source_id in [(0, "traj"), (0, "traj"), (3, "traj"), (2, "traj"), (3, "other")]:
         accumulator.append(
-            t=0,
+            t=t,
             phase="pre_transition",
-            distribution=_distribution(1),
-            source_state_ref="states/step_000000.npz",
+            distribution=_distribution(len(accumulator.ledger_rows)),
+            source_state_ref=f"states/row_{len(accumulator.ledger_rows):06d}.npz",
             source_state_hash=source_hash,
+            source_trajectory_id=source_id,
         )
-    with pytest.raises(Fixed5AxisGKError, match="gap"):
-        accumulator.append(
-            t=2,
-            phase="pre_transition",
-            distribution=_distribution(2),
-            source_state_ref="states/step_000002.npz",
-            source_state_hash=source_hash,
-        )
+    assert [row["continuity_status"] for row in accumulator.ledger_rows] == [
+        "initial",
+        "duplicate",
+        "gap",
+        "out_of_order",
+        "source_mismatch",
+    ]
+    assert [row["admissible_for_research"] for row in accumulator.ledger_rows] == [True, False, False, False, False]
 
 
 def test_rebuild_is_deterministic_and_append_only_target_is_protected(tmp_path: Path) -> None:
@@ -250,9 +245,12 @@ def test_corpus_build_preserves_trajectory_level_split_metadata(tmp_path: Path) 
         ROOT / "configs" / "fixed5axis_gk_rc1_contract.json",
     )
     manifest = json.loads((output / "dataset_manifest.json").read_text(encoding="utf-8"))
+    validation = json.loads((output / "validation.json").read_text(encoding="utf-8"))
     assert manifest["trajectory_count"] == 2
     assert manifest["split_counts"] == {"fit": 1, "validation": 1}
     assert manifest["research_adoption_not_yet_claimed"] is True
+    assert validation["artifact_integrity_gate"] == "passed"
+    assert validation["representation_hard_gate"] == "partial"
 
 
 def test_contract_axis_reordering_is_rejected() -> None:
@@ -297,3 +295,4 @@ def test_adoption_classifier_preserves_pending_research_as_limited() -> None:
         )["judgement"]
         == "B_limited_adoption"
     )
+    assert classify_adoption({"representation_hard_gate": "partial"})["judgement"] == "B_limited_adoption"
