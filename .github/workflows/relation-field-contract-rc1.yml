@@ -18,21 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m pip install --upgrade pip pytest
-      - name: Run contract tests
-        id: contract_tests
-        continue-on-error: true
-        run: python -m pytest -vv --tb=short tests/test_relation_field_rc1_contract.py > relation-field-contract-test.log 2>&1
-      - name: Print contract test log
-        if: always()
-        run: cat relation-field-contract-test.log
-      - name: Upload contract test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: relation-field-contract-test-log
-          path: relation-field-contract-test.log
-          retention-days: 7
-      - name: Preserve test result
-        if: steps.contract_tests.outcome == 'failure'
-        run: exit 1
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest -q tests/test_relation_field_rc1_contract.py
