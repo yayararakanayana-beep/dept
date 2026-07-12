@@ -30,28 +30,12 @@ jobs:
           python -m py_compile scripts/relation_field_single_transition_rc1.py
           python -m py_compile scripts/relation_field_temporal_consistency_rc1.py
       - name: Run RF-2, RF-3, and RF-5 regression tests
-        id: rf5_tests
-        continue-on-error: true
         run: |
-          python -m pytest -vv --tb=short \
+          python -m pytest -q \
             tests/test_relation_field_grid_rc1.py \
             tests/test_relation_field_single_transition_rc1.py \
             tests/test_relation_field_temporal_consistency_rc1.py \
-            tests/test_relation_field_temporal_precision_rc1.py \
-            > rf5-test.log 2>&1
-      - name: Print RF-5 test log
-        if: always()
-        run: cat rf5-test.log
-      - name: Upload RF-5 test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: relation-field-rf5-test-log
-          path: rf5-test.log
-          retention-days: 7
-      - name: Preserve RF-5 test result
-        if: steps.rf5_tests.outcome == 'failure'
-        run: exit 1
+            tests/test_relation_field_temporal_precision_rc1.py
       - name: Build RF-2 grid artifact
         run: |
           python scripts/relation_field_grid_rc1.py build \
