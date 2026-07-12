@@ -32,7 +32,7 @@
     "secondary_objective_seeds": [0, 1, 2, 3, 4, 5, 6, 7],
     "primary_objective_slack": 1e-10,
     "candidate_flow_threshold": 1e-08,
-    "candidate_signature_decimals": 8,
+    "candidate_signature_decimals": 12,
     "maximum_candidates_per_transition": 9,
     "candidate_search_is_exhaustive": false,
     "residual_penalty": 5.25,
@@ -117,6 +117,7 @@
       "true_direction_change_not_erased",
       "future_suffix_independence",
       "history_order_affects_temporal_score",
+      "fractional_mass_precision_preserved",
       "deterministic_rebuild",
       "manifest_valid",
       "source_not_modified"
