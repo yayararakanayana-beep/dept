@@ -1,0 +1,186 @@
+{
+  "task_id": "Task 3.2-4.1",
+  "title": "Structural risk, shrinking equilibrium, and escape feasibility",
+  "status": "exploratory_counterfactual_branch_contract",
+  "task2_config_path": "configs/task3_2_2_continuous_trajectory.json",
+  "task3_config_path": "configs/task3_2_3_simple_early_warning.json",
+  "calibration_config_path": "configs/task3_2_2_reference_calibration.json",
+  "task1_contract_path": "configs/task3_2_1_macro_dynamics_contract.json",
+  "challenge": {
+    "transitions": 64,
+    "fit_seeds": [20, 21, 22],
+    "validation_seeds": [23],
+    "holdout_seeds": [24],
+    "condition_groups": [
+      "stable_continuation",
+      "temporary_disturbance",
+      "delayed_or_failed_recovery",
+      "persistent_deterioration",
+      "fixation_path",
+      "collapse_path"
+    ],
+    "start_step_range": [6, 14],
+    "duration_range": [4, 12],
+    "strength_multiplier_range": [0.7, 1.3],
+    "residual_burden_range": [0.0, 0.4],
+    "relapse_probability": 0.5,
+    "relapse_delay_range": [8, 18]
+  },
+  "representation_candidates": {
+    "input_scopes": ["distribution", "full_state"],
+    "distribution_transforms": ["sqrt"],
+    "full_state_projection_per_array": 12,
+    "latent_dimensions": [4, 8, 12],
+    "dynamics_families": ["static", "dmd", "dmdc", "havok_residual"],
+    "feature_modes": ["macro_only", "task3_plus_macro"],
+    "prediction_horizons": [4, 8, 16],
+    "delay_width": 8,
+    "ridge_regularization": 1e-6,
+    "random_state": 0
+  },
+  "fixed_macro_candidate": {
+    "input_scope": "distribution",
+    "latent_dimension": 8,
+    "dynamics_family": "dmdc",
+    "prediction_horizon": 16,
+    "history_width": 8
+  },
+  "snapshot_selection": {
+    "steps": [12, 28, 44],
+    "minimum_history_width": 8,
+    "maximum_snapshots_per_trajectory": 3
+  },
+  "safe_region": {
+    "reference_scenario": "stable_continuation",
+    "risk_quantile": 0.98,
+    "lower_quantile": 0.02,
+    "upper_quantile": 0.98,
+    "numeric_margin": 0.01,
+    "sustained_steps": 4,
+    "post_action_followup_steps": 8
+  },
+  "branch_probe": {
+    "action_duration_steps": 8,
+    "delays": [0, 4, 8],
+    "strengths": [0.35, 0.7, 1.0],
+    "replicate_count": 2,
+    "replicate_distribution_noise": 0.0001,
+    "probe_families": [
+      "no_action",
+      "resource_relief",
+      "constraint_relief",
+      "information_relief",
+      "combined_relief"
+    ],
+    "current_input_persistence_during_delay": true,
+    "neutral_input_after_action": true,
+    "action_axes": {
+      "no_action": [],
+      "resource_relief": ["external_resource_supply", "external_demand"],
+      "constraint_relief": ["external_competition_pressure", "external_constraint_pressure"],
+      "information_relief": ["external_information_noise", "external_shock"],
+      "combined_relief": [
+        "external_resource_supply",
+        "external_demand",
+        "external_competition_pressure",
+        "external_constraint_pressure",
+        "external_information_noise",
+        "external_shock"
+      ]
+    },
+    "cost_weights": {
+      "intensity_axis_step": 0.02,
+      "time_to_recovery": 0.01,
+      "peak_risk": 0.5,
+      "refixation": 0.5
+    }
+  },
+  "structural_truth": {
+    "recovery_probability_threshold": 0.5,
+    "escape_budget": 0.5,
+    "shrinking_current_value_slope_tolerance": 0.01,
+    "shrinking_escape_cost_increase": 0.02,
+    "shrinking_reachable_value_decline": 0.01,
+    "shrinking_reachable_range_decline": 0.01,
+    "shrinking_last_window_decline_steps": 2,
+    "minimum_evidence_count": 2
+  },
+  "prediction": {
+    "candidate_families": ["current_risk", "task3", "task4", "task3_plus_task4"],
+    "targets": [
+      "minimum_escape_cost",
+      "best_recovery_probability",
+      "reachable_value",
+      "reachable_range",
+      "last_action_window",
+      "refixation_probability",
+      "minimum_simultaneous_action_scale",
+      "provisional_irreversibility_level",
+      "shrinking_equilibrium_candidate"
+    ],
+    "ridge_alpha": 1.0,
+    "logistic_C": 1.0,
+    "random_state": 0,
+    "selection_priority": [
+      "shrinking_average_precision",
+      "shrinking_recall",
+      "escape_cost_rank_correlation",
+      "last_action_window_mae",
+      "irreversibility_adjacent_accuracy",
+      "feature_count"
+    ]
+  },
+  "split_contract": {
+    "holdout_requires_validated_selection_lock": true,
+    "branch_inherits_source_split": true,
+    "random_branch_split_forbidden": true,
+    "post_holdout_reselection_forbidden": true
+  },
+  "forbidden_feature_tokens": [
+    "scenario",
+    "seed",
+    "split",
+    "branch_result",
+    "minimum_escape_cost",
+    "recovery_probability",
+    "reachable_value",
+    "reachable_range",
+    "last_action_window",
+    "refixation",
+    "irreversibility",
+    "shrinking_equilibrium",
+    "future",
+    "truth",
+    "label",
+    "outcome"
+  ],
+  "outputs": {
+    "branch_simulation_contract": "branch_simulation_contract.json",
+    "action_probe_schema": "action_probe_schema.json",
+    "structural_truth_schema": "structural_truth_schema.json",
+    "safe_region_schema": "safe_region_schema.json",
+    "split_manifest": "split_manifest.json",
+    "branch_manifest": "branch_manifest.csv",
+    "branch_results": "branch_results.csv",
+    "recovery_frontier": "recovery_frontier.csv",
+    "escape_cost_ledger": "escape_cost_ledger.csv",
+    "reachable_value_ledger": "reachable_value_ledger.csv",
+    "reachable_range_ledger": "reachable_range_ledger.csv",
+    "last_action_window": "last_action_window.csv",
+    "refixation_ledger": "refixation_ledger.csv",
+    "maintenance_cost_ledger": "maintenance_cost_ledger.csv",
+    "shrinking_equilibrium_candidates": "shrinking_equilibrium_candidates.csv",
+    "transient_vs_shrinking": "transient_vs_shrinking_comparison.csv",
+    "feature_schema": "feature_schema.json",
+    "candidate_comparison": "candidate_comparison.csv",
+    "validation_metrics": "validation_metrics.json",
+    "selection_lock": "task3_2_4_1_selection_lock.json",
+    "selection_lock_validation": "task3_2_4_1_selection_lock_validation.json",
+    "holdout_metrics": "holdout_metrics.json",
+    "holdout_predictions": "holdout_predictions.csv",
+    "results_markdown": "task3_2_4_1_results.md",
+    "completion_markdown": "task3_2_4_1_completion.md",
+    "handoff_markdown": "task3_2_4_1_handoff_to_task5.md",
+    "manifest": "manifest.json"
+  }
+}

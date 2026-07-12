@@ -1,0 +1,72 @@
+{
+  "task_id": "Task 3.2-4.1b",
+  "title": "Lightweight sensitivity and cause-separation audit",
+  "base_task_config": "configs/task3_2_4_1_structural_risk.json",
+  "formal_artifact_run_id": 29173249679,
+  "formal_artifact_name": "task3-2-4-1-structural-risk-formal",
+  "representative_selection": {
+    "group_size": 6,
+    "groups": ["stable_structure", "boundary_transition", "escape_not_observed"],
+    "feature_columns": [
+      "current_risk",
+      "current_value",
+      "maintenance_cost",
+      "minimum_escape_cost",
+      "reachable_value",
+      "reachable_range",
+      "last_action_window",
+      "provisional_irreversibility_level"
+    ]
+  },
+  "continuation_conditions": [
+    "C0_current_input_fixed_then_neutral",
+    "C1_immediate_neutral",
+    "C2_original_future_replay",
+    "C3_same_seed_stable_future_replay"
+  ],
+  "continuation_horizon_steps": 16,
+  "phase_b_replicates": 2,
+  "phase_c": {
+    "maximum_states": 12,
+    "delays": [0, 4],
+    "replicates": 2,
+    "probes": [
+      {"label": "P1_existing_lowest_scale", "dynamic": true},
+      {"label": "P2_combined_medium", "family": "combined_relief", "strength": 0.7},
+      {"label": "P3_combined_strong", "family": "combined_relief", "strength": 1.0}
+    ]
+  },
+  "phase_d": {
+    "maximum_states": 6,
+    "maximum_boundaries_per_state": 2,
+    "maximum_refinements": 3,
+    "replicates": 2
+  },
+  "phase_e": {
+    "maximum_cases": 4,
+    "additional_replicates_per_case": 10
+  },
+  "budget": {
+    "phase_b": 144,
+    "phase_c": 144,
+    "phase_d": 72,
+    "phase_e": 40,
+    "target_maximum": 408,
+    "absolute_maximum": 500
+  },
+  "decision_thresholds": {
+    "continuation_changed_state_count": 4,
+    "time_only_accuracy": 0.9,
+    "redundancy_complement_rate": 0.95,
+    "range_component_correlation": 0.98
+  },
+  "boundaries": {
+    "holdout_state_read": false,
+    "predictor_retraining": false,
+    "selection_lock_replacement": false,
+    "source_trajectory_writeback": false,
+    "parameter_box_write": false,
+    "action_module_connection": false,
+    "formal_truth_replacement": false
+  }
+}

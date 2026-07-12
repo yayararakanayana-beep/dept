@@ -104,3 +104,12 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task 3.2-4 must compare against both the original Task 3 locked structure and a fair Task 3 structure retrained on challenge fit data.
 - Task 3.2-4 must create and validate its own selection lock before opening challenge holdout state files. Post-holdout candidate switching is forbidden.
 - Task 3.2-4 is a minimal feasibility probe only. It must not construct formal G_t/K_t, freeze the dynamic relation field, classify game structures, prove irreversibility, or connect the Action Module.
+- Task 3.2-4.1 is an internal extension of Task 3.2-4; it does not add a seventh top-level Task 3.2 stage.
+- Task 3.2-4.1 counterfactual branches must be created as new world instances from immutable persisted snapshots. They must not write back to source trajectories, canonical world state, G/K, the Parameter Box, or ActionModule internals.
+- Task 3.2-4.1 probes may use only the existing observed external-factor interface. Direct state-array manipulation is allowed only while restoring the saved snapshot into a new branch world, never as an intervention.
+- Task 3.2-4.1 safe-region calibration must use fit-split stable-reference trajectories only. Validation and holdout must not redefine the safe region.
+- Task 3.2-4.1 irreversibility levels are conditional on the tested probe set, action budget, time horizon, and recovery threshold. They are not universal or real-world irreversibility proofs.
+- Task 3.2-4.1 may use simultaneous changed input axes as a coordination-scale proxy, but must not call it a measured player count.
+- Task 3.2-4.1 branch outcomes, escape costs, recovery probabilities, reachable values, reachable ranges, action windows, refixation, and shrinking-equilibrium labels are future-side truth only and must not enter predictor features.
+- Task 3.2-4.1 must create and independently validate its selection lock before opening holdout snapshot state files or running holdout branches. Post-holdout predictor switching is forbidden.
+- If PseudoReality v3.3 does not generate structural variation or shrinking equilibrium under the tested probes, Task 3.2-4.1 must report world-model/probe-set insufficiency rather than manufacturing positive labels.

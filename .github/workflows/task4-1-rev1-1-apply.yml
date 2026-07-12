@@ -1,0 +1,80 @@
+name: Task 3.2-4.1 Rev1.1 Apply and Revalidate
+
+on:
+  pull_request:
+    paths:
+      - 'audits/task4_1_rev1_1_apply.py'
+      - 'audit_configs/task4_1_rev1_1_apply.json'
+      - 'audit_tests/test_task4_1_rev1_1_apply.py'
+      - 'audit_docs/task4_1_rev1_1_apply.md'
+      - '.github/workflows/task4-1-rev1-1-apply.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  apply-and-revalidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: ${{ github.workspace }}/audits:${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Compile apply layer
+        run: python -m py_compile audits/task4_1_rev1_1_apply.py
+      - name: Run apply contract tests
+        run: python -m pytest -vv audit_tests/test_task4_1_rev1_1_apply.py
+      - name: Download frozen Rev1 formal artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: task3-2-4-1-rev1-formal
+          path: work/task4_1_rev1_formal
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 29185381191
+      - name: Regenerate deterministic Rev1 source corpus
+        run: |
+          python scripts/task3_2_4_challenge_runner.py generate \
+            --config configs/task3_2_4_1_rev1.json \
+            --output work/task4_1_rev1_corpus
+          python scripts/task3_2_2_reference_calibration.py \
+            --input work/task4_1_rev1_corpus
+          python scripts/task3_2_4_challenge_runner.py validate \
+            --config configs/task3_2_4_1_rev1.json \
+            --input work/task4_1_rev1_corpus
+      - name: Apply Rev1.1 and revalidate prediction
+        run: |
+          set -o pipefail
+          python audits/task4_1_rev1_1_apply.py run \
+            --artifact work/task4_1_rev1_formal \
+            --corpus work/task4_1_rev1_corpus \
+            --output artifacts/task4_1_rev1_1_applied \
+            2>&1 | tee task4_1_rev1_1_apply.log
+      - name: Validate applied artifact
+        run: python audits/task4_1_rev1_1_apply.py validate --input artifacts/task4_1_rev1_1_applied
+      - name: Upload applied artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task4-1-rev1-1-applied
+          path: artifacts/task4_1_rev1_1_applied
+          retention-days: 30
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task4-1-rev1-1-applied-diagnostics
+          path: |
+            task4_1_rev1_1_apply.log
+            artifacts/task4_1_rev1_1_applied
+          if-no-files-found: warn
+          retention-days: 7
