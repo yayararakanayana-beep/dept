@@ -1,0 +1,190 @@
+{
+  "task_id": "RelationField-RF7-RC1",
+  "title": "Distribution shape and flow-channel dynamics",
+  "contract_version": "relation_field_shape_dynamics_rc1",
+  "status": "implemented_for_rf8_axis_coupling",
+  "parent_contracts": {
+    "grid": "configs/relation_field_grid_rc1_contract.json",
+    "temporal_candidate_field": "configs/relation_field_temporal_consistency_rc1.json",
+    "hodge_decomposition": "configs/relation_field_hodge_decomposition_rc1.json"
+  },
+  "purpose": "Measure how canonical G_t shape and RF-5/RF-6 candidate-flow structure change through time, separating translation from expansion or contraction, concentration or dispersion, component split or merge, boundary persistence, and observed flow-channel narrowing or widening without performing risk prediction.",
+  "input": {
+    "required": [
+      "canonical gt_mass.npy and history_ledger.csv through RF-5 to_t",
+      "RF-2 grid artifact",
+      "RF-5 temporal candidate-field artifact",
+      "RF-6 Hodge-decomposition artifact"
+    ],
+    "rf5_identity_defines_start_t_and_to_t": true,
+    "rf5_and_rf6_parent_identity_must_match": true,
+    "future_history_suffix_read_forbidden": true,
+    "external_input_action_event_or_truth_read_forbidden": true,
+    "canonical_and_parent_writeback_forbidden": true,
+    "canonical_G_t_copy_to_output_forbidden": true
+  },
+  "frame_shape_metrics": {
+    "required": [
+      "centroid_5",
+      "covariance_5_by_5",
+      "axis_variance_5",
+      "covariance_eigenvalues_5",
+      "total_variance",
+      "entropy",
+      "normalized_entropy",
+      "effective_support",
+      "participation_number",
+      "l2_concentration",
+      "peak_mass",
+      "active_cell_count",
+      "lower_boundary_mass_5",
+      "upper_boundary_mass_5",
+      "any_boundary_mass",
+      "component_count",
+      "major_component_count",
+      "largest_component_mass",
+      "component_mass_entropy",
+      "major_component_centroids"
+    ],
+    "active_cell_absolute_floor": 1e-12,
+    "active_cell_relative_to_peak_floor": 1e-06,
+    "major_component_minimum_mass": 0.05,
+    "coordinate_metric": "euclidean_on_fixed_axis_values"
+  },
+  "transition_shape_metrics": {
+    "required": [
+      "centroid_shift_5",
+      "centroid_shift_norm",
+      "covariance_delta",
+      "axis_variance_delta_5",
+      "total_variance_delta",
+      "entropy_delta",
+      "effective_support_delta",
+      "participation_delta",
+      "l2_concentration_delta",
+      "peak_mass_delta",
+      "active_cell_count_delta",
+      "distribution_overlap",
+      "total_variation_distance",
+      "boundary_mass_delta",
+      "boundary_cell_overlap",
+      "major_component_count_delta",
+      "largest_component_mass_delta",
+      "component_mass_entropy_delta"
+    ],
+    "classification_labels": [
+      "translation_without_detected_shape_change",
+      "expansion_candidate",
+      "contraction_candidate",
+      "dispersion_candidate",
+      "concentration_candidate",
+      "split_candidate",
+      "merge_candidate",
+      "fragmentation_candidate",
+      "coalescence_candidate"
+    ],
+    "classification_is_diagnostic_only": true,
+    "shape_scalar_tolerance": 1e-12,
+    "effective_support_tolerance": 1e-09,
+    "component_mass_change_minimum": 0.05
+  },
+  "flow_channel_metrics": {
+    "candidate_source": "unique_RF5_candidates_used_by_saved_optimal_paths_per_transition",
+    "saved_path_multiplicity_is_not_probability": true,
+    "duplicate_candidate_ids_must_be_removed_before_aggregation": true,
+    "flow_activation_threshold": 1e-09,
+    "required_per_candidate": [
+      "total_absolute_flow",
+      "active_edge_count",
+      "edge_entropy",
+      "effective_edge_support",
+      "edge_participation_number",
+      "maximum_edge_fraction",
+      "axis_absolute_throughput_5",
+      "lower_boundary_inward_flow_5",
+      "upper_boundary_inward_flow_5",
+      "gradient_energy",
+      "circulation_energy",
+      "source_mass_weighted_potential",
+      "target_mass_weighted_potential",
+      "potential_transport_difference"
+    ],
+    "family_statistics": [
+      "minimum",
+      "maximum",
+      "unweighted_unique_candidate_mean"
+    ],
+    "channel_labels": [
+      "flow_channel_narrowing_candidate",
+      "flow_channel_widening_candidate"
+    ],
+    "channel_change_tolerance": 1e-09,
+    "labels_are_diagnostic_only": true
+  },
+  "boundary_dynamics": {
+    "required": [
+      "boundary_mass_persistence",
+      "boundary_exact_cell_overlap",
+      "mass_weighted_inward_flow_minimum",
+      "mass_weighted_inward_flow_maximum",
+      "mass_weighted_inward_flow_mean",
+      "boundary_sticking_candidate"
+    ],
+    "boundary_persistence_mass_threshold": 0.5,
+    "maximum_inward_flow_for_sticking": 1e-09,
+    "boundary_sticking_is_diagnostic_only": true
+  },
+  "semantic_limits": {
+    "diffusion_and_contraction_are_consensus_shape_candidates_not_physical_coefficients": true,
+    "split_and_merge_are_thresholded_support-topology_candidates": true,
+    "flow_channel_width_is_observed_candidate-flow_support_not_counterfactual_escape_capacity": true,
+    "basin_or_attractor_semantics_not_assigned": true,
+    "irreversibility_or_risk_not_assigned": true
+  },
+  "acceptance": {
+    "translation_shape_invariance_tolerance": 1e-12,
+    "expansion_and_contraction_synthetic_recovery_required": true,
+    "split_and_merge_synthetic_recovery_required": true,
+    "boundary_sticking_synthetic_recovery_required": true,
+    "candidate_deduplication_required": true,
+    "parent_identity_gate_required": true,
+    "future_suffix_independence_required": true,
+    "deterministic_rebuild_required": true,
+    "manifest_required": true,
+    "source_not_modified_required": true,
+    "scientific_claim": "B_limited_shape_dynamics_on_fixed_grid"
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "identity_file": "identity.json",
+    "frame_metrics_file": "frame_shape_metrics.npz",
+    "frame_components_file": "frame_components.json",
+    "transition_metrics_file": "transition_shape_metrics.npz",
+    "transition_labels_file": "transition_labels.json",
+    "flow_channel_file": "flow_channel_metrics.npz",
+    "boundary_dynamics_file": "boundary_dynamics.npz",
+    "field_shape_alignment_file": "field_shape_alignment.npz",
+    "diagnostics_file": "shape_dynamics_diagnostics.json",
+    "uncertainty_file": "uncertainty.json",
+    "provenance_file": "provenance.json",
+    "summary_file": "summary.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "label_translation_as_diffusion_only_because_cells_changed",
+    "treat_thresholded_component_count_as_true_physical_objects",
+    "weight_candidates_by_saved_optimal_path_multiplicity",
+    "call_observed_edge-support_width_escape_capacity",
+    "infer_attractor_basin_from_RF6_potential_without_semantic_validation",
+    "read_G_after_RF5_to_t",
+    "read_external_input_action_event_or_truth",
+    "modify_or copy canonical G_t K_t or parent artifacts",
+    "perform_risk_prediction",
+    "perform_action_selection"
+  ]
+}
