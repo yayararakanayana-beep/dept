@@ -193,6 +193,7 @@ def test_axis_flow_family_preserves_candidate_interval_and_deduplicates_saved_pa
         "rf5_identity": {"transition_count": 2},
         "offsets": np.asarray([0, 2, 4], dtype=np.int32),
         "candidate_axis_flow": descriptors[:, :5],
+        "transition_times": np.asarray([1, 2], dtype=np.int32),
         "optimal_paths": [[0, 0], [1, 1], [1, 1], [0, 0]],
     }
 
