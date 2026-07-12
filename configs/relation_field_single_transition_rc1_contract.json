@@ -1,0 +1,139 @@
+{
+  "contract_version": "relation_field_single_transition_rc1",
+  "flow_representation": {
+    "canonical_orientation": "lower_bin_to_higher_bin",
+    "confidence_is_not_calibrated_in_rf3": true,
+    "directed_rows_are_nonnegative": true,
+    "simultaneous_opposite_flow_should_be_zero_at_optimum": true,
+    "stored_arrays": [
+      "forward_flow",
+      "reverse_flow",
+      "net_flow",
+      "observed_delta",
+      "reconstructed_delta"
+    ]
+  },
+  "foundation_contract": "configs/fixed5axis_gk_rc1_contract.json",
+  "input": {
+    "admissible_status": [
+      "initial",
+      "continuous"
+    ],
+    "automatic_clipping_forbidden": true,
+    "automatic_renormalization_forbidden": true,
+    "canonical_files": [
+      "gt_mass.npy",
+      "history_ledger.csv"
+    ],
+    "distribution_mass_tolerance": 1e-10,
+    "negative_tolerance": 0.0,
+    "observed_logs_read_forbidden": true,
+    "read_after_to_t_forbidden": true,
+    "required_transition": "to_t_equals_from_t_plus_one",
+    "to_row_must_be_continuous": true,
+    "truth_files_read_forbidden": true
+  },
+  "parent_grid_contract": "configs/relation_field_grid_rc1_contract.json",
+  "parent_relation_contract": "configs/relation_field_rc1_contract.json",
+  "prohibitions": [
+    "read_G_after_to_t",
+    "read_observed_external_input",
+    "read_observed_action",
+    "read_observed_event",
+    "read_truth_or_scenario_as_numeric_input",
+    "modify_or_copy_canonical_gt_kt",
+    "clip_or_renormalize_distribution",
+    "label_residual_or_drive_as_external",
+    "claim_unique_true_dynamics",
+    "claim_prediction",
+    "perform_risk_classification",
+    "perform_action_selection"
+  ],
+  "purpose": "Invert one already observed contiguous G_t transition into a representative minimum-cost local directed flow and preserved unresolved residual without claiming prediction or unique true dynamics.",
+  "residual": {
+    "definition": "observed_delta_minus_reconstructed_delta",
+    "must_be_preserved": true,
+    "must_not_be_labeled_external": true,
+    "stored_arrays": [
+      "residual",
+      "positive_residual",
+      "negative_residual"
+    ]
+  },
+  "rf3_acceptance": {
+    "alternative_solution_robustness": "deferred_to_rf4",
+    "prediction_claim": "not_evaluated",
+    "required": [
+      "contiguous_admissible_transition",
+      "directed_nonnegative_flow",
+      "minimum_cost_solver_success",
+      "observed_delta_reconstructed_within_tolerance",
+      "mass_balance_preserved_or_exposed_as_residual",
+      "residual_preserved",
+      "uncertainty_types_present",
+      "causal_cutoff_respected",
+      "deterministic_rebuild",
+      "source_not_modified",
+      "manifest_valid"
+    ],
+    "risk_prediction_claim": "not_evaluated"
+  },
+  "solver": {
+    "coordinate_edge_cost": 0.25,
+    "dual_feasibility_tolerance": 1e-09,
+    "edge_capacity": null,
+    "flow_activation_threshold": 1e-12,
+    "forward_variables_per_canonical_edge": 1,
+    "mass_balance_tolerance": 2e-10,
+    "maximum_grid_path_cost": 5.0,
+    "method": "highs-ds",
+    "negative_residual_variables_per_cell": 1,
+    "positive_residual_variables_per_cell": 1,
+    "presolve": true,
+    "primal_feasibility_tolerance": 1e-09,
+    "problem": "minimum_coordinate_transport_cost_with_l1_residual",
+    "reconstruction_tolerance": 1e-09,
+    "representative_solution_only": true,
+    "residual_penalty": 5.25,
+    "reverse_variables_per_canonical_edge": 1,
+    "uniqueness_claim": false
+  },
+  "status": "implemented_for_rf4_audit",
+  "storage": {
+    "atomic_write_required": true,
+    "canonical_gt_kt_copy_forbidden": true,
+    "deterministic_bytes_required": true,
+    "field_directory": "fields/t_<to_t:06d>",
+    "field_files": [
+      "identity.json",
+      "local_flow_edges.csv",
+      "local_flow.npz",
+      "reconstruction.json",
+      "unresolved_residual.npz",
+      "uncertainty.json",
+      "manifest.json"
+    ],
+    "hash_algorithm": "sha256",
+    "overwrite_forbidden": true,
+    "provenance_file": "provenance.json",
+    "root_contract": "contract.json",
+    "root_manifest": "manifest.json",
+    "root_validation": "validation.json",
+    "trajectory_directory": "trajectories/<trajectory_id>",
+    "trajectory_manifest": "relation_field_manifest.json"
+  },
+  "task_id": "RelationField-RF3-RC1",
+  "title": "Single observed transition local-flow inversion contract",
+  "uncertainty": {
+    "alternative_solution_audit": "deferred_to_rf4",
+    "confidence_calibration": "not_evaluated_in_rf3",
+    "identifiability_statement": "minimum-cost representative may be non-unique on a graph with cycles",
+    "required_types": [
+      "identifiability",
+      "evidence_sufficiency",
+      "temporal_stability",
+      "out_of_range"
+    ],
+    "temporal_stability": "not_evaluated_in_rf3"
+  }
+}
