@@ -1,0 +1,22 @@
+name: Relation field contract RC1
+
+on:
+  pull_request:
+    paths:
+      - "configs/relation_field_rc1_contract.json"
+      - "configs/fixed5axis_gk_rc1_contract.json"
+      - "docs/relation_field_rc1/**"
+      - "tests/test_relation_field_rc1_contract.py"
+      - ".github/workflows/relation-field-contract-rc1.yml"
+  workflow_dispatch:
+
+jobs:
+  contract-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip pytest
+      - run: python -m pytest -q tests/test_relation_field_rc1_contract.py
