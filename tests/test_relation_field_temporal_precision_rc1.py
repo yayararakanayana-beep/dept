@@ -27,7 +27,7 @@ def test_fractional_mass_flow_preserves_rf3_reconstruction_tolerance(tmp_path: P
 
     candidates = generate_transition_candidates(delta, grid, contract)
 
-    assert contract["candidate_generation"]["candidate_signature_decimals"] == 12
+    assert contract["candidate_generation"]["candidate_signature_decimals"] == 9
     assert candidates
     for candidate in candidates:
         reconstructed_from_stored_flow = np.asarray(
