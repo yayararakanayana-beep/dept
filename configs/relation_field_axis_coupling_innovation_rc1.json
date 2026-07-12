@@ -1,0 +1,162 @@
+{
+  "task_id": "RelationField-RF8-RC1",
+  "title": "Axis coupling, feedback, innovation, and unresolved residual",
+  "contract_version": "relation_field_axis_coupling_innovation_rc1",
+  "status": "implemented_for_rf9_risk_structure",
+  "parent_contracts": {
+    "grid": "configs/relation_field_grid_rc1_contract.json",
+    "temporal_candidate_field": "configs/relation_field_temporal_consistency_rc1.json",
+    "hodge_decomposition": "configs/relation_field_hodge_decomposition_rc1.json",
+    "shape_dynamics": "configs/relation_field_shape_dynamics_rc1.json"
+  },
+  "purpose": "Extract bounded evidence for position-conditioned axis coupling, lagged axis feedback, same-axis amplification or attenuation, history-conditioned innovation, and unresolved transport residual while preserving candidate ambiguity and avoiding causal or external-factor claims.",
+  "input": {
+    "required": [
+      "canonical gt_mass.npy and history_ledger.csv through RF-5 to_t",
+      "RF-2 grid artifact",
+      "RF-5 temporal candidate-field artifact",
+      "RF-6 Hodge-decomposition artifact",
+      "RF-7 shape-dynamics artifact"
+    ],
+    "minimum_transition_count": 3,
+    "rf5_identity_defines_start_t_and_to_t": true,
+    "all_parent_identities_must_match": true,
+    "future_history_suffix_read_forbidden": true,
+    "external_input_action_event_or_truth_read_forbidden": true,
+    "canonical_and_parent_writeback_forbidden": true,
+    "canonical_or_parent_payload_copy_forbidden": true
+  },
+  "axis_flow_family": {
+    "candidate_source": "unique_RF5_candidates_used_by_saved_optimal_paths_per_transition",
+    "saved_path_multiplicity_is_not_probability": true,
+    "duplicate_candidate_ids_removed": true,
+    "signed_axis_flow_definition": "sum of oriented edge flow on each RF-2 axis",
+    "coordinate_displacement_scale": 0.25,
+    "family_statistics": [
+      "minimum",
+      "maximum",
+      "unweighted_unique_candidate_mean",
+      "ambiguity_width"
+    ]
+  },
+  "position_conditioned_coupling": {
+    "definition": "pairwise ridge slope from source-frame centroid on axis a to current signed flow on axis b",
+    "matrix_shape": [5, 5],
+    "ridge": 1e-08,
+    "source_variation_minimum": 1e-08,
+    "candidate_interval_propagation": "exact_linear_interval_bound_for_fixed_centered_source",
+    "causal_claim": false,
+    "multivariate_partial_effect_claim": false,
+    "diagnostic_only": true
+  },
+  "lag_feedback_coupling": {
+    "definition": "outer product of current signed axis flow and next-step signed-flow acceleration",
+    "local_matrix_shape": [5, 5],
+    "candidate_pair_aggregation": [
+      "minimum",
+      "maximum",
+      "unweighted_unique_candidate_pair_mean"
+    ],
+    "positive_consensus_rule": "minimum_above_tolerance",
+    "negative_consensus_rule": "maximum_below_negative_tolerance",
+    "coupling_tolerance": 1e-09,
+    "causal_claim": false,
+    "diagnostic_only": true
+  },
+  "same_axis_dynamics": {
+    "labels": [
+      "same_direction_amplification_candidate",
+      "same_direction_attenuation_candidate",
+      "direction_reversal_candidate",
+      "axis_activation_candidate",
+      "axis_cessation_candidate"
+    ],
+    "magnitude_tolerance": 1e-09,
+    "consensus_required_across_unique_candidate_pairs": true,
+    "attraction_or_repulsion_semantics_not_assigned": true,
+    "risk_claim": false
+  },
+  "history_conditioned_innovation": {
+    "baseline": "past-only state-neighborhood and recency weighted mean of prior axis-flow family means",
+    "state_distance": "euclidean_on_source_frame_centroid_5",
+    "state_bandwidth": 0.35,
+    "recency_decay": 0.8,
+    "minimum_prior_transition_count_for_label": 2,
+    "minimum_effective_support_for_label": 1.5,
+    "noise_floor": 1e-06,
+    "normalized_score_threshold": 2.0,
+    "absolute_innovation_minimum": 1e-06,
+    "new_drive_label": "history_conditioned_new_drive_candidate",
+    "new_drive_is_not_external_factor": true,
+    "new_drive_is_not_causal_explanation": true,
+    "baseline_is_not_future_prediction_validation": true
+  },
+  "unresolved_residual": {
+    "transport_residual_source": "RF-5 candidate_residual",
+    "required": [
+      "residual_l1_minimum",
+      "residual_l1_maximum",
+      "residual_l1_mean",
+      "positive_residual_mass_minimum",
+      "positive_residual_mass_maximum",
+      "positive_residual_mass_mean",
+      "negative_residual_mass_minimum",
+      "negative_residual_mass_maximum",
+      "negative_residual_mass_mean",
+      "residual_axis_moment_minimum_5",
+      "residual_axis_moment_maximum_5",
+      "residual_axis_moment_mean_5"
+    ],
+    "history_innovation_must_remain_separate_from_transport_residual": true,
+    "residual_must_not_be_forced_to_zero": true,
+    "external_factor_claim": false
+  },
+  "acceptance": {
+    "position_coupling_synthetic_recovery_required": true,
+    "same_axis_amplification_attenuation_reversal_recovery_required": true,
+    "surprise_axis_innovation_recovery_required": true,
+    "candidate_ambiguity_preservation_required": true,
+    "candidate_deduplication_required": true,
+    "parent_identity_gate_required": true,
+    "future_suffix_independence_required": true,
+    "deterministic_rebuild_required": true,
+    "manifest_required": true,
+    "source_not_modified_required": true,
+    "scientific_claim": "B_limited_axis_coupling_and_history_innovation"
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "identity_file": "identity.json",
+    "axis_flow_family_file": "axis_flow_family.npz",
+    "position_coupling_file": "position_flow_coupling.npz",
+    "lag_feedback_file": "lag_feedback_coupling.npz",
+    "same_axis_dynamics_file": "same_axis_dynamics.json",
+    "innovation_file": "history_conditioned_innovation.npz",
+    "innovation_labels_file": "innovation_labels.json",
+    "residual_ledger_file": "unresolved_residual_ledger.npz",
+    "diagnostics_file": "axis_coupling_diagnostics.json",
+    "uncertainty_file": "uncertainty.json",
+    "provenance_file": "provenance.json",
+    "summary_file": "summary.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "call_pairwise_coupling_causal_influence",
+    "call_position_slope_multivariate_partial_effect",
+    "call_same_axis_amplification_attraction",
+    "call_history_innovation_external_input_or_external_shock",
+    "merge_history_innovation_into_RF5_transport_residual",
+    "weight_candidates_by_saved_path_multiplicity",
+    "discard_candidate_interval_width",
+    "read_G_after_RF5_to_t",
+    "read_external_input_action_event_or_truth",
+    "modify_or_copy canonical G_t K_t or parent artifacts",
+    "perform_risk_prediction",
+    "perform_action_selection"
+  ]
+}
