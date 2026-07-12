@@ -1,0 +1,140 @@
+{
+  "task_id": "RelationField-RF5-RC1",
+  "title": "K_t temporal-consistency relation field",
+  "contract_version": "relation_field_temporal_consistency_rc1",
+  "status": "implemented_for_rf6_decomposition",
+  "parent_contracts": {
+    "relation_field": "configs/relation_field_rc1_contract.json",
+    "grid": "configs/relation_field_grid_rc1_contract.json",
+    "single_transition": "configs/relation_field_single_transition_rc1_contract.json",
+    "single_transition_audit": "configs/relation_field_single_transition_audit_rc1.json"
+  },
+  "purpose": "Use the ordered K_t prefix to connect multiple RF-3-equivalent candidate flows into temporally consistent path families while preserving unresolved path ambiguity and without claiming a unique true flow.",
+  "input": {
+    "canonical_files": [
+      "gt_mass.npy",
+      "history_ledger.csv"
+    ],
+    "grid_artifact_required": true,
+    "minimum_transition_count": 2,
+    "to_t_must_not_exceed_max_t_read": true,
+    "all_selected_rows_must_be_admissible": true,
+    "all_selected_links_must_be_continuous": true,
+    "history_window_is_derived_and_recorded": true,
+    "future_suffix_read_forbidden": true,
+    "observed_logs_read_forbidden": true,
+    "truth_files_read_forbidden": true,
+    "canonical_writeback_forbidden": true
+  },
+  "candidate_generation": {
+    "primary_problem": "RF-3 minimum coordinate transport cost with L1 residual",
+    "primary_solver": "highs-ds",
+    "secondary_objective_seeds": [0, 1, 2, 3, 4, 5, 6, 7],
+    "primary_objective_slack": 1e-10,
+    "candidate_flow_threshold": 1e-08,
+    "candidate_signature_decimals": 8,
+    "maximum_candidates_per_transition": 9,
+    "candidate_search_is_exhaustive": false,
+    "residual_penalty": 5.25,
+    "coordinate_edge_cost": 0.25
+  },
+  "translation_invariant_descriptor": {
+    "components": [
+      "signed_axis_flow_5",
+      "axis_source_offset_centroid_25",
+      "total_directed_flow_1"
+    ],
+    "dimension": 31,
+    "source_reference": "negative_observed_delta_centroid",
+    "missing_axis_source_offset_value": 0.0,
+    "purpose": "Compare repeated flow structure even when the occupied cells translate through the fixed grid.",
+    "absolute_edge_identity_is_not_the_only_temporal_evidence": true
+  },
+  "temporal_path_inference": {
+    "method": "deterministic_beam_dynamic_programming",
+    "beam_width": 64,
+    "descriptor_l1_weight": 1.0,
+    "primary_excess_weight": 1000000.0,
+    "optimal_path_score_slack": 1e-09,
+    "maximum_optimal_paths_saved": 64,
+    "representative_tie_break": "lexicographically_smallest_candidate_index_path",
+    "field_change_score_threshold": 0.5,
+    "field_change_flag_is_diagnostic_only": true,
+    "path_search_is_exhaustive_when_not_truncated": true,
+    "path_search_is_bounded_when_truncated": true
+  },
+  "common_structure": {
+    "edge_common_rule": "signed minimum magnitude retained only when every optimal path has the same nonzero sign on the edge",
+    "edge_union_rule": "edge appears when any optimal path uses it",
+    "axis_interval_rule": "minimum maximum and mean signed flow across optimal paths",
+    "ambiguity_must_be_preserved": true,
+    "representative_path_must_not_replace_optimal_path_family": true
+  },
+  "temporal_diagnostics": {
+    "required": [
+      "descriptor_change_score",
+      "field_change_candidate",
+      "axis_direction_reversal",
+      "axis_flow_acceleration",
+      "candidate_count_per_transition",
+      "optimal_path_count",
+      "beam_truncated",
+      "edge_common_fraction",
+      "axis_flow_spread"
+    ],
+    "regime_switch_claim": false,
+    "risk_prediction_claim": false
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "identity_file": "identity.json",
+    "candidate_flows_file": "candidate_flows.npz",
+    "candidate_index_file": "candidate_index.json",
+    "temporal_paths_file": "temporal_paths.json",
+    "representative_flow_file": "representative_flow.npz",
+    "common_structure_file": "common_structure.npz",
+    "temporal_diagnostics_file": "temporal_diagnostics.json",
+    "uncertainty_file": "uncertainty.json",
+    "provenance_file": "provenance.json",
+    "summary_file": "summary.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true,
+    "canonical_gt_kt_copy_forbidden": true
+  },
+  "rf5_acceptance": {
+    "required": [
+      "contiguous_K_t_prefix_only",
+      "candidate_reconstruction_within_rf3_tolerance",
+      "multiple_candidate_flows_preserved_when_detected",
+      "translation_invariant_descriptor_exact",
+      "temporal_path_score_not_worse_than_independent_baseline",
+      "optimal_path_family_preserved",
+      "common_edge_and_axis_structure_emitted",
+      "true_direction_change_not_erased",
+      "future_suffix_independence",
+      "history_order_affects_temporal_score",
+      "deterministic_rebuild",
+      "manifest_valid",
+      "source_not_modified"
+    ],
+    "prediction_claim": "not_evaluated",
+    "risk_prediction_claim": "not_evaluated",
+    "scientific_relation_field_claim": "B_limited_temporal_candidate_field"
+  },
+  "prohibitions": [
+    "select_one_candidate_and_discard_equal_score_alternatives",
+    "compare_only_absolute_edge_ids_across_translated_states",
+    "read_G_after_to_t",
+    "read_external_input_action_event_or_truth",
+    "modify_or_copy_canonical_gt_kt",
+    "claim_unique_true_flow",
+    "claim_regime_switch_from_diagnostic_threshold_alone",
+    "perform_future_prediction",
+    "perform_risk_prediction",
+    "perform_action_selection"
+  ]
+}
