@@ -14,9 +14,9 @@ from fixed5axis_gk_validation_rc1 import (  # noqa: E402
     ValidationError,
     _external_vector,
     load_validation_config,
-    run_validation,
     validate_output,
 )
+from fixed5axis_gk_validation_rc1_corrected import run_validation  # noqa: E402
 
 
 def test_validation_contract_and_external_strength() -> None:
@@ -57,6 +57,9 @@ def test_smoke_validation_produces_locked_auditable_artifact(tmp_path: Path) -> 
     metrics = json.loads(
         (output / "final" / "validation_metrics.json").read_text(encoding="utf-8")
     )
+    correction = json.loads(
+        (output / "methodology_correction.json").read_text(encoding="utf-8")
+    )
 
     assert roundtrip["all_frames_exact"] is True
     assert roundtrip["maximum_absolute_error"] == 0.0
@@ -65,6 +68,9 @@ def test_smoke_validation_produces_locked_auditable_artifact(tmp_path: Path) -> 
     assert lock_validation["holdout_opened_before_lock"] is False
     assert metrics["representation_hard_gate"] == "passed"
     assert metrics["holdout_gate"] == "passed"
+    assert metrics["external_threshold_method"] == "matched_same_seed_pre_input_null"
+    assert metrics["A_requires_information_sufficiency"] is True
+    assert correction["information_sufficiency_policy"].startswith("partial")
     assert metrics["adoption_judgement"] in {
         "A_formal_adoption",
         "B_limited_adoption",
