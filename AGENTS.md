@@ -104,3 +104,14 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task 3.2-4 must compare against both the original Task 3 locked structure and a fair Task 3 structure retrained on challenge fit data.
 - Task 3.2-4 must create and validate its own selection lock before opening challenge holdout state files. Post-holdout candidate switching is forbidden.
 - Task 3.2-4 is a minimal feasibility probe only. It must not construct formal G_t/K_t, freeze the dynamic relation field, classify game structures, prove irreversibility, or connect the Action Module.
+
+## Fixed Five-Axis G_t / K_t RC1 Boundary
+
+- `docs/fixed5axis_gk_rc1/CONTRACT.md` and `configs/fixed5axis_gk_rc1_contract.json` are the source of truth for the fixed-five-axis G_t/K_t foundation.
+- Canonical G_t is the complete `(5, 5, 5, 5, 5)` float64 pre-transition probability distribution in the fixed order resource slack, information quality, pressure, exploration room, and reversibility.
+- Canonical K_t is the complete ordered append-only history of every G_t frame; slopes, distances, velocities, and history windows are derived and recomputable, not canonical replacements.
+- The builder may use only the source state's `distribution` array as numeric G_t input. Scenario ID, seed, split, external inputs, truth, terrain, flow, and future outcomes remain provenance, separate logs, or isolated validation evidence.
+- Do not clip, renormalize, overwrite, delete, or silently repair canonical G_t/K_t data.
+- Derived layers may be revised by later prediction research, but they must remain removable and reproducible from canonical G_t/K_t.
+- This task does not freeze a relation field, game structure, risk predictor, history-window length, or Action Module connection.
+- Passing the representation hard gate yields only limited B adoption until external-response, history-value, and holdout research gates are evaluated.
