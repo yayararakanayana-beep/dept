@@ -32,7 +32,7 @@
     "secondary_objective_seeds": [0, 1, 2, 3, 4, 5, 6, 7],
     "primary_objective_slack": 1e-10,
     "candidate_flow_threshold": 1e-08,
-    "candidate_signature_decimals": 12,
+    "candidate_signature_decimals": 9,
     "maximum_candidates_per_transition": 9,
     "candidate_search_is_exhaustive": false,
     "residual_penalty": 5.25,
