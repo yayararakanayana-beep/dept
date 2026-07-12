@@ -1,0 +1,195 @@
+{
+  "task_id": "RelationField-RF10-RC1",
+  "title": "Leakage-safe predictive validation of RF-9 structural risk candidates",
+  "contract_version": "relation_field_predictive_validation_rc1",
+  "status": "implemented_for_multitrajectory_validation",
+  "parent_contracts": {
+    "risk_structure": "configs/relation_field_risk_structure_rc1.json"
+  },
+  "purpose": "Evaluate whether the final RF-9 structural-risk candidate produced from a prefix ending exactly at cutoff_t predicts future distribution outcomes observed strictly after cutoff_t, while freezing RF-9 definitions and future-outcome rules before reading the held-out suffix.",
+  "input": {
+    "case_manifest_version": "relation_field_predictive_validation_case_manifest_rc1",
+    "required_case_fields": [
+      "case_id",
+      "partition",
+      "trajectory_dir",
+      "grid_artifact_dir",
+      "rf5_artifact_dir",
+      "rf6_artifact_dir",
+      "rf7_artifact_dir",
+      "rf8_artifact_dir",
+      "rf9_artifact_dir"
+    ],
+    "allowed_partitions": [
+      "development",
+      "validation",
+      "test"
+    ],
+    "minimum_case_count": 1,
+    "only_final_RF9_row_is_prediction_sample": true,
+    "one_prefix_artifact_per_cutoff_required": true,
+    "prediction_snapshot_must_be_frozen_before_future_suffix_read": true,
+    "rf9_validation_required": true,
+    "rf9_max_source_t_read_must_equal_cutoff_t": true,
+    "full_trajectory_prefix_must_match_RF9_history_hash": true,
+    "external_input_action_event_scenario_seed_or_truth_label_read_forbidden": true,
+    "future_suffix_use_is_target_side_only": true,
+    "parent_or_canonical_writeback_forbidden": true,
+    "canonical_or_parent_payload_copy_forbidden": true
+  },
+  "evaluation": {
+    "horizons": [
+      1,
+      2,
+      4
+    ],
+    "sample_definition": "one validated RF9 prefix artifact contributes exactly its final risk row at cutoff_t",
+    "target_frame_definition": "canonical G at cutoff_t plus canonical G strictly after cutoff_t through cutoff_t plus horizon",
+    "overlapping_future_windows_are_not_independent": true,
+    "trajectory_group_must_not_cross_partitions": true,
+    "case_weighting": "unweighted",
+    "threshold_tuning_during_build_forbidden": true,
+    "test_partition_must_not_change_contract_or_outcome_rules": true
+  },
+  "future_outcomes": {
+    "frame_metrics": [
+      "normalized_entropy",
+      "effective_support",
+      "peak_mass",
+      "total_variance",
+      "boundary_mass"
+    ],
+    "concentration": {
+      "normalized_entropy_drop_minimum": 0.02,
+      "effective_support_ratio_maximum": 0.85,
+      "peak_mass_gain_minimum": 0.05,
+      "total_variance_drop_minimum": 0.005,
+      "required_signal_count": 3
+    },
+    "persistent_concentration": {
+      "minimum_future_frame_fraction": 0.5,
+      "endpoint_concentration_required": true
+    },
+    "dispersion": {
+      "normalized_entropy_gain_minimum": 0.02,
+      "effective_support_ratio_minimum": 1.15,
+      "peak_mass_drop_minimum": 0.05,
+      "total_variance_gain_minimum": 0.005,
+      "required_signal_count": 3
+    },
+    "recovery_failure": {
+      "minimum_horizon": 2,
+      "concentration_event_signal_count": 3,
+      "boundary_mass_increase_event_minimum": 0.25,
+      "normalized_entropy_recovery_minimum": 0.02,
+      "effective_support_recovery_ratio_minimum": 1.15,
+      "peak_mass_recovery_drop_minimum": 0.05,
+      "boundary_mass_recovery_drop_minimum": 0.2,
+      "required_recovery_signal_count": 2,
+      "event_must_occur_before_endpoint": true
+    },
+    "target_mapping": {
+      "overconvergence_candidate": "future_concentration_outcome",
+      "fixation_candidate": "future_persistent_concentration_outcome",
+      "divergence_candidate": "future_dispersion_outcome",
+      "recovery_margin_reduction_candidate": "future_recovery_failure_outcome"
+    },
+    "new_drive_coincident_candidate_is_stratifier_not_primary_target": true,
+    "unresolved_residual_dominance_candidate_is_stratifier_not_primary_target": true,
+    "future_outcomes_are_operational_observation_labels_not_true_irreversibility": true
+  },
+  "baselines": {
+    "always_negative_required": true,
+    "component_only_baselines": {
+      "overconvergence_candidate": "shape_convergence_signal",
+      "fixation_candidate": "shape_convergence_signal AND boundary_recovery_weakening_signal",
+      "divergence_candidate": "shape_divergence_signal",
+      "recovery_margin_reduction_candidate": "boundary_recovery_weakening_signal"
+    },
+    "baseline_must_use_prediction_snapshot_only": true
+  },
+  "metrics": {
+    "required": [
+      "true_positive",
+      "false_positive",
+      "true_negative",
+      "false_negative",
+      "precision",
+      "recall",
+      "specificity",
+      "accuracy",
+      "balanced_accuracy",
+      "f1",
+      "matthews_correlation",
+      "brier_score"
+    ],
+    "wilson_interval_confidence": 0.95,
+    "undefined_metric_is_null": true,
+    "metrics_reported_by_partition_horizon_and_target": true,
+    "candidate_vs_component_baseline_difference_reported": true,
+    "statistical_independence_claim_for_overlapping_windows": false
+  },
+  "support_gates": {
+    "minimum_test_cases_for_accuracy_claim": 30,
+    "minimum_positive_test_outcomes_per_target_horizon": 5,
+    "minimum_negative_test_outcomes_per_target_horizon": 5,
+    "predictive_accuracy_claim_requires_all_support_gates": true,
+    "synthetic_or_small_sample_success_only_validates_harness": true
+  },
+  "semantic_limits": {
+    "true_irreversibility_claim": false,
+    "causal_prediction_claim": false,
+    "deployment_readiness_claim": false,
+    "safety_proof_claim": false,
+    "accuracy_superiority_claim_without_support_gates": false,
+    "absence_of_future_outcome_is_not_safety": true,
+    "future_outcome_label_is_not_external_truth": true
+  },
+  "acceptance": {
+    "final_row_only_leakage_gate_required": true,
+    "prediction_snapshot_before_future_read_gate_required": true,
+    "prefix_history_identity_gate_required": true,
+    "partition_group_leakage_gate_required": true,
+    "synthetic_concentration_dispersion_and_recovery_outcome_recovery_required": true,
+    "metric_arithmetic_recovery_required": true,
+    "future_suffix_changes_outcomes_but_not_predictions_required": true,
+    "deterministic_rebuild_required": true,
+    "manifest_required": true,
+    "source_not_modified_required": true,
+    "scientific_claim": "B_limited_leakage_safe_predictive_validation_harness"
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "identity_file": "identity.json",
+    "frozen_case_manifest_file": "case_manifest_frozen.json",
+    "prediction_snapshot_file": "prediction_snapshot.json",
+    "future_outcomes_file": "future_outcomes.npz",
+    "sample_ledger_file": "sample_ledger.json",
+    "metrics_file": "predictive_metrics.json",
+    "stratified_rates_file": "stratified_outcome_rates.json",
+    "leakage_audit_file": "leakage_audit.json",
+    "diagnostics_file": "predictive_validation_diagnostics.json",
+    "uncertainty_file": "uncertainty.json",
+    "provenance_file": "provenance.json",
+    "summary_file": "summary.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "evaluate_nonfinal_RF9_rows_from_a_prefix_artifact_as_future_predictions",
+    "use_future_suffix_to_build_or_modify_prediction_snapshot",
+    "change_RF9_candidate_definitions_after_reading_validation_or_test_outcomes",
+    "change_future_outcome_thresholds_during_build",
+    "place_the_same_trajectory_group_in_multiple_partitions",
+    "read_external_input_action_event_scenario_seed_or_truth_labels",
+    "call_future_observation_label_true_irreversibility",
+    "claim_accuracy_superiority_without_support_gates",
+    "copy_canonical_G_t_K_t_or_parent_payloads_to_output",
+    "modify_canonical_or_parent_artifacts",
+    "perform_action_selection"
+  ]
+}
