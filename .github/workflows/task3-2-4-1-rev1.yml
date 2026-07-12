@@ -1,0 +1,75 @@
+name: Task 3.2-4.1 Rev1 Formal Validation
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/task3_2_4_1_rev1.py'
+      - 'configs/task3_2_4_1_rev1.json'
+      - 'tests/test_task3_2_4_1_rev1.py'
+      - 'docs/task3_2_4_1_rev1_design.md'
+      - '.github/workflows/task3-2-4-1-rev1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  formal-rev1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install repository dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Compile Rev1 modules
+        run: |
+          python -m py_compile scripts/task3_2_4_1_structural_risk.py
+          python -m py_compile scripts/task3_2_4_1_rev1.py
+      - name: Run Rev1 contract tests
+        run: python -m pytest -vv tests/test_task3_2_4_1_rev1.py
+      - name: Generate dedicated Rev1 challenge corpus
+        run: |
+          python scripts/task3_2_4_challenge_runner.py generate \
+            --config configs/task3_2_4_1_rev1.json \
+            --output work/task4_1_rev1_corpus
+          python scripts/task3_2_2_reference_calibration.py \
+            --input work/task4_1_rev1_corpus
+          python scripts/task3_2_4_challenge_runner.py validate \
+            --config configs/task3_2_4_1_rev1.json \
+            --input work/task4_1_rev1_corpus
+      - name: Run Task 4.1 Rev1 formal validation
+        run: |
+          set -o pipefail
+          python scripts/task3_2_4_1_rev1.py run \
+            --corpus work/task4_1_rev1_corpus \
+            --output artifacts/task3_2_4_1_rev1 \
+            2>&1 | tee task3_2_4_1_rev1.log
+      - name: Validate Rev1 artifact
+        run: |
+          python scripts/task3_2_4_1_rev1.py validate \
+            --input artifacts/task3_2_4_1_rev1
+      - name: Upload Rev1 formal artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-4-1-rev1-formal
+          path: artifacts/task3_2_4_1_rev1
+          retention-days: 30
+      - name: Upload Rev1 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-4-1-rev1-diagnostics
+          path: |
+            task3_2_4_1_rev1.log
+            artifacts/task3_2_4_1_rev1
+          if-no-files-found: warn
+          retention-days: 7
