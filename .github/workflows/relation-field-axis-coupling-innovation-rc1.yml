@@ -35,15 +35,31 @@ jobs:
           python -m py_compile scripts/relation_field_shape_dynamics_rc1.py
           python -m py_compile scripts/relation_field_axis_coupling_innovation_rc1.py
       - name: Run RF-2 through RF-8 regression tests
+        id: rf8_tests
+        continue-on-error: true
         run: |
-          python -m pytest -q \
+          python -m pytest -vv --tb=short \
             tests/test_relation_field_grid_rc1.py \
             tests/test_relation_field_single_transition_rc1.py \
             tests/test_relation_field_temporal_consistency_rc1.py \
             tests/test_relation_field_temporal_precision_rc1.py \
             tests/test_relation_field_hodge_decomposition_rc1.py \
             tests/test_relation_field_shape_dynamics_rc1.py \
-            tests/test_relation_field_axis_coupling_innovation_rc1.py
+            tests/test_relation_field_axis_coupling_innovation_rc1.py \
+            > rf8-test.log 2>&1
+      - name: Print RF-8 test log
+        if: always()
+        run: cat rf8-test.log
+      - name: Upload RF-8 test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-rf8-test-log
+          path: rf8-test.log
+          retention-days: 7
+      - name: Preserve RF-8 test result
+        if: steps.rf8_tests.outcome == 'failure'
+        run: exit 1
       - name: Build RF-2 grid artifact
         run: |
           python scripts/relation_field_grid_rc1.py build \
