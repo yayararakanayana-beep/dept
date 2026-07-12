@@ -1,0 +1,130 @@
+{
+  "task_id": "RelationField-RF6-RC1",
+  "title": "Gradient circulation harmonic decomposition of the temporal candidate field",
+  "contract_version": "relation_field_hodge_decomposition_rc1",
+  "status": "implemented_for_rf7_shape_dynamics",
+  "parent_contracts": {
+    "grid": "configs/relation_field_grid_rc1_contract.json",
+    "temporal_candidate_field": "configs/relation_field_temporal_consistency_rc1.json"
+  },
+  "purpose": "Decompose every RF-5 candidate edge flow into an orthogonal gradient component and circulation component on the fixed five-axis cubical complex, preserve the optimal-path family width, and report harmonic and numerical residual terms without making causal, risk, or action claims.",
+  "input": {
+    "required_artifacts": [
+      "RF-2 grid artifact",
+      "RF-5 temporal candidate-field artifact"
+    ],
+    "canonical_G_t_or_K_t_direct_read_forbidden": true,
+    "external_input_action_event_or_truth_read_forbidden": true,
+    "parent_artifact_writeback_forbidden": true,
+    "rf5_manifest_and_validation_required": true,
+    "grid_manifest_and_validation_required": true
+  },
+  "cubical_complex": {
+    "node_count": 3125,
+    "edge_count": 12500,
+    "face_count": 20000,
+    "face_type": "oriented_elementary_square",
+    "face_order": "base_cell_id_then_axis_pair_lexicographic",
+    "axis_pair_count": 10,
+    "face_boundary_entries": 4,
+    "boundary_operator_identity": "B1_times_B2_equals_zero",
+    "topology": "full_5_by_5_by_5_by_5_by_5_contractible_box",
+    "boundary_condition": "absolute_combinatorial_full_complex",
+    "expected_first_betti_number": 0,
+    "harmonic_dimension_basis": "structural_contract_not_numeric_rank_estimate"
+  },
+  "decomposition": {
+    "edge_inner_product": "unweighted_euclidean",
+    "gradient_component": "orthogonal_projection_onto_image_of_B1_transpose",
+    "gradient_solver": "scipy_sparse_lsqr_with_node_0_gauge",
+    "gradient_atol": 1e-12,
+    "gradient_btol": 1e-12,
+    "gradient_iteration_limit": 20000,
+    "circulation_component": "input_flow_minus_gradient_component",
+    "circulation_space": "kernel_of_B1_equal_to_image_of_B2_under_contractible_full_complex",
+    "harmonic_component": "zero_under_fixed_contractible_full_complex",
+    "numerical_residual_component": "input_minus_gradient_minus_circulation_minus_harmonic",
+    "potential_sign_convention": "positive_edge_gradient_equals_target_potential_minus_source_potential",
+    "attraction_or_repulsion_semantics_not_assigned": true
+  },
+  "candidate_family": {
+    "decompose_all_rf5_candidates": true,
+    "representative_path_decomposition_required": true,
+    "optimal_path_family_intervals_required": true,
+    "path_family_statistics": [
+      "minimum",
+      "maximum",
+      "mean",
+      "same_sign_common_magnitude"
+    ],
+    "candidate_path_multiplicity_is_not_probability": true,
+    "representative_path_must_not_replace_family": true,
+    "gradient_commonality_and_circulation_ambiguity_must_be_separable": true
+  },
+  "diagnostics": {
+    "required": [
+      "boundary_of_boundary_max_abs",
+      "reconstruction_max_abs",
+      "gradient_circulation_inner_product",
+      "circulation_divergence_max_abs",
+      "gradient_face_circulation_max_abs",
+      "input_gradient_circulation_energy",
+      "solver_iteration_count",
+      "candidate_family_gradient_spread",
+      "candidate_family_circulation_spread",
+      "harmonic_expected_zero",
+      "numerical_residual_max_abs"
+    ],
+    "risk_prediction_claim": false,
+    "regime_switch_claim": false,
+    "causal_claim": false
+  },
+  "acceptance": {
+    "boundary_of_boundary_tolerance": 0.0,
+    "reconstruction_tolerance": 1e-09,
+    "orthogonality_tolerance": 1e-08,
+    "circulation_divergence_tolerance": 1e-09,
+    "gradient_face_circulation_tolerance": 1e-09,
+    "harmonic_max_abs_tolerance": 0.0,
+    "numerical_residual_tolerance": 1e-12,
+    "pure_gradient_recovery_tolerance": 1e-09,
+    "pure_face_cycle_recovery_tolerance": 1e-09,
+    "ambiguous_same_delta_gradient_spread_tolerance": 1e-09,
+    "ambiguous_same_delta_circulation_spread_minimum": 1e-06,
+    "deterministic_rebuild_required": true,
+    "manifest_required": true,
+    "scientific_claim": "B_limited_hodge_decomposition_on_fixed_contractible_grid"
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "identity_file": "identity.json",
+    "topology_file": "topology.json",
+    "faces_file": "faces.npz",
+    "candidate_components_file": "candidate_components.npz",
+    "candidate_metrics_file": "candidate_metrics.json",
+    "representative_components_file": "representative_components.npz",
+    "path_family_components_file": "path_family_components.npz",
+    "common_input_components_file": "common_input_components.npz",
+    "decomposition_diagnostics_file": "decomposition_diagnostics.json",
+    "uncertainty_file": "uncertainty.json",
+    "provenance_file": "provenance.json",
+    "summary_file": "summary.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "claim_nonzero_harmonic_structure_on_the_fixed_contractible_grid",
+    "reinterpret_gradient_as_attraction_without_later_semantic_validation",
+    "discard_circulation_because_candidate_paths_are_ambiguous",
+    "decompose_only_the_representative_path",
+    "treat_saved_optimal_paths_as_probabilities",
+    "read_future_or_external_information",
+    "modify_RF2_or_RF5_artifacts",
+    "perform_risk_prediction",
+    "perform_action_selection"
+  ]
+}
