@@ -1,0 +1,121 @@
+{
+  "task_id": "RelationField-RF2-RC1",
+  "title": "Fixed five-axis grid connectivity contract",
+  "contract_version": "relation_field_grid_rc1",
+  "status": "implemented_for_rf3_rf4",
+  "parent_contract": "configs/relation_field_rc1_contract.json",
+  "purpose": "Provide a deterministic sparse graph and incidence operator for the 3,125 fixed-five-axis cells without adding semantic or scenario-dependent connectivity.",
+  "axes": {
+    "order": [
+      "resource_slack",
+      "information_quality",
+      "pressure",
+      "exploration_room",
+      "reversibility"
+    ],
+    "bins": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "shape": [5, 5, 5, 5, 5],
+    "cell_count": 3125,
+    "flatten_order": "C",
+    "axis_strides": [625, 125, 25, 5, 1]
+  },
+  "connectivity": {
+    "rule": "cells are adjacent iff exactly one axis index differs by exactly one bin",
+    "diagonal_edges": false,
+    "wraparound_edges": false,
+    "canonical_edge_orientation": "lower_bin_to_higher_bin",
+    "canonical_edge_direction": 1,
+    "undirected_edge_count": 12500,
+    "directed_neighbor_count": 25000,
+    "topological_edge_length": 1,
+    "coordinate_edge_length": 0.25,
+    "reverse_direction_is_derived": true
+  },
+  "cell_identity": {
+    "formula": "numpy.ravel_multi_index(indices, shape, order='C')",
+    "cell_ids": "0_through_3124",
+    "roundtrip_required": true,
+    "boundary_masks": {
+      "lower": "bit i is one iff axis i bin index is zero",
+      "upper": "bit i is one iff axis i bin index is four"
+    },
+    "degree_range": [5, 10],
+    "degree_distribution": {
+      "5": 32,
+      "6": 240,
+      "7": 720,
+      "8": 1080,
+      "9": 810,
+      "10": 243
+    }
+  },
+  "operators": {
+    "adjacency": {
+      "storage": "CSR",
+      "symmetric": true,
+      "dense_storage_forbidden": true,
+      "neighbor_direction": "plus_one from lower to higher bin and minus_one in reverse"
+    },
+    "incidence": {
+      "storage": "COO",
+      "shape": [3125, 12500],
+      "source_value": -1.0,
+      "target_value": 1.0,
+      "equation": "delta_mass = incidence @ nonnegative_canonical_edge_flow",
+      "column_sum": 0.0,
+      "dense_storage_forbidden": true
+    },
+    "divergence": {
+      "derived_as": "negative_incidence",
+      "equation": "delta_mass = -divergence @ flow",
+      "stored_separately": false
+    }
+  },
+  "storage": {
+    "contract_file": "contract.json",
+    "metadata_file": "metadata.json",
+    "nodes_csv": "nodes.csv",
+    "edges_csv": "edges.csv",
+    "nodes_npz": "nodes.npz",
+    "neighbors_npz": "neighbors.npz",
+    "incidence_npz": "incidence.npz",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "semantic_edges",
+    "scenario_dependent_edges",
+    "truth_dependent_edges",
+    "diagonal_edges",
+    "wraparound_edges",
+    "dense_adjacency_matrix",
+    "dense_incidence_matrix",
+    "modify_relation_field_parent_contract",
+    "read_or_modify_canonical_gt_kt",
+    "perform_flow_inversion",
+    "perform_prediction",
+    "perform_risk_classification"
+  ],
+  "rf2_acceptance": {
+    "required": [
+      "axis_contract_exact",
+      "cell_id_roundtrip",
+      "node_count_exact",
+      "edge_count_exact",
+      "single_axis_single_bin_edges_only",
+      "csr_adjacency_symmetric",
+      "incidence_orientation_exact",
+      "graph_connected",
+      "boundary_degree_exact",
+      "deterministic_rebuild",
+      "manifest_valid",
+      "no_canonical_gt_kt_access"
+    ],
+    "scientific_relation_field_claim": "not_evaluated",
+    "flow_inversion_claim": "not_evaluated"
+  }
+}
