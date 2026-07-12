@@ -1,0 +1,123 @@
+name: Relation field single transition RF-3 RC1
+
+on:
+  pull_request:
+    paths:
+      - "configs/fixed5axis_gk_rc1_contract.json"
+      - "configs/relation_field_rc1_contract.json"
+      - "configs/relation_field_grid_rc1_contract.json"
+      - "configs/relation_field_single_transition_rc1_contract.json"
+      - "scripts/fixed5axis_gk_rc1.py"
+      - "scripts/relation_field_grid_rc1.py"
+      - "scripts/relation_field_single_transition_rc1.py"
+      - "tests/test_relation_field_grid_rc1.py"
+      - "tests/test_relation_field_single_transition_rc1.py"
+      - "docs/relation_field_rc1/RF3_SINGLE_TRANSITION_FLOW.md"
+      - ".github/workflows/relation-field-single-transition-rc1.yml"
+  workflow_dispatch:
+
+jobs:
+  single-transition-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - name: Compile relation-field modules
+        run: |
+          python -m py_compile scripts/relation_field_grid_rc1.py
+          python -m py_compile scripts/relation_field_single_transition_rc1.py
+      - name: Run RF-2 regression and RF-3 tests
+        run: |
+          python -m pytest -q \
+            tests/test_relation_field_grid_rc1.py \
+            tests/test_relation_field_single_transition_rc1.py
+      - name: Build RF-2 grid artifact
+        run: |
+          python scripts/relation_field_grid_rc1.py build \
+            --output artifacts/relation_field_grid_rc1
+      - name: Create deterministic canonical transition fixture
+        run: |
+          python - <<'PY'
+          import csv
+          import hashlib
+          import sys
+          from pathlib import Path
+          import numpy as np
+
+          sys.path.insert(0, "scripts")
+          from fixed5axis_gk_rc1 import (
+              GENESIS_HASH,
+              compute_gt_hash,
+              compute_history_chain_hash,
+          )
+
+          root = Path("artifacts/rf3_demo_trajectory")
+          root.mkdir(parents=True, exist_ok=False)
+          first = np.zeros(3125, dtype=np.float64)
+          second = np.zeros(3125, dtype=np.float64)
+          first[0], first[1] = 0.6, 0.4
+          second[0], second[1] = 0.4, 0.6
+          frames = [first.reshape((5, 5, 5, 5, 5)), second.reshape((5, 5, 5, 5, 5))]
+          np.save(root / "gt_mass.npy", np.stack(frames), allow_pickle=False)
+
+          fields = (
+              "trajectory_id", "source_trajectory_id", "t", "phase", "gt_row_index",
+              "gt_hash", "previous_gt_hash", "history_chain_hash", "delta_t",
+              "continuity_status", "admissible_for_research", "source_state_ref",
+              "source_state_hash",
+          )
+          rows = []
+          previous_gt_hash = ""
+          chain_hash = GENESIS_HASH
+          for t, frame in enumerate(frames):
+              source_state_hash = hashlib.sha256(f"rf3-demo-state-{t}".encode()).hexdigest()
+              gt_hash = compute_gt_hash(
+                  contract_version="fixed5axis_gk_rc1",
+                  trajectory_id="traj_rf3_demo",
+                  t=t,
+                  distribution=frame,
+                  source_state_hash=source_state_hash,
+              )
+              chain_hash = compute_history_chain_hash(chain_hash, gt_hash, t)
+              rows.append({
+                  "trajectory_id": "traj_rf3_demo",
+                  "source_trajectory_id": "traj_rf3_demo",
+                  "t": t,
+                  "phase": "pre_transition",
+                  "gt_row_index": t,
+                  "gt_hash": gt_hash,
+                  "previous_gt_hash": previous_gt_hash,
+                  "history_chain_hash": chain_hash,
+                  "delta_t": 0 if t == 0 else 1,
+                  "continuity_status": "initial" if t == 0 else "continuous",
+                  "admissible_for_research": True,
+                  "source_state_ref": f"states/step_{t:06d}.npz",
+                  "source_state_hash": source_state_hash,
+              })
+              previous_gt_hash = gt_hash
+          with (root / "history_ledger.csv").open("w", encoding="utf-8", newline="") as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
+              writer.writeheader()
+              writer.writerows(rows)
+          PY
+      - name: Build and validate RF-3 artifact
+        run: |
+          python scripts/relation_field_single_transition_rc1.py build \
+            --trajectory artifacts/rf3_demo_trajectory \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/relation_field_single_transition_rc1 \
+            --from-t 0 \
+            --to-t 1
+          python scripts/relation_field_single_transition_rc1.py validate \
+            --input artifacts/relation_field_single_transition_rc1 \
+            --grid-artifact artifacts/relation_field_grid_rc1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-single-transition-rf3-rc1
+          path: artifacts/relation_field_single_transition_rc1
+          retention-days: 30
