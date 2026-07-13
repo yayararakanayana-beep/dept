@@ -9,6 +9,14 @@ from relation_field_prediction_p2_precursor_audit.common import canonical_digest
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PLAN = ROOT / "configs" / "relation_field_prediction_p2_formal_audit_dataset_v1.json"
 
+OUTCOME_FIELDS = (
+    "future_concentration_outcome",
+    "future_persistent_concentration_outcome",
+    "future_dispersion_outcome",
+    "future_recovery_failure_outcome",
+    "future_recovery_failure_applicable",
+)
+
 
 class FormalAuditDatasetError(ValueError):
     """正式監査データ計画、生成結果または期待結果の不整合。"""
@@ -200,7 +208,7 @@ def validate_plan(
     if independence["all_cases_test_partition"] is not True:
         raise FormalAuditDatasetError(
             "formal plan must use only the test partition"
-        )
+       )
 
     cases = plan.get("cases")
     if not isinstance(cases, list):
@@ -349,3 +357,4 @@ def validate_plan(
                         f"formal plan negative support too small: "
                         f"{target_id}/{horizon}"
                     )
+
