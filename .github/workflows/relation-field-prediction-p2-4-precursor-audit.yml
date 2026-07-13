@@ -1,0 +1,79 @@
+name: Relation Field Prediction P2-4 Precursor Audit
+
+on:
+  pull_request:
+    paths:
+      - 'configs/relation_field_prediction_p2_precursor_audit_contract.json'
+      - 'scripts/relation_field_prediction_p2_precursor_audit.py'
+      - 'scripts/relation_field_prediction_p2_precursor_audit/**'
+      - 'tests/test_relation_field_prediction_p2_precursor_audit.py'
+      - 'validation/relation_field_prediction_p2_precursor_pilot.py'
+      - 'docs/relation_field_prediction/P2_4_PRECURSOR_AUDIT.md'
+      - '.github/workflows/relation-field-prediction-p2-4-precursor-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p2-4-precursor-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Parse contract and compile modules
+        run: |
+          python -m json.tool configs/relation_field_prediction_p2_precursor_audit_contract.json >/dev/null
+          python -m py_compile scripts/relation_field_prediction_p2_precursor_audit.py scripts/relation_field_prediction_p2_precursor_audit/*.py validation/relation_field_prediction_p2_precursor_pilot.py tests/test_relation_field_prediction_p2_precursor_audit.py
+      - name: Run focused contract, metric, validator, and mutation tests
+        run: PYTHONPATH=scripts python -m pytest -q tests/test_relation_field_prediction_p2_precursor_audit.py
+      - name: Run real P1 to P2 precursor pilot and capture log
+        shell: bash
+        run: |
+          set +e
+          PYTHONPATH=scripts python validation/relation_field_prediction_p2_precursor_pilot.py --work-dir results/p2_4_precursor_pilot > p2-4-pilot.log 2>&1
+          status=$?
+          echo "$status" > p2-4-pilot.exit
+          exit 0
+      - name: Upload pilot execution log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-p2-4-pilot-log
+          path: |
+            p2-4-pilot.log
+            p2-4-pilot.exit
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce pilot execution result
+        run: |
+          cat p2-4-pilot.log
+          test "$(cat p2-4-pilot.exit)" = "0"
+      - name: Validate generated pilot artifact again
+        run: PYTHONPATH=scripts python -m relation_field_prediction_p2_precursor_audit validate results/p2_4_precursor_pilot/audit results/p2_4_precursor_pilot/case_manifest.json
+      - name: Enforce support-limited scientific boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          decision=json.loads(Path('results/p2_4_precursor_pilot/audit/decision.json').read_text())
+          assert decision['status']=='blocked_support_insufficient', decision
+          assert decision['performance_interpretation_allowed'] is False
+          print(json.dumps(decision,ensure_ascii=False,indent=2,sort_keys=True))
+          PY
+      - name: Upload pilot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-p2-4-precursor-pilot
+          path: results/p2_4_precursor_pilot
+          if-no-files-found: error
+          retention-days: 14
