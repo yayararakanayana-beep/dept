@@ -1,0 +1,161 @@
+{
+  "task_id": "RelationField-Prediction-P2-2",
+  "title": "Causal continuous relation-field coordinate builder",
+  "contract_version": "relation_field_prediction_coordinates_p2_2",
+  "status": "implemented_coordinate_builder_without_independent_validator_or_precursor_validation",
+  "purpose": "Transform validated P1 causal relation-field states into identity-keyed continuous state, condition-margin, structure-margin, and applicability coordinates using only P1 artifacts and frozen source-contract thresholds, while preserving candidate intervals and without future prediction, action selection, or a single scalar risk score.",
+  "scope": {
+    "coordinate_builder_implementation": true,
+    "coordinate_registry_binding": true,
+    "coordinate_first_and_second_difference": true,
+    "risk_condition_margin_implementation": true,
+    "risk_structure_margin_implementation": true,
+    "applicability_coordinate_implementation": true,
+    "independent_validator_implementation": false,
+    "negative_test_suite_implementation": false,
+    "future_target_generation": false,
+    "precursor_validity_evaluation": false,
+    "prediction_model_implementation": false,
+    "prediction_accuracy_evaluation": false,
+    "action_evaluation_or_selection": false
+  },
+  "input": {
+    "required_parent_contract_version": "relation_field_prediction_state_p1",
+    "full_p1_validation_required_before_build": true,
+    "p1_series_artifact_only_as_dynamic_input": true,
+    "source_contracts_may_be_read_for_thresholds_only": true,
+    "required_source_contracts": {
+      "RF-7": "configs/relation_field_shape_dynamics_rc1.json",
+      "RF-8": "configs/relation_field_axis_coupling_innovation_rc1.json",
+      "RF-9": "configs/relation_field_risk_structure_rc1.json"
+    },
+    "future_or_rf10_read_forbidden": true,
+    "scenario_seed_split_read_forbidden": true,
+    "action_or_world_internal_state_read_forbidden": true,
+    "parent_rf_artifact_direct_feature_read_forbidden": true,
+    "source_writeback_forbidden": true
+  },
+  "coordinates": {
+    "canonical_form": "identity_keyed_variable_collection_with_interval",
+    "interval_fields": ["lower", "center", "upper"],
+    "center_is_probability_forbidden": true,
+    "candidate_multiplicity_as_probability_forbidden": true,
+    "candidate_interval_discard_forbidden": true,
+    "unavailable_value_zero_fill_forbidden": true,
+    "reserved_coordinate_proxy_substitution_forbidden": true,
+    "coordinate_roles": [
+      "state",
+      "condition_margin",
+      "structure_margin",
+      "applicability",
+      "modifier",
+      "reserved_extension"
+    ],
+    "scope_types": [
+      "global",
+      "axis",
+      "directed_axis_pair",
+      "region",
+      "pathway",
+      "risk_structure",
+      "candidate_family"
+    ]
+  },
+  "margins": {
+    "positive_side_means_condition_satisfied": true,
+    "zero_means_condition_boundary": true,
+    "and_operator": "elementwise_minimum",
+    "or_operator": "elementwise_maximum",
+    "not_operator": "sign_negation",
+    "weighted_sum_forbidden": true,
+    "evidence_counterevidence_cancellation_forbidden": true,
+    "source_contract_tolerance_may_be_comparison_scale": true,
+    "natural_bounded_range_may_be_comparison_scale": true,
+    "causal_prefix_robust_scale_not_implemented_in_p2_2": true,
+    "unit_origin_interval_required_for_terminal_change_conditions": true
+  },
+  "differences": {
+    "first_backward_difference": "interval_subtraction_divided_by_origin_interval",
+    "second_backward_difference": "difference_of_adjacent_first_interval_rates_divided_by_interval_midpoint_gap",
+    "same_coordinate_id_required": true,
+    "same_scope_identity_required": true,
+    "same_unit_required": true,
+    "same_normalization_required": true,
+    "same_shape_required": true,
+    "missing_or_incomparable_is_unavailable_not_zero": true
+  },
+  "risk_registry": {
+    "required_primary_ids": [
+      "overconvergence",
+      "fixation",
+      "divergence",
+      "recovery_margin_reduction"
+    ],
+    "extensible_registry_required": true,
+    "single_scalar_risk_score_forbidden": true,
+    "primary_structure_boolean_consistency_with_p1_required_when_margin_available": true
+  },
+  "storage": {
+    "origin_container_dir": "origins",
+    "origin_name_format": "t_{origin_t:06d}",
+    "coordinate_file": "coordinates.npz",
+    "coordinate_index_file": "coordinate_index.json",
+    "first_difference_file": "first_backward_difference.npz",
+    "second_difference_file": "second_backward_difference.npz",
+    "difference_index_file": "difference_index.json",
+    "risk_margin_file": "risk_structure_margins.json",
+    "origin_identity_file": "identity.json",
+    "origin_validation_file": "validation.json",
+    "origin_manifest_file": "manifest.json",
+    "series_identity_file": "identity.json",
+    "series_index_file": "series_index.json",
+    "series_validation_file": "validation.json",
+    "series_manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "availability_reasons": [
+    "missing_source",
+    "insufficient_history",
+    "identity_mismatch",
+    "scope_mismatch",
+    "unit_mismatch",
+    "normalization_mismatch",
+    "shape_mismatch",
+    "candidate_family_empty",
+    "candidate_contract_changed",
+    "boundary_undefined",
+    "comparison_scale_undefined",
+    "nonfinite_source",
+    "parent_validation_failed",
+    "future_dependency_detected",
+    "unsupported_coordinate_version",
+    "reserved_not_implemented",
+    "source_interval_mismatch",
+    "dependent_coordinate_unavailable"
+  ],
+  "acceptance": {
+    "engineering_claim": "B_coordinate_builder_with_parent_validation_without_independent_p2_validator",
+    "scientific_claim": "B_limited_continuous_risk_boundary_coordinates_without_precursor_validation",
+    "precursor_claim": "not_evaluated",
+    "prediction_accuracy_claim": "not_evaluated",
+    "true_irreversibility_claim": false,
+    "action_recommendation_claim": false
+  },
+  "prohibitions": [
+    "read_RF10_future_outcome_or_truth",
+    "read_scenario_seed_split_action_event_or_world_internal_state",
+    "read_parent_RF_payload_as_dynamic_input_outside_P1_artifact",
+    "zero_fill_unavailable_coordinates_or_differences",
+    "replace_reserved_path_coordinates_with_proxy_counts",
+    "collapse_parallel_risk_structures_into_one_score",
+    "subtract_counterevidence_from_support_as_weighted_score",
+    "treat_candidate_count_as_probability",
+    "claim_precursor_validity_or_prediction_accuracy",
+    "claim_true_irreversibility",
+    "select_or_execute_action",
+    "modify_P1_or_canonical_sources"
+  ]
+}
