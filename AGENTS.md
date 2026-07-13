@@ -113,3 +113,14 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Task 3.2-4.1 branch outcomes, escape costs, recovery probabilities, reachable values, reachable ranges, action windows, refixation, and shrinking-equilibrium labels are future-side truth only and must not enter predictor features.
 - Task 3.2-4.1 must create and independently validate its selection lock before opening holdout snapshot state files or running holdout branches. Post-holdout predictor switching is forbidden.
 - If PseudoReality v3.3 does not generate structural variation or shrinking equilibrium under the tested probes, Task 3.2-4.1 must report world-model/probe-set insufficiency rather than manufacturing positive labels.
+
+## Task 3.2-3 Rev1 Phase 1 Boundary
+
+- `configs/task3_2_3_rev1_contract.json` and `docs/task3_2_macro_dynamics_exploration/TASK3_2_3_REV1_PHASE1_CONTRACT.md` are the source of truth for Task 3.2-3 Rev1 Phase 1.
+- Phase 1 is contract-only. It must not generate a new corpus, implement or train a model, select a candidate, or read validation/holdout state data.
+- Task 3 Rev1 remains a local/history early-warning probe. It must not import Task 4 macro features, use Task 4.1 counterfactual truth for fitting or selection, construct formal G_t or a relation field, classify game structures, prove irreversibility, or select actions.
+- Information levels I0 through I4 must differ only by their declared currently observed information groups. Scenario ID, trajectory ID, seed, split, absolute step/time, generator regime names, future information, truth, and final outcomes are forbidden model inputs.
+- Unknown-condition evaluation must split schedule templates, background regimes, and world-parameter profiles across fit/validation/holdout. A seed-only split with repeated schedules is not an out-of-distribution test.
+- Information levels must be compared on identical eligible windows and each prediction horizon must be evaluated separately. A weighted scalar score must not select across different horizons.
+- Task 4.1 truth may be used only by a later blind post-selection audit under a separately approved contract.
+- Stable selection identity must exclude metrics, timestamps, workflow/artifact IDs, and absolute paths. Two identical pre-holdout reruns must produce the same selection identity before holdout can be opened.
