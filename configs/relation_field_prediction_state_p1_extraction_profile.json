@@ -14,7 +14,12 @@
       "transition_row_keys": ["observed_delta"]
     },
     "rf5_common_structure": {"mode": "last_row"},
-    "rf5_representative_flow": {"mode": "last_row"},
+    "rf5_representative_flow": {
+      "mode": "latest_candidate_family",
+      "transition_index_key": "transition_times",
+      "offset_key": "__no_offset_array__",
+      "transition_row_keys": []
+    },
     "rf6_candidate_components": {
       "mode": "latest_candidate_family",
       "transition_index_key": "candidate_transition_index",
