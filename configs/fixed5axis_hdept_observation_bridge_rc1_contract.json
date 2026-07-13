@@ -1,0 +1,250 @@
+{
+  "acceptance": {
+    "all_evidence_feature_references_resolve": true,
+    "builder_requires_no_new_boundary_decisions": true,
+    "feature_registry_count": 47,
+    "h11_axis_count": 11,
+    "machine_readable_contracts_parse": true,
+    "no_future_or_truth_formal_input": true,
+    "no_source_writeback": true,
+    "reserved_prediction_features_are_unavailable_without_subcontract": true,
+    "reserved_recovery_features_are_unavailable_without_subcontract": true,
+    "task1_completion": "contract_schema_feature_registry_evidence_map_and_claim_boundary_frozen"
+  },
+  "calibration": {
+    "artifact_required_for_scored_h11": true,
+    "calibration_must_record": [
+      "calibration_version",
+      "feature_registry_hash",
+      "feature_order",
+      "center",
+      "scale",
+      "clip_lower",
+      "clip_upper",
+      "fit_dataset_ids",
+      "fit_trajectory_ids_hash",
+      "fit_time_boundary",
+      "normalization_method",
+      "creation_code_hash"
+    ],
+    "fit_split": "calibration_only",
+    "missing_feature_imputation": "forbidden",
+    "online_refit_forbidden": true,
+    "per_request_fit_forbidden": true,
+    "unknown_calibration_version": "fail_closed",
+    "validation_or_holdout_fit_forbidden": true,
+    "zero_scale_feature_behavior": "mark non_scoring_constant; do not synthesize evidence"
+  },
+  "contract_version": "fixed5axis_hdept_observation_bridge_rc1",
+  "feature_output_contract": {
+    "confidence_range": [
+      0.0,
+      1.0
+    ],
+    "deterministic_feature_order": "registry order",
+    "one_record_per_registry_feature": true,
+    "required_fields": [
+      "feature_id",
+      "group",
+      "value",
+      "available",
+      "confidence",
+      "support_count",
+      "minimum_history_frames",
+      "derivation_status",
+      "evidence_source",
+      "reason_unavailable"
+    ],
+    "support_count_non_negative": true,
+    "value_null_when_unavailable": true
+  },
+  "forbidden_formal_evidence": [
+    "truth.jsonl",
+    "summary.json",
+    "metrics.jsonl",
+    "future_state",
+    "future_external_input",
+    "future_event",
+    "future_action",
+    "risk_truth",
+    "recovery_truth",
+    "scenario_final_outcome",
+    "terrain_truth",
+    "flow_truth",
+    "RF-10 future outcomes or target-side artifacts",
+    "P1 future labels or prediction targets",
+    "O_t or O_t-derived fields",
+    "v8 local-audit output",
+    "exploration-module output",
+    "action-surface or action-result fields",
+    "upper pressure or approved pressure",
+    "Parameter Box values",
+    "observed external input/action/event logs as numeric H11 evidence"
+  ],
+  "formal_input": {
+    "accepted_current_continuity_status": [
+      "initial",
+      "continuous"
+    ],
+    "axis_bins": [
+      0.0,
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "axis_order": [
+      "resource_slack",
+      "information_quality",
+      "pressure",
+      "exploration_room",
+      "reversibility"
+    ],
+    "canonical_copy_to_output_forbidden": true,
+    "canonical_writeback_forbidden": true,
+    "current_row_must_be_admissible_for_research": true,
+    "future_suffix_read_forbidden": true,
+    "gt_cell_count": 3125,
+    "gt_dtype": "float64",
+    "gt_phase": "pre_transition",
+    "gt_shape": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "history_gap_or_anomaly_before_selected_contiguous_suffix_may_be_preserved_in_audit": true,
+    "history_selector": "causal_contiguous_suffix_ending_at_current_t",
+    "initial_frame_global_status_cap": "INSUFFICIENT_HISTORY",
+    "mass_tolerance": 1e-10,
+    "required_canonical_files": [
+      "gt_mass.npy",
+      "history_ledger.csv",
+      "provenance.json",
+      "manifest.json"
+    ]
+  },
+  "future_upper_connection": {
+    "implementation_deferred_to_task5": true,
+    "legacy_compute_formal_packet_entrypoint_retained_for_regression": true,
+    "low_confidence_pressure_decay_or_hold_required": true,
+    "m_only_pressure_derivation_required": true,
+    "new_entrypoint_name": "compute_from_m",
+    "unavailable_axis_must_not_be_interpreted_as_neutral_evidence": true,
+    "writeback_forbidden_until_separate_closed_loop_approval": true
+  },
+  "m_output_contract": {
+    "axis_order": [
+      "Stability",
+      "AdaptabilityStar",
+      "Exploration",
+      "Efficiency",
+      "Robustness",
+      "StructuralDiversity",
+      "TrajectoryDynamics",
+      "Predictability",
+      "Coherence",
+      "Recoverability",
+      "NoveltyQuality"
+    ],
+    "basis": "H11_STRUCTURED",
+    "global_status_enum": [
+      "INVALID_INPUT",
+      "INSUFFICIENT_HISTORY",
+      "LIMITED",
+      "READY",
+      "HOLD_RECOMMENDED"
+    ],
+    "per_axis_required_fields": [
+      "value",
+      "transport_value",
+      "transport_value_is_neutral_placeholder",
+      "available",
+      "confidence",
+      "evidence_coverage",
+      "status",
+      "evidence_feature_ids",
+      "claim_limit",
+      "watchpoints"
+    ],
+    "placeholder_normal_pressure_use_forbidden": true,
+    "ready_requires_task4_scientific_validation": true,
+    "task1_and_task2_global_status_cap": "LIMITED",
+    "transport_placeholder_when_unavailable": 0.5,
+    "value_range_when_available": [
+      0.0,
+      1.0
+    ]
+  },
+  "parent_contracts": {
+    "bundle_schema": "schemas/fixed5axis_hdept_observation_bridge_rc1.schema.json",
+    "feature_registry": "configs/fixed5axis_hdept_feature_registry_rc1.json",
+    "fixed5_gk": "configs/fixed5axis_gk_rc1_contract.json",
+    "h11_evidence_map": "configs/fixed5axis_hdept_h11_evidence_map_rc1.json",
+    "legacy_observer": "localprep1/dept/DEPT2_ActionModule_ActuationPrimitives_RC1/dept2_system/hdept_observer.py",
+    "legacy_upper_module": "localprep1/dept/dept2_fullspec_runner_rc1/modules/upper_pressure_module.py",
+    "rf7_geometry_reference": "configs/relation_field_shape_dynamics_rc1.json"
+  },
+  "pipeline": [
+    "validate canonical identity and current G_t",
+    "select causal contiguous K_t suffix ending at current_t",
+    "derive fixed5 feature records",
+    "apply feature availability and confidence rules",
+    "apply frozen calibration artifact without fitting",
+    "construct H11_STRUCTURED axes with evidence coverage",
+    "assign global observation status",
+    "write audit/provenance artifacts without source writeback"
+  ],
+  "prohibitions": [
+    "map fixed5 values into legacy gt_activity or gt_relation_lock columns merely to make old code run",
+    "treat the Phase 1 synthetic 47-feature table as an already validated extractor from canonical fixed5 G_t",
+    "read future K_t suffix or target-side prediction artifacts",
+    "use truth, external events, actions, outcomes, O_t, or pressure as formal H11 evidence",
+    "replace unavailable features with numeric zero",
+    "treat transport placeholder 0.5 as scientific observation",
+    "fit normalization on the current request, validation split, or holdout split",
+    "silently accept unknown contract, registry, evidence-map, or calibration versions",
+    "call fixed-grid proxies exact kNN, physical modes, full joint Wasserstein distance, useful novelty, robustness, or recovery",
+    "generate upper pressure in Task 1",
+    "modify canonical G_t, K_t, parent artifacts, or calibration artifacts",
+    "claim formal H11 readiness before Task 4 scientific validation"
+  ],
+  "purpose": "Translate canonical fixed5 G_t and its causal K_t prefix into an auditable H11_STRUCTURED M_t observation without future, truth, lower-observation, action, or pressure leakage.",
+  "scientific_claim": "B_limited_contract_only_no_bridge_performance_claim",
+  "scope": {
+    "excluded": [
+      "feature builder implementation",
+      "runtime validator and negative tests",
+      "calibration fitting and scientific validation",
+      "upper-pressure generation",
+      "Parameter Box writeback",
+      "action execution",
+      "closed-loop performance claims"
+    ],
+    "included": [
+      "formal input boundary",
+      "feature vocabulary and derivation status",
+      "availability and confidence contract",
+      "fixed calibration contract",
+      "H11 evidence construction contract",
+      "output and audit schema",
+      "future upper-pressure connection interface"
+    ]
+  },
+  "status": "frozen_for_builder_implementation",
+  "storage": {
+    "atomic_write_required": true,
+    "audit_file": "audit.json",
+    "deterministic_bytes_required": true,
+    "feature_file": "features.json",
+    "hash_algorithm": "sha256",
+    "identity_file": "identity.json",
+    "m_observation_file": "m_observation.json",
+    "manifest_file": "manifest.json",
+    "overwrite_forbidden": true,
+    "provenance_file": "provenance.json"
+  },
+  "task_id": "Fixed5Axis-HDEPT-Bridge-Task1-RC1",
+  "title": "Fixed five-axis upper-observation translation contract"
+}
