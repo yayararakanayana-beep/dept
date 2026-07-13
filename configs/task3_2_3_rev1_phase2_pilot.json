@@ -1,0 +1,337 @@
+{
+  "task_identity": {
+    "task_id": "Task 3.2-3 Rev1 Phase 2",
+    "task_type": "existing_task_revision",
+    "title": "Pilot corpus feasibility audit",
+    "repository": "yayararakanayana-beep/dept",
+    "base_branch": "main",
+    "working_branch": "agent/task3-2-3-rev1-phase2-pilot-validator",
+    "status": "pilot_feasibility_audit_only"
+  },
+  "source_of_truth": {
+    "phase1_contract": "configs/task3_2_3_rev1_contract.json",
+    "phase1_contract_hash": "1f6e06ad1b52f4f6e17afe445794e4404efcd25e0dada004335b4101833a0eea",
+    "phase2_contract": "configs/task3_2_3_rev1_phase2_pilot.json",
+    "phase2_validator": "scripts/task3_2_3_rev1_phase2_pilot.py",
+    "scope_document": "docs/task3_2_macro_dynamics_exploration/TASK3_2_3_REV1_PHASE2_PILOT_AUDIT.md",
+    "raw_trajectory_generator": "scripts/task3_2_2_continuous_trajectory.py"
+  },
+  "phase_boundaries": {
+    "allowed_work": [
+      "pilot_trajectory_generation",
+      "raw_state_integrity_validation",
+      "independent_raw_outcome_recomputation",
+      "outcome_coverage_audit",
+      "ood_axis_audit",
+      "hard_case_design_audit",
+      "same_current_opposite_future_audit",
+      "trajectory_level_prevalence_and_variance_audit",
+      "formal_sample_count_recommendation"
+    ],
+    "prohibited_work": [
+      "formal_corpus_generation",
+      "predictor_feature_extraction",
+      "model_implementation",
+      "model_training",
+      "model_selection",
+      "selection_lock_creation",
+      "formal_validation_or_holdout_evaluation",
+      "task4_feature_import",
+      "task4_1_truth_use",
+      "formal_gt_or_relation_field_use",
+      "game_structure_classification",
+      "irreversibility_proof",
+      "action_module_connection"
+    ]
+  },
+  "pilot_reuse_policy": {
+    "all_pilot_split_results_may_be_inspected_for_feasibility": true,
+    "pilot_trajectories_may_be_reused_for_formal_fit_validation_or_holdout": false,
+    "pilot_thresholds_may_be_retuned_after_outcome_read": false,
+    "formal_corpus_requires_new_disjoint_schedule_background_world_and_seed_values": true,
+    "pilot_results_are_not_predictor_performance_results": true
+  },
+  "raw_truth_contract": {
+    "only_label_source": "persisted_raw_state_arrays_recomputed_against_raw_stable_reference",
+    "source_label_files_forbidden_until_after_recomputed_outcome_freeze": [
+      "summary.json",
+      "truth.jsonl",
+      "metrics.jsonl"
+    ],
+    "required_state_arrays": [
+      "distribution",
+      "damage",
+      "rigidity",
+      "friction",
+      "viscosity",
+      "recovery_speed",
+      "route_support",
+      "viability_reserve",
+      "negative_viability_pressure",
+      "last_flow"
+    ],
+    "expected_state_shape": [5, 5, 5, 5, 5],
+    "mass_tolerance": 1e-05,
+    "negative_mass_tolerance": 1e-08,
+    "risk_score_weights": {
+      "damage": 0.2,
+      "rigidity": 0.15,
+      "friction": 0.15,
+      "viscosity": 0.1,
+      "one_minus_recovery_speed": 0.15,
+      "one_minus_route_support": 0.1,
+      "one_minus_viability_reserve": 0.05,
+      "negative_viability_pressure": 0.1
+    },
+    "classification_rules": {
+      "baseline_steps": 6,
+      "tail_steps": 6,
+      "elevated_relative_risk_delta": 0.015,
+      "hazard_sustained_steps": 3,
+      "recovery_tolerance": 0.012,
+      "recovery_sustained_steps": 3,
+      "full_recovery_maximum_delay_steps": 8,
+      "partial_recovery_fraction_minimum": 0.35,
+      "full_recovery_fraction_minimum": 0.85,
+      "relapse_minimum_gap_steps": 4,
+      "fixation_concentration_ratio": 1.1,
+      "fixation_mobility_ratio": 0.82,
+      "fixation_rigidity_delta": 0.25,
+      "mobility_floor": 0.001,
+      "collapse_absolute_tail_risk": 0.5,
+      "collapse_relative_tail_risk": 0.2,
+      "direction_slope_tolerance": 0.0005
+    },
+    "unresolved_outcomes_must_remain_unresolved": true,
+    "scenario_or_intended_family_must_not_select_observed_outcome": true,
+    "stable_reference_must_match_seed_background_and_world_profile": true
+  },
+  "pilot_design": {
+    "transitions": 64,
+    "split_order": ["fit", "validation", "holdout"],
+    "prediction_anchor_steps": [8, 16, 24],
+    "prediction_horizons": [4, 8, 16],
+    "split_specifications": {
+      "fit": {
+        "seeds": [40, 41, 42, 43],
+        "repetitions_per_intended_outcome": 2,
+        "schedule_modifier": {
+          "start_shift": 0,
+          "duration_shift": 0,
+          "strength_scale": 1.0
+        }
+      },
+      "validation": {
+        "seeds": [44, 45, 46, 47],
+        "repetitions_per_intended_outcome": 1,
+        "schedule_modifier": {
+          "start_shift": 1,
+          "duration_shift": 1,
+          "strength_scale": 0.93
+        }
+      },
+      "holdout": {
+        "seeds": [48, 49, 50, 51],
+        "repetitions_per_intended_outcome": 1,
+        "schedule_modifier": {
+          "start_shift": 3,
+          "duration_shift": -1,
+          "strength_scale": 1.08
+        }
+      }
+    },
+    "outcome_family_group": {
+      "safe_continuation": 0,
+      "full_recovery": 1,
+      "partial_recovery": 2,
+      "delayed_recovery": 1,
+      "relapse": 1,
+      "persistent_deterioration": 1,
+      "fixation_candidate": 3,
+      "collapse_candidate": 3
+    },
+    "fit_repetition_environment_rotation": 1,
+    "schedule_families": {
+      "safe_continuation": {
+        "kind": "noisy_safe",
+        "start": 10,
+        "duration": 18,
+        "strength": 0.08,
+        "hard_case_tags": ["noisy_safe_continuation"]
+      },
+      "full_recovery": {
+        "kind": "shared_prefix_then_recovery",
+        "start": 10,
+        "duration": 8,
+        "strength": 0.4,
+        "pair_id": "same_current_recovery_vs_deterioration",
+        "pair_role": "recovering_future",
+        "hard_case_tags": [
+          "strong_but_reversible",
+          "transient_high_risk_without_persistence",
+          "same_current_risk_opposite_future",
+          "worsening_slope_then_recovery"
+        ]
+      },
+      "partial_recovery": {
+        "kind": "pulse_residual_then_clear",
+        "start": 8,
+        "duration": 14,
+        "strength": 0.82,
+        "residual_fraction": 0.24,
+        "clear_delay": 18,
+        "hard_case_tags": []
+      },
+      "delayed_recovery": {
+        "kind": "shared_prefix_then_recovery",
+        "start": 10,
+        "duration": 14,
+        "strength": 0.62,
+        "hard_case_tags": ["delayed_hazard_after_disturbance_removal"]
+      },
+      "relapse": {
+        "kind": "pulse_recover_relapse",
+        "start": 10,
+        "duration": 8,
+        "strength": 0.4,
+        "relapse_delay": 22,
+        "relapse_duration": 9,
+        "hard_case_tags": ["recovery_then_relapse"]
+      },
+      "persistent_deterioration": {
+        "kind": "shared_prefix_then_persistent",
+        "start": 10,
+        "duration": 8,
+        "strength": 0.4,
+        "pair_id": "same_current_recovery_vs_deterioration",
+        "pair_role": "deteriorating_future",
+        "hard_case_tags": [
+          "same_current_risk_opposite_future",
+          "slow_cumulative_deterioration",
+          "history_visible_currently_safe_precursor"
+        ]
+      },
+      "fixation_candidate": {
+        "kind": "gradual_fixation_without_shock",
+        "start": 10,
+        "duration": 18,
+        "strength": 0.9,
+        "constraint_scale": 1.1,
+        "competition_scale": 0.9,
+        "hard_case_tags": ["fixation_without_abrupt_external_jump"]
+      },
+      "collapse_candidate": {
+        "kind": "gradual_then_collapse",
+        "start": 7,
+        "duration": 16,
+        "strength": 1.0,
+        "hard_case_tags": []
+      }
+    },
+    "background_regime_templates": [
+      {
+        "kind": "near_zero_stationary",
+        "amplitude": 0.012,
+        "offset": 0.0
+      },
+      {
+        "kind": "nonzero_safe_reference",
+        "amplitude": 0.018,
+        "offset": 0.035
+      },
+      {
+        "kind": "moving_distribution_center",
+        "amplitude": 0.045,
+        "offset": 0.015
+      },
+      {
+        "kind": "different_normal_variability",
+        "amplitude": 0.03,
+        "offset": 0.01
+      }
+    ],
+    "split_background_adjustments": {
+      "fit": 1.0,
+      "validation": 1.13,
+      "holdout": 0.87
+    },
+    "world_parameter_profiles": {
+      "fit": [
+        {"base_move_fraction": 0.2, "diffusion_rate": 0.01, "natural_recovery_rate": 0.01, "base_recovery_speed": 0.05, "viability_reserve_initial": 0.65, "route_support_initial": 0.7, "route_support_loss_rate": 0.075},
+        {"base_move_fraction": 0.23, "diffusion_rate": 0.014, "natural_recovery_rate": 0.018, "base_recovery_speed": 0.075, "viability_reserve_initial": 0.75, "route_support_initial": 0.78, "route_support_loss_rate": 0.06},
+        {"base_move_fraction": 0.18, "diffusion_rate": 0.007, "natural_recovery_rate": 0.007, "base_recovery_speed": 0.038, "viability_reserve_initial": 0.58, "route_support_initial": 0.62, "route_support_loss_rate": 0.09},
+        {"base_move_fraction": 0.26, "diffusion_rate": 0.018, "natural_recovery_rate": 0.012, "base_recovery_speed": 0.055, "viability_reserve_initial": 0.67, "route_support_initial": 0.69, "route_support_loss_rate": 0.078}
+      ],
+      "validation": [
+        {"base_move_fraction": 0.205, "diffusion_rate": 0.011, "natural_recovery_rate": 0.0105, "base_recovery_speed": 0.052, "viability_reserve_initial": 0.655, "route_support_initial": 0.705, "route_support_loss_rate": 0.073},
+        {"base_move_fraction": 0.225, "diffusion_rate": 0.015, "natural_recovery_rate": 0.0165, "base_recovery_speed": 0.071, "viability_reserve_initial": 0.735, "route_support_initial": 0.765, "route_support_loss_rate": 0.063},
+        {"base_move_fraction": 0.175, "diffusion_rate": 0.006, "natural_recovery_rate": 0.0065, "base_recovery_speed": 0.036, "viability_reserve_initial": 0.565, "route_support_initial": 0.605, "route_support_loss_rate": 0.094},
+        {"base_move_fraction": 0.25, "diffusion_rate": 0.019, "natural_recovery_rate": 0.0115, "base_recovery_speed": 0.057, "viability_reserve_initial": 0.675, "route_support_initial": 0.685, "route_support_loss_rate": 0.08}
+      ],
+      "holdout": [
+        {"base_move_fraction": 0.195, "diffusion_rate": 0.009, "natural_recovery_rate": 0.0095, "base_recovery_speed": 0.048, "viability_reserve_initial": 0.645, "route_support_initial": 0.695, "route_support_loss_rate": 0.077},
+        {"base_move_fraction": 0.235, "diffusion_rate": 0.013, "natural_recovery_rate": 0.0195, "base_recovery_speed": 0.079, "viability_reserve_initial": 0.765, "route_support_initial": 0.795, "route_support_loss_rate": 0.057},
+        {"base_move_fraction": 0.185, "diffusion_rate": 0.008, "natural_recovery_rate": 0.0075, "base_recovery_speed": 0.04, "viability_reserve_initial": 0.595, "route_support_initial": 0.635, "route_support_loss_rate": 0.087},
+        {"base_move_fraction": 0.27, "diffusion_rate": 0.017, "natural_recovery_rate": 0.0125, "base_recovery_speed": 0.053, "viability_reserve_initial": 0.665, "route_support_initial": 0.7, "route_support_loss_rate": 0.076}
+      ]
+    }
+  },
+  "coverage_contract": {
+    "required_outcome_families": [
+      "safe_continuation",
+      "full_recovery",
+      "partial_recovery",
+      "delayed_recovery",
+      "relapse",
+      "persistent_deterioration",
+      "fixation_candidate",
+      "collapse_candidate"
+    ],
+    "unresolved_outcome_id": "unresolved",
+    "required_hard_negative_families": [
+      "strong_but_reversible",
+      "transient_high_risk_without_persistence",
+      "same_current_risk_opposite_future",
+      "worsening_slope_then_recovery",
+      "noisy_safe_continuation"
+    ],
+    "required_hard_positive_families": [
+      "slow_cumulative_deterioration",
+      "delayed_hazard_after_disturbance_removal",
+      "recovery_then_relapse",
+      "history_visible_currently_safe_precursor",
+      "fixation_without_abrupt_external_jump"
+    ],
+    "minimum_observed_per_outcome": {
+      "fit": 2,
+      "validation": 1,
+      "holdout": 1
+    },
+    "same_current_pair_requires_observed_outcome_difference": true,
+    "same_disturbance_different_background_is_audit_not_forced_success": true
+  },
+  "sample_size_audit": {
+    "independent_unit": "trajectory",
+    "windows_are_clustered_within_trajectory": true,
+    "minimum_positive_trajectories_per_horizon": 20,
+    "minimum_negative_trajectories_per_horizon": 20,
+    "wilson_confidence": 0.95,
+    "bootstrap_repetitions": 2000,
+    "bootstrap_seed": 2302,
+    "formal_count_is_recommendation_not_freeze_when_support_is_missing": true
+  },
+  "outputs": {
+    "pilot_manifest": "pilot_manifest.json",
+    "generation_summary": "generation_summary.json",
+    "generation_manifest": "manifest.json",
+    "recomputed_outcomes": "recomputed_outcomes.json",
+    "coverage_audit": "coverage_audit.json",
+    "ood_audit": "ood_audit.json",
+    "hard_case_audit": "hard_case_audit.json",
+    "same_current_pair_audit": "same_current_pair_audit.json",
+    "prevalence_variance_audit": "prevalence_variance_audit.json",
+    "source_label_disagreement_audit": "source_label_disagreement_audit.json",
+    "phase2_decision": "phase2_decision.json",
+    "audit_manifest": "manifest.json"
+  }
+}

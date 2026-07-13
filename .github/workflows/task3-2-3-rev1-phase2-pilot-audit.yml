@@ -1,0 +1,72 @@
+name: Task 3.2-3 Rev1 Phase 2 Pilot Audit
+
+on:
+  pull_request:
+    paths:
+      - "configs/task3_2_3_rev1_contract.json"
+      - "configs/task3_2_3_rev1_phase2_pilot.json"
+      - "scripts/task3_2_3_rev1_contract.py"
+      - "scripts/task3_2_3_rev1_phase2_pilot.py"
+      - "scripts/task3_2_2_continuous_trajectory.py"
+      - "scripts/task3_2_1_macro_dynamics_contract.py"
+      - "pseudo_reality/**"
+      - "tests/test_task3_2_3_rev1_contract.py"
+      - "tests/test_task3_2_3_rev1_phase2_pilot.py"
+      - "docs/task3_2_macro_dynamics_exploration/TASK3_2_3_REV1_PHASE2_PILOT_AUDIT.md"
+      - ".github/workflows/task3-2-3-rev1-phase2-pilot-audit.yml"
+      - "requirements.txt"
+  workflow_dispatch:
+
+jobs:
+  pilot-feasibility-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install repository dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Compile Phase 1 and Phase 2 modules
+        run: |
+          python -m py_compile scripts/task3_2_3_rev1_contract.py
+          python -m py_compile scripts/task3_2_3_rev1_phase2_pilot.py
+      - name: Validate frozen Phase 2 contract
+        run: python scripts/task3_2_3_rev1_phase2_pilot.py validate-contract
+      - name: Run Phase 1 and Phase 2 positive and negative tests
+        run: |
+          python -m pytest --noconftest -q \
+            tests/test_task3_2_3_rev1_contract.py \
+            tests/test_task3_2_3_rev1_phase2_pilot.py
+      - name: Generate raw pilot corpus
+        run: |
+          python scripts/task3_2_3_rev1_phase2_pilot.py generate \
+            --output artifacts/task3_2_3_rev1_phase2_pilot
+      - name: Recompute outcomes independently twice
+        run: |
+          python scripts/task3_2_3_rev1_phase2_pilot.py audit \
+            --input artifacts/task3_2_3_rev1_phase2_pilot \
+            --output artifacts/task3_2_3_rev1_phase2_audit_a
+          python scripts/task3_2_3_rev1_phase2_pilot.py audit \
+            --input artifacts/task3_2_3_rev1_phase2_pilot \
+            --output artifacts/task3_2_3_rev1_phase2_audit_b
+      - name: Verify deterministic independent audit
+        run: diff -qr artifacts/task3_2_3_rev1_phase2_audit_a artifacts/task3_2_3_rev1_phase2_audit_b
+      - name: Validate persisted raw corpus and audit
+        run: |
+          python scripts/task3_2_3_rev1_phase2_pilot.py validate \
+            --input artifacts/task3_2_3_rev1_phase2_pilot \
+            --audit artifacts/task3_2_3_rev1_phase2_audit_a
+      - name: Upload pilot corpus and independent audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-2-3-rev1-phase2-pilot-audit
+          path: |
+            artifacts/task3_2_3_rev1_phase2_pilot
+            artifacts/task3_2_3_rev1_phase2_audit_a
+          retention-days: 30
+
