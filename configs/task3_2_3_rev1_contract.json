@@ -1,0 +1,335 @@
+{
+  "task_identity": {
+    "task_id": "Task 3.2-3 Rev1 Phase 1",
+    "task_type": "existing_task_revision",
+    "repository": "yayararakanayana-beep/dept",
+    "base_branch": "main",
+    "working_branch": "agent/task3-2-3-rev1-phase1-contract",
+    "status": "contract_only_frozen_before_corpus_generation"
+  },
+  "source_of_truth": {
+    "contract": "configs/task3_2_3_rev1_contract.json",
+    "validator": "scripts/task3_2_3_rev1_contract.py",
+    "scope_document": "docs/task3_2_macro_dynamics_exploration/TASK3_2_3_REV1_PHASE1_CONTRACT.md",
+    "previous_baseline": "configs/task3_2_3_simple_early_warning.json"
+  },
+  "role_contract": {
+    "fixed_role": "local_history_early_warning",
+    "research_question": "Under unseen disturbance schedules and changing background regimes, how much uncertainty about future local risk is reduced by history beyond the same currently available information?",
+    "allowed_outputs": [
+      "local_risk_approach_probability",
+      "time_to_local_risk_onset",
+      "local_risk_depth",
+      "local_risk_direction",
+      "persistence_or_recovery_difficulty_candidate",
+      "predictive_uncertainty"
+    ],
+    "prohibited_roles": [
+      "macro_dynamics_extraction",
+      "counterfactual_truth_generation",
+      "game_structure_classification",
+      "irreversibility_proof",
+      "action_selection",
+      "formal_gt_construction",
+      "relation_field_construction"
+    ]
+  },
+  "phase_boundaries": {
+    "allowed_work": [
+      "contract_configuration",
+      "contract_validator",
+      "positive_and_negative_contract_tests",
+      "contract_only_ci_workflow",
+      "scope_documentation"
+    ],
+    "prohibited_work": [
+      "new_corpus_generation",
+      "model_implementation",
+      "model_training",
+      "model_selection",
+      "validation_data_read",
+      "holdout_data_read",
+      "task4_feature_import",
+      "task4_1_truth_use_for_model_selection",
+      "formal_gt_or_relation_field_use",
+      "action_module_connection"
+    ]
+  },
+  "input_contract": {
+    "time_boundary": "observed_through_t_only",
+    "feature_groups": {
+      "internal_current": {
+        "japanese_name": "内部現在情報",
+        "time_scope": "t_only"
+      },
+      "internal_history": {
+        "japanese_name": "内部履歴情報",
+        "time_scope": "through_t"
+      },
+      "observed_external_current": {
+        "japanese_name": "現在観測外力",
+        "time_scope": "t_only"
+      },
+      "observed_external_history": {
+        "japanese_name": "観測外力履歴",
+        "time_scope": "through_t"
+      }
+    },
+    "information_levels": [
+      {
+        "id": "I0",
+        "japanese_name": "内部現在",
+        "parents": [],
+        "feature_groups": ["internal_current"]
+      },
+      {
+        "id": "I1",
+        "japanese_name": "内部現在＋内部履歴",
+        "parents": ["I0"],
+        "feature_groups": ["internal_current", "internal_history"]
+      },
+      {
+        "id": "I2",
+        "japanese_name": "内部現在＋現在観測外力",
+        "parents": ["I0"],
+        "feature_groups": ["internal_current", "observed_external_current"]
+      },
+      {
+        "id": "I3",
+        "japanese_name": "内部現在＋内部履歴＋現在観測外力",
+        "parents": ["I1", "I2"],
+        "feature_groups": ["internal_current", "internal_history", "observed_external_current"]
+      },
+      {
+        "id": "I4",
+        "japanese_name": "内部現在＋内部履歴＋観測外力履歴",
+        "parents": ["I3"],
+        "feature_groups": ["internal_current", "internal_history", "observed_external_current", "observed_external_history"]
+      }
+    ],
+    "history_comparisons": [
+      {
+        "id": "internal_history_without_external",
+        "baseline": "I0",
+        "history": "I1",
+        "added_feature_groups": ["internal_history"]
+      },
+      {
+        "id": "internal_history_with_current_external",
+        "baseline": "I2",
+        "history": "I3",
+        "added_feature_groups": ["internal_history"]
+      },
+      {
+        "id": "external_history_increment",
+        "baseline": "I3",
+        "history": "I4",
+        "added_feature_groups": ["observed_external_history"]
+      }
+    ],
+    "forbidden_model_inputs": [
+      "scenario_id",
+      "trajectory_id",
+      "seed",
+      "dataset_split",
+      "absolute_step_or_time_index",
+      "generator_event_or_regime_name",
+      "future_external_inputs",
+      "future_states",
+      "future_events",
+      "truth_labels",
+      "final_outcomes",
+      "same_seed_reference_features",
+      "task4_macro_features",
+      "task4_1_counterfactual_truth",
+      "formal_gt_features",
+      "relation_field_features",
+      "game_structure_labels",
+      "irreversibility_labels"
+    ]
+  },
+  "target_contract": {
+    "development_truth_boundary": "future_raw_outcome_and_same_seed_reference_on_truth_side_only",
+    "task4_1_truth_use": "blind_post_selection_audit_only_not_phase1_or_model_selection",
+    "targets": [
+      {
+        "id": "hazard_onset_within_horizon",
+        "role": "core"
+      },
+      {
+        "id": "time_to_hazard_onset",
+        "role": "core"
+      },
+      {
+        "id": "maximum_relative_risk_depth",
+        "role": "core"
+      },
+      {
+        "id": "risk_direction",
+        "role": "core",
+        "classes": ["worsening", "recovering", "neutral"]
+      },
+      {
+        "id": "persistence_or_recovery_difficulty_candidate",
+        "role": "secondary"
+      },
+      {
+        "id": "predictive_uncertainty",
+        "role": "required_diagnostic"
+      }
+    ],
+    "prohibited_claims": [
+      "universal_irreversibility",
+      "game_structure_identification",
+      "action_readiness",
+      "formal_dept_gt_predictor_validated"
+    ]
+  },
+  "corpus_contract": {
+    "split_unit": "trajectory",
+    "out_of_distribution_axes": [
+      "schedule_template_id",
+      "background_regime_id",
+      "world_parameter_profile_id"
+    ],
+    "require_each_ood_axis_disjoint_across_splits": true,
+    "seed_only_split_is_valid_ood": false,
+    "required_schedule_variations": [
+      "disturbance_onset",
+      "disturbance_duration",
+      "disturbance_magnitude",
+      "disturbance_composition",
+      "disturbance_shape",
+      "residual_burden",
+      "relapse_pattern"
+    ],
+    "required_background_variations": [
+      "nonzero_safe_reference",
+      "moving_distribution_center",
+      "different_normal_variability",
+      "same_disturbance_different_background_outcome"
+    ],
+    "required_hard_negative_families": [
+      "strong_but_reversible",
+      "transient_high_risk_without_persistence",
+      "same_current_risk_opposite_future",
+      "worsening_slope_then_recovery",
+      "noisy_safe_continuation"
+    ],
+    "required_hard_positive_families": [
+      "slow_cumulative_deterioration",
+      "delayed_hazard_after_disturbance_removal",
+      "recovery_then_relapse",
+      "history_visible_currently_safe_precursor",
+      "fixation_without_abrupt_external_jump"
+    ],
+    "required_outcome_families": [
+      "safe_continuation",
+      "full_recovery",
+      "partial_recovery",
+      "delayed_recovery",
+      "relapse",
+      "persistent_deterioration",
+      "fixation_candidate",
+      "collapse_candidate"
+    ],
+    "sample_size_policy": {
+      "independent_unit": "trajectory",
+      "windows_do_not_count_as_independent_samples": true,
+      "formal_count_frozen_in_phase1": false,
+      "formal_count_freeze_requirement": "pilot_variance_and_event_prevalence_audit_before_any_model_selection",
+      "pilot_minimum_per_outcome": {
+        "fit": 2,
+        "validation": 1,
+        "holdout": 1
+      }
+    }
+  },
+  "evaluation_contract": {
+    "prediction_horizons": [4, 8, 16],
+    "compare_information_levels_on_identical_eligible_windows": true,
+    "evaluate_each_horizon_separately": true,
+    "selection_strategy": "pareto_then_preregistered_lexicographic",
+    "weighted_cross_horizon_scalar_score_allowed": false,
+    "alarm_accounting": [
+      "safe_trajectory_false_alarm",
+      "eventual_positive_premature_alarm",
+      "alarm_burden_steps",
+      "missed_event"
+    ],
+    "core_metrics": [
+      "trajectory_event_recall",
+      "absolute_median_lead_steps",
+      "time_to_event_mae",
+      "average_precision",
+      "maximum_risk_depth_mae",
+      "maximum_risk_depth_rank_correlation",
+      "risk_direction_balanced_accuracy"
+    ],
+    "guardrail_metrics": [
+      "safe_trajectory_false_alarm_rate",
+      "premature_alarm_rate",
+      "brier_score",
+      "expected_calibration_error"
+    ],
+    "history_success_thresholds": {
+      "minimum_event_recall_improvement": 0.05,
+      "minimum_absolute_median_lead_improvement_steps": 1.0,
+      "minimum_time_to_event_mae_relative_reduction": 0.1,
+      "minimum_direction_balanced_accuracy_improvement": 0.05,
+      "maximum_safe_false_alarm_rate_increase": 0.01,
+      "maximum_brier_score_increase": 0.01,
+      "minimum_improving_unknown_schedule_strata_fraction": 0.75,
+      "paired_trajectory_bootstrap_confidence": 0.95
+    },
+    "grade_contract": {
+      "A_promising": "At least one core history improvement clears its configured threshold and paired uncertainty check while all guardrails and schedule-strata requirements pass.",
+      "B_partially_promising": "Only calibration, false-alarm, depth-error, or other secondary quality improves while no core history improvement is established.",
+      "C_not_promising_at_current_resolution": "No reproducible core or secondary history improvement is established."
+    }
+  },
+  "reproducibility_contract": {
+    "stable_selection_identity_required_fields": [
+      "contract_hash",
+      "corpus_content_hash",
+      "feature_schema_hash",
+      "information_level",
+      "candidate_id",
+      "model_family",
+      "history_specification",
+      "prediction_horizon",
+      "alarm_threshold",
+      "alarm_persistence",
+      "fit_seed_configuration"
+    ],
+    "stable_selection_identity_forbidden_fields": [
+      "validation_metrics",
+      "fit_metrics",
+      "holdout_metrics",
+      "timestamps",
+      "artifact_id",
+      "workflow_run_id",
+      "absolute_paths"
+    ],
+    "canonical_json": {
+      "sort_keys": true,
+      "separators": [",", ":"],
+      "unicode": "utf8"
+    },
+    "metrics_artifact_hash_separate_from_selection_identity": true,
+    "two_identical_pre_holdout_reruns_must_match_selection_identity": true,
+    "holdout_requires_independently_validated_selection_identity": true,
+    "main_documentation_generated_from_final_artifact": true
+  },
+  "stop_conditions": [
+    "required_source_file_missing",
+    "contract_conflicts_with_frozen_task3_2_boundary",
+    "ood_axis_overlap_between_splits",
+    "required_outcome_or_recovery_family_missing",
+    "target_label_degenerate_in_fit_or_validation",
+    "future_or_forbidden_input_required_for_claimed_performance",
+    "formal_sample_count_not_frozen_before_model_selection",
+    "stable_selection_identity_differs_across_identical_pre_holdout_reruns",
+    "holdout_would_need_to_be_opened_before_selection_identity_validation"
+  ]
+}
