@@ -1,6 +1,6 @@
 """P1公開入口。
 
-同名の実装モジュールを内部核として読み込み、P1の階層成果物に必要な
+実装核を同一パッケージ内から読み込み、P1の階層成果物に必要な
 入れ子マニフェスト処理だけを局所的に差し替える。
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_CORE_PATH = Path(__file__).resolve().parents[1] / "relation_field_prediction_state_p1.py"
+_CORE_PATH = Path(__file__).resolve().parent / "_core.py"
 _SPEC = importlib.util.spec_from_file_location(
     "_relation_field_prediction_state_p1_core",
     _CORE_PATH,
