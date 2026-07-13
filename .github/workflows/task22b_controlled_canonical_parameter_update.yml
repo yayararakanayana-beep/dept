@@ -1,0 +1,72 @@
+name: Task22B Controlled Canonical Parameter Update Hook RC1
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  task22b-controlled-canonical-parameter-update-hook:
+    name: Task22B Hook RC1 controlled canonical parameter update
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        timeout-minutes: 5
+        run: python -m pip install --upgrade pip
+
+      - name: Install requirements
+        timeout-minutes: 5
+        run: python -m pip install -r requirements.txt
+
+      - name: Install pytest
+        timeout-minutes: 5
+        run: python -m pip install pytest
+
+      - name: Guard Task22B Hook RC1 tests do not call heavy validation helpers
+        timeout-minutes: 2
+        run: |
+          if rg -n "build_summary\(|_case_result\(|_choose_controlled_commit_fixture\(|write_outputs\(" tests/test_task22b_controlled_canonical_parameter_update_hook_rc1.py; then
+            echo "Task22B Hook RC1 pytest must read artifacts only and must not call heavy validation helpers."
+            exit 1
+          fi
+
+      - name: Run Task22B Hook RC1 validation
+        timeout-minutes: 10
+        run: python validation/task22b_controlled_canonical_parameter_update_hook_rc1.py
+
+      - name: Print Task22B Hook RC1 result logs
+        if: always()
+        run: |
+          if [ -f results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.md ]; then
+            cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.md
+          fi
+          if [ -f results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_validation.md ]; then
+            cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_validation.md
+          fi
+          if [ -f results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_validation.json ]; then
+            cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_validation.json
+          fi
+
+      - name: Run Task22B Hook RC1 artifact/schema tests
+        timeout-minutes: 5
+        run: pytest -q tests/test_task22b_controlled_canonical_parameter_update_hook_rc1.py
+
+      - name: Upload Task22B Hook RC1 result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task22b-controlled-canonical-parameter-update-hook-rc1
+          path: results/task22b_controlled_canonical_parameter_update_hook_rc1/
+          if-no-files-found: error
