@@ -1,16 +1,18 @@
 """P1公開入口。
 
 実装核を同一パッケージ内から読み込み、P1の階層成果物に必要な
-入れ子マニフェスト処理だけを局所的に差し替える。
+入れ子マニフェスト処理とリポジトリ基準パスだけを局所的に固定する。
 """
 from __future__ import annotations
 
 import importlib.util
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
-_CORE_PATH = Path(__file__).resolve().parent / "_core.py"
+_PACKAGE_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _PACKAGE_DIR.parents[1]
+_CORE_PATH = _PACKAGE_DIR / "_core.py"
 _SPEC = importlib.util.spec_from_file_location(
     "_relation_field_prediction_state_p1_core",
     _CORE_PATH,
@@ -20,6 +22,14 @@ if _SPEC is None or _SPEC.loader is None:
 _CORE = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = _CORE
 _SPEC.loader.exec_module(_CORE)
+
+DEFAULT_CONTRACT = _REPO_ROOT / "configs" / "relation_field_prediction_state_p1_contract.json"
+DEFAULT_PROFILE = _REPO_ROOT / "configs" / "relation_field_prediction_state_p1_extraction_profile.json"
+DEFAULT_RISK_REGISTRY = _REPO_ROOT / "configs" / "relation_field_prediction_state_p1_risk_registry.json"
+_CORE.ROOT = _REPO_ROOT
+_CORE.DEFAULT_CONTRACT = DEFAULT_CONTRACT
+_CORE.DEFAULT_PROFILE = DEFAULT_PROFILE
+_CORE.DEFAULT_RISK_REGISTRY = DEFAULT_RISK_REGISTRY
 
 
 def _p1_manifest_entries(root: Path) -> list[dict[str, Any]]:
@@ -88,19 +98,48 @@ _CORE._write_manifest = _write_p1_manifest
 _CORE._verify_manifest = _verify_p1_manifest
 
 RelationFieldPredictionStateP1Error = _CORE.RelationFieldPredictionStateP1Error
-DEFAULT_CONTRACT = _CORE.DEFAULT_CONTRACT
-DEFAULT_PROFILE = _CORE.DEFAULT_PROFILE
-DEFAULT_RISK_REGISTRY = _CORE.DEFAULT_RISK_REGISTRY
 P1_STAGES = _CORE.P1_STAGES
-load_contract = _CORE.load_contract
 validate_contract = _CORE.validate_contract
-load_extraction_profile = _CORE.load_extraction_profile
 validate_extraction_profile = _CORE.validate_extraction_profile
-load_risk_registry = _CORE.load_risk_registry
 validate_risk_registry = _CORE.validate_risk_registry
-build_prediction_state_series = _CORE.build_prediction_state_series
 validate_prediction_state_series = _CORE.validate_prediction_state_series
 main = _CORE.main
+
+
+def load_contract(path: str | Path = DEFAULT_CONTRACT) -> dict[str, Any]:
+    return _CORE.load_contract(path)
+
+
+def load_extraction_profile(path: str | Path = DEFAULT_PROFILE) -> dict[str, Any]:
+    return _CORE.load_extraction_profile(path)
+
+
+def load_risk_registry(path: str | Path = DEFAULT_RISK_REGISTRY) -> dict[str, Any]:
+    return _CORE.load_risk_registry(path)
+
+
+def build_prediction_state_series(
+    trajectory_dir: str | Path,
+    grid_artifact_dir: str | Path,
+    structure_artifact_dir: str | Path,
+    output: str | Path,
+    *,
+    origins: Sequence[int],
+    contract_path: str | Path = DEFAULT_CONTRACT,
+    extraction_profile_path: str | Path = DEFAULT_PROFILE,
+    risk_registry_path: str | Path = DEFAULT_RISK_REGISTRY,
+) -> Path:
+    return _CORE.build_prediction_state_series(
+        trajectory_dir,
+        grid_artifact_dir,
+        structure_artifact_dir,
+        output,
+        origins=origins,
+        contract_path=contract_path,
+        extraction_profile_path=extraction_profile_path,
+        risk_registry_path=risk_registry_path,
+    )
+
 
 __all__ = [
     "RelationFieldPredictionStateP1Error",
