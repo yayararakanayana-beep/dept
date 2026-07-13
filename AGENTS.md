@@ -124,3 +124,15 @@ At the current stage, the repository should be treated as a minimal scaffold. Do
 - Information levels must be compared on identical eligible windows and each prediction horizon must be evaluated separately. A weighted scalar score must not select across different horizons.
 - Task 4.1 truth may be used only by a later blind post-selection audit under a separately approved contract.
 - Stable selection identity must exclude metrics, timestamps, workflow/artifact IDs, and absolute paths. Two identical pre-holdout reruns must produce the same selection identity before holdout can be opened.
+
+## Task 3.2-3 Rev1 Phase 2 Boundary
+
+- `configs/task3_2_3_rev1_phase2_pilot.json` and `docs/task3_2_macro_dynamics_exploration/TASK3_2_3_REV1_PHASE2_PILOT_AUDIT.md` are the source of truth for Task 3.2-3 Rev1 Phase 2.
+- Phase 2 is a pilot-corpus feasibility audit only. It may generate disposable pilot trajectories and inspect all pilot splits, but those trajectories, seeds, schedules, backgrounds, and world-parameter profiles must not be reused in later formal fit, validation, or holdout data.
+- Phase 2 observed outcomes must be recomputed from persisted raw state arrays against a raw stable reference with matching split, seed, background regime, and world-parameter profile. Generator scenario names, intended families, `summary.json`, `truth.jsonl`, and `metrics.jsonl` must not define or change recomputed outcomes.
+- Source provisional labels may be compared only after the recomputed outcome payload is frozen and hashed. That comparison is diagnostic only.
+- Schedule templates, background regimes, world-parameter profiles, and seeds must be disjoint across pilot splits. A seed-only split is invalid.
+- Same-current/opposite-future pairs must have identical raw state-array content at the frozen cutoff. Failure to produce different observed futures is a corpus/world insufficiency result and must not be repaired by changing labels.
+- Windows from one trajectory must not count as independent samples. Prevalence, variance, bootstrap intervals, and formal-count recommendations use trajectory units.
+- Phase 2 must preserve unresolved outcomes and missing support. It must not insert sentinel counts, force missing outcome families, or declare formal-corpus readiness when a required family or anchor/horizon support is absent.
+- Phase 2 must not implement predictor features, train or select models, create a selection lock, generate a formal corpus, import Task 4 features, use Task 4.1 truth, construct formal G_t or a relation field, classify game structures, prove irreversibility, or connect the Action Module.
