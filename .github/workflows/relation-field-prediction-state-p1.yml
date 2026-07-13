@@ -5,6 +5,7 @@ on:
     paths:
       - 'configs/relation_field_prediction_state_p1_*.json'
       - 'scripts/relation_field_prediction_state_p1.py'
+      - 'scripts/relation_field_prediction_state_p1/**'
       - 'tests/test_relation_field_prediction_state_p1.py'
       - 'docs/relation_field_prediction/P1_CAUSAL_PREDICTION_STATE.md'
       - '.github/workflows/relation-field-prediction-state-p1.yml'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'configs/relation_field_prediction_state_p1_*.json'
       - 'scripts/relation_field_prediction_state_p1.py'
+      - 'scripts/relation_field_prediction_state_p1/**'
       - 'tests/test_relation_field_prediction_state_p1.py'
       - 'docs/relation_field_prediction/P1_CAUSAL_PREDICTION_STATE.md'
       - '.github/workflows/relation-field-prediction-state-p1.yml'
@@ -58,6 +60,8 @@ jobs:
           PY
           python -m py_compile \
             scripts/relation_field_prediction_state_p1.py \
+            scripts/relation_field_prediction_state_p1/__init__.py \
+            scripts/relation_field_prediction_state_p1/__main__.py \
             tests/test_relation_field_prediction_state_p1.py
 
       - name: Run P1 builder, validator, and negative tests
