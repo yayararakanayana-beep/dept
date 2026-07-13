@@ -18,7 +18,7 @@ from relation_field_prediction_p2_precursor_audit.decision import (  # noqa: E40
 from relation_field_prediction_p2_precursor_audit.validator import (  # noqa: E402
     _support as independent_support,
 )
-from relation_field_prediction_p2_formal_audit import (  # noqa: E402
+from relation_field_prediction_p2_formal_audit_plan import (  # noqa: E402
     expected_support_counts,
     expanded_prefix_signature,
     load_plan,
