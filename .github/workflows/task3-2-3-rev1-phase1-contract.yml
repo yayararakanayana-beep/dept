@@ -27,4 +27,4 @@ jobs:
       - name: Validate frozen Phase 1 contract
         run: python scripts/task3_2_3_rev1_contract.py
       - name: Run positive and negative contract tests
-        run: python -m pytest -vv tests/test_task3_2_3_rev1_contract.py
+        run: python -m pytest --noconftest -vv tests/test_task3_2_3_rev1_contract.py
