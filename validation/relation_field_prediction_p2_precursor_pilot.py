@@ -48,27 +48,24 @@ def _write_trajectory(root:Path,frames:Sequence[np.ndarray],trajectory_id:str)->
     return root
 
 
-def _prefix_a()->list[np.ndarray]:
-    return [_point((2,2,2,2,2)),_point((2,2,2,2,3)),_mix([(2,2,2,2,2),(2,2,2,2,3)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)])]
+def _passing_prefix()->list[np.ndarray]:
+    return [_point((0,2,2,2,2)),_point((1,2,2,2,2)),_point((2,2,2,2,2)),_point((3,2,2,2,2)),_point((3,3,2,2,2)),_point((3,3,3,2,2)),_point((3,3,3,3,2))]
 
-def _prefix_b()->list[np.ndarray]:
-    return [_point((1,2,2,2,2)),_point((2,2,2,2,2)),_point((2,3,2,2,2)),_point((2,3,3,2,2)),_point((2,3,3,3,2)),_point((2,3,3,3,3)),_point((2,3,3,3,3))]
 
-def _prefix_c()->list[np.ndarray]:
-    return [_point((2,1,2,2,2)),_point((2,2,2,2,2)),_mix([(2,2,2,2,2),(2,2,2,2,3)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)]),_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)])]
+def _prefix_a()->list[np.ndarray]:return _passing_prefix()
+def _prefix_b()->list[np.ndarray]:return _passing_prefix()
+def _prefix_c()->list[np.ndarray]:return _passing_prefix()
 
 
 def _cases()->list[tuple[str,str,list[np.ndarray],list[list[np.ndarray]]]]:
-    spread4=_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)])
-    spread2=_mix([(2,2,2,2,2),(2,2,2,2,3)])
-    point=_point((2,3,3,3,3))
-    spread_b=_mix([(2,3,3,3,2),(2,3,3,3,3),(2,3,3,4,2),(2,3,3,4,3)])
+    anchor=_point((3,3,3,3,2))
+    spread2=_mix([(3,3,3,3,2),(3,3,3,3,3)])
+    spread4=_mix([(3,3,3,3,2),(3,3,3,3,3),(3,3,3,4,2),(3,3,3,4,3)])
     boundary=_point((4,4,4,4,4))
-    recovered=_mix([(2,2,2,2,1),(2,2,2,2,2),(2,2,2,2,3),(2,2,2,2,4)])
     return [
-      ("group-a","development",_prefix_a(),[[spread2,_point((2,2,2,2,2)),_point((2,2,2,2,2)),_point((2,2,2,2,2))],[spread4,spread4,spread4,spread4]]),
-      ("group-b","validation",_prefix_b(),[[spread2,spread_b,spread_b,spread_b],[point,point,point,point]]),
-      ("group-c","test",_prefix_c(),[[boundary,boundary,boundary,boundary],[boundary,recovered,recovered,recovered]]),
+      ("group-a","development",_prefix_a(),[[spread2,spread4,spread4,spread4],[anchor,anchor,anchor,anchor]]),
+      ("group-b","validation",_prefix_b(),[[boundary,boundary,boundary,boundary],[boundary,spread4,spread4,spread4]]),
+      ("group-c","test",_prefix_c(),[[spread2,spread4,spread4,spread4],[anchor,anchor,anchor,anchor]]),
     ]
 
 
