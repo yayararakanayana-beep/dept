@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'configs/relation_field_prediction_state_p1_*.json'
-      - 'scripts/relation_field_prediction_state_p1.py'
       - 'scripts/relation_field_prediction_state_p1/**'
       - 'tests/test_relation_field_prediction_state_p1.py'
       - 'docs/relation_field_prediction/P1_CAUSAL_PREDICTION_STATE.md'
@@ -17,7 +16,6 @@ on:
   pull_request:
     paths:
       - 'configs/relation_field_prediction_state_p1_*.json'
-      - 'scripts/relation_field_prediction_state_p1.py'
       - 'scripts/relation_field_prediction_state_p1/**'
       - 'tests/test_relation_field_prediction_state_p1.py'
       - 'docs/relation_field_prediction/P1_CAUSAL_PREDICTION_STATE.md'
@@ -59,7 +57,7 @@ jobs:
               print(f'valid json: {path}')
           PY
           python -m py_compile \
-            scripts/relation_field_prediction_state_p1.py \
+            scripts/relation_field_prediction_state_p1/_core.py \
             scripts/relation_field_prediction_state_p1/__init__.py \
             scripts/relation_field_prediction_state_p1/__main__.py \
             tests/test_relation_field_prediction_state_p1.py
