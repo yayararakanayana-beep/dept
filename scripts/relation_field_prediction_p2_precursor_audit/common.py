@@ -10,6 +10,12 @@ class RelationFieldPredictionP2PrecursorAuditError(ValueError):
     """P2-4契約、入力境界、監査成果物または検証結果の不整合。"""
 
 
+SUPPORTED_CONTRACT_VERSIONS = {
+    "relation_field_prediction_p2_precursor_audit_v1",
+    "relation_field_prediction_p2_precursor_audit_v1_1",
+}
+
+
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -110,11 +116,22 @@ def verify_manifest(root: Path) -> None:
         )
 
 
+def target_minimum_horizon(
+    contract: Mapping[str, Any], target_id: str
+) -> int:
+    target = contract["targets"][target_id]
+    return int(target.get("minimum_horizon", 1))
+
+
+def target_horizon_required(
+    contract: Mapping[str, Any], target_id: str, horizon: int
+) -> bool:
+    return int(horizon) >= target_minimum_horizon(contract, target_id)
+
+
 def validate_contract(contract: Mapping[str, Any]) -> None:
-    if (
-        contract.get("contract_version")
-        != "relation_field_prediction_p2_precursor_audit_v1"
-    ):
+    version = str(contract.get("contract_version", ""))
+    if version not in SUPPORTED_CONTRACT_VERSIONS:
         raise RelationFieldPredictionP2PrecursorAuditError(
             "unsupported P2-4 contract"
         )
@@ -132,7 +149,10 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
         raise RelationFieldPredictionP2PrecursorAuditError(
             "P2-4 parent RF-10 contract changed"
         )
-    horizons = [int(value) for value in contract.get("evaluation", {}).get("horizons", [])]
+    horizons = [
+        int(value)
+        for value in contract.get("evaluation", {}).get("horizons", [])
+    ]
     if horizons != [1, 2, 4]:
         raise RelationFieldPredictionP2PrecursorAuditError(
             "P2-4 horizons must remain 1, 2, and 4"
@@ -141,16 +161,20 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
         raise RelationFieldPredictionP2PrecursorAuditError(
             "P2-4 must not fit a predictor"
         )
-    if contract.get("evaluation", {}).get("cross_target_aggregation_forbidden") is not True:
+    if (
+        contract.get("evaluation", {}).get("cross_target_aggregation_forbidden")
+        is not True
+    ):
         raise RelationFieldPredictionP2PrecursorAuditError(
             "P2-4 must not aggregate risk targets"
         )
-    if set(contract.get("targets", {})) != {
+    expected_targets = {
         "overconvergence",
         "fixation",
         "divergence",
         "recovery_margin_reduction",
-    }:
+    }
+    if set(contract.get("targets", {})) != expected_targets:
         raise RelationFieldPredictionP2PrecursorAuditError(
             "P2-4 primary target set changed"
         )
@@ -163,6 +187,49 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
         raise RelationFieldPredictionP2PrecursorAuditError(
             "P2-4 snapshot must precede future read"
         )
+
+    if version == "relation_field_prediction_p2_precursor_audit_v1_1":
+        if (
+            contract.get("support_gates", {}).get(
+                "contractually_inapplicable_cells_excluded"
+            )
+            is not True
+        ):
+            raise RelationFieldPredictionP2PrecursorAuditError(
+                "P2-4 v1.1 must exclude contractually inapplicable cells"
+            )
+        expected_minimums = {
+            "overconvergence": 1,
+            "fixation": 1,
+            "divergence": 1,
+            "recovery_margin_reduction": 2,
+        }
+        for target_id, expected_minimum in expected_minimums.items():
+            target = contract["targets"][target_id]
+            if "minimum_horizon" not in target:
+                raise RelationFieldPredictionP2PrecursorAuditError(
+                    f"P2-4 v1.1 target minimum horizon missing: {target_id}"
+                )
+            actual = int(target["minimum_horizon"])
+            if actual != expected_minimum:
+                raise RelationFieldPredictionP2PrecursorAuditError(
+                    f"P2-4 v1.1 target minimum horizon mismatch: {target_id}"
+                )
+        needed = int(
+            contract["support_gates"][
+                "minimum_supported_horizons_for_target_precursor_signal"
+            ]
+        )
+        for target_id in sorted(expected_targets):
+            available = sum(
+                target_horizon_required(contract, target_id, horizon)
+                for horizon in horizons
+            )
+            if available < needed:
+                raise RelationFieldPredictionP2PrecursorAuditError(
+                    f"P2-4 target has too few applicable horizons: {target_id}"
+                )
+
     semantic = contract.get("semantic_limits", {})
     for key in (
         "true_irreversibility_claim",
@@ -174,6 +241,11 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
         if semantic.get(key) is not False:
             raise RelationFieldPredictionP2PrecursorAuditError(
                 f"P2-4 forbidden semantic claim enabled: {key}"
+            )
+    if version == "relation_field_prediction_p2_precursor_audit_v1_1":
+        if semantic.get("real_world_generalization_claim") is not False:
+            raise RelationFieldPredictionP2PrecursorAuditError(
+                "P2-4 v1.1 must not claim real-world generalization"
             )
 
 
@@ -203,7 +275,9 @@ def resolve_case_manifest(
     group_partitions: dict[str, set[str]] = {}
     resolved: list[dict[str, Any]] = []
     for index, item in enumerate(cases):
-        if not isinstance(item, dict) or any(field not in item for field in required):
+        if not isinstance(item, dict) or any(
+            field not in item for field in required
+        ):
             raise RelationFieldPredictionP2PrecursorAuditError(
                 f"P2-4 case field mismatch at index {index}"
             )
@@ -235,7 +309,12 @@ def resolve_case_manifest(
                 "P2-4 cutoff_t must be positive"
             )
         for field in required:
-            if field in {"case_id", "partition", "trajectory_group_id", "cutoff_t"}:
+            if field in {
+                "case_id",
+                "partition",
+                "trajectory_group_id",
+                "cutoff_t",
+            }:
                 continue
             raw_path = item[field]
             if not isinstance(raw_path, str) or not raw_path:
