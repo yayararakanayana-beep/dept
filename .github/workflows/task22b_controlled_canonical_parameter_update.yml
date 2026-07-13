@@ -1,0 +1,52 @@
+name: Task22B Controlled Canonical Parameter Update
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  task22b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+      - name: Heavy helper guard
+        timeout-minutes: 2
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          test_path = Path('tests/test_task22b_controlled_canonical_parameter_update_hook_rc1.py')
+          text = test_path.read_text(encoding='utf-8')
+          forbidden = ['build_summary(', 'write_outputs(', '_case_result(', '_choose_controlled_commit_fixture(']
+          hits = [token for token in forbidden if token in text]
+          if hits:
+              raise SystemExit(f'Task22B artifact/schema test must not call heavy helpers: {hits}')
+          PY
+      - name: Run Task22B Hook RC1 validation once
+        timeout-minutes: 10
+        run: python validation/task22b_controlled_canonical_parameter_update_hook_rc1.py
+      - name: Print Task22B artifact logs
+        if: always()
+        run: |
+          cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.json || true
+          cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_validation.json || true
+          cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_summary.md || true
+          cat results/task22b_controlled_canonical_parameter_update_hook_rc1/update_hook_validation.md || true
+      - name: Run Task22B Hook RC1 artifact/schema tests
+        timeout-minutes: 5
+        run: pytest -q tests/test_task22b_controlled_canonical_parameter_update_hook_rc1.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task22b-controlled-canonical-parameter-update-hook-rc1
+          path: results/task22b_controlled_canonical_parameter_update_hook_rc1/
