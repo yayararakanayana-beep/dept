@@ -1,0 +1,47 @@
+name: Generic relation field G3 scientific compatibility
+
+on:
+  pull_request:
+    paths:
+      - "configs/generic_relation_field_g2_contract.json"
+      - "configs/generic_relation_field_g3_contract.json"
+      - "configs/generic_relation_field_g3_validation_profile.json"
+      - "configs/fixed5axis_relation_structure_g2.json"
+      - "configs/relation_field_*"
+      - "scripts/generic_relation_field_g2.py"
+      - "scripts/generic_relation_field_g3.py"
+      - "scripts/relation_field_*"
+      - "tests/test_generic_relation_field_g2.py"
+      - "tests/test_generic_relation_field_g3.py"
+      - "docs/relation_field_generic/G3_SCIENTIFIC_COMPATIBILITY.md"
+      - ".github/workflows/generic-relation-field-g3.yml"
+  workflow_dispatch:
+
+jobs:
+  scientific-compatibility-and-topology-independence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m py_compile scripts/generic_relation_field_g2.py scripts/generic_relation_field_g3.py
+      - run: python scripts/generic_relation_field_g3.py synthetic
+      - run: python -m pytest -q tests/test_generic_relation_field_g2.py tests/test_generic_relation_field_g3.py
+      - name: Run frozen RF-2 through RF-10 regression tests
+        run: |
+          python -m pytest -q \
+            tests/test_relation_field_grid_rc1.py \
+            tests/test_relation_field_single_transition_rc1.py \
+            tests/test_relation_field_single_transition_audit_rc1.py \
+            tests/test_relation_field_temporal_consistency_rc1.py \
+            tests/test_relation_field_temporal_precision_rc1.py \
+            tests/test_relation_field_hodge_decomposition_rc1.py \
+            tests/test_relation_field_shape_dynamics_rc1.py \
+            tests/test_relation_field_axis_coupling_innovation_rc1.py \
+            tests/test_relation_field_risk_structure_rc1.py \
+            tests/test_relation_field_predictive_validation_rc1.py
