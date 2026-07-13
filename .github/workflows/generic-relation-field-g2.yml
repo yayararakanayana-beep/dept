@@ -1,0 +1,44 @@
+name: Generic relation field G2 fixed5 adapter
+
+on:
+  pull_request:
+    paths:
+      - "configs/generic_relation_field_g2_contract.json"
+      - "configs/fixed5axis_relation_structure_g2.json"
+      - "configs/fixed5axis_gk_rc1_contract.json"
+      - "configs/relation_field_*"
+      - "scripts/generic_relation_field_g2.py"
+      - "scripts/fixed5axis_gk_rc1.py"
+      - "scripts/relation_field_grid_rc1.py"
+      - "scripts/relation_field_hodge_decomposition_rc1.py"
+      - "tests/test_generic_relation_field_g2.py"
+      - "docs/relation_field_generic/G2_FIXED5_ADAPTER.md"
+      - ".github/workflows/generic-relation-field-g2.yml"
+  workflow_dispatch:
+
+jobs:
+  fixed5-adapter-and-generic-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m py_compile scripts/generic_relation_field_g2.py
+      - run: python -m pytest -q tests/test_generic_relation_field_g2.py
+      - run: |
+          python scripts/relation_field_grid_rc1.py build \
+            --output artifacts/relation_field_grid_rc1
+          python scripts/generic_relation_field_g2.py build-fixed5-structure \
+            --grid-artifact artifacts/relation_field_grid_rc1 \
+            --output artifacts/generic_relation_structure_g2
+          python scripts/generic_relation_field_g2.py validate-structure \
+            --input artifacts/generic_relation_structure_g2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generic-relation-field-g2-fixed5-structure
+          path: artifacts/generic_relation_structure_g2
+          retention-days: 30

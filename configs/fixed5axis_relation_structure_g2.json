@@ -1,0 +1,73 @@
+{
+  "profile_id": "fixed5axis_relation_structure_g2",
+  "profile_version": "1",
+  "structure_class": "oriented_finite_cell_complex",
+  "production_status": "current_fixed_gk_adapter",
+  "topology_time_policy": "static_within_kt",
+  "source_contracts": {
+    "gk": {
+      "path": "configs/fixed5axis_gk_rc1_contract.json",
+      "contract_version": "fixed5axis_gk_rc1",
+      "provides": [
+        "axis_order",
+        "axis_bins",
+        "grid_shape",
+        "cell_count"
+      ]
+    },
+    "relation_field": {
+      "path": "configs/relation_field_rc1_contract.json",
+      "contract_version": "relation_field_rc1",
+      "must_match": "gk.axes"
+    },
+    "grid": {
+      "path": "configs/relation_field_grid_rc1_contract.json",
+      "contract_version": "relation_field_grid_rc1",
+      "provides": [
+        "cell_identity",
+        "edge_identity",
+        "edge_counts",
+        "edge_metrics",
+        "incidence_convention"
+      ]
+    },
+    "transition_flow": {
+      "path": "configs/relation_field_single_transition_rc1_contract.json",
+      "contract_version": "relation_field_single_transition_rc1",
+      "provides": [
+        "transport_cost"
+      ]
+    },
+    "faces": {
+      "path": "configs/relation_field_hodge_decomposition_rc1.json",
+      "contract_version": "relation_field_hodge_decomposition_rc1",
+      "provides": [
+        "face_identity",
+        "face_count",
+        "face_membership_count",
+        "face_orientation"
+      ]
+    }
+  },
+  "capabilities": {
+    "level": "C_axes_coordinates",
+    "connectivity": true,
+    "faces": true,
+    "coordinates": true,
+    "axis_attribution": true,
+    "boundary_sets": true,
+    "dynamic_topology_correspondence": false
+  },
+  "identity_rules": {
+    "axis_id": "source_axis_name",
+    "bin_id": "axis_id/bin/index",
+    "cell_id": "cell/legacy_integer_id",
+    "edge_id": "edge/legacy_integer_id",
+    "face_id": "face/legacy_integer_id",
+    "boundary_id": "axis_id/lower_or_upper"
+  },
+  "boundary_policy": {
+    "generator": "per_axis_lower_and_upper_bin_sets",
+    "risk_semantics": "not_assigned_by_structure_profile"
+  }
+}
