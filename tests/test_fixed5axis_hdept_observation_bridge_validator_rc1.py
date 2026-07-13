@@ -34,7 +34,7 @@ def _load(path: Path) -> dict[str, object]:
 
 
 def _dump(path: Path, value: object) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
 
 def _refresh_manifest(artifact: Path) -> None:
