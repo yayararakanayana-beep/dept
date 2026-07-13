@@ -43,7 +43,9 @@ jobs:
           cache: 'pip'
 
       - name: Install validation dependencies
-        run: python -m pip install --upgrade pip numpy scipy pytest
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
 
       - name: Parse contracts and compile modules
         run: |
