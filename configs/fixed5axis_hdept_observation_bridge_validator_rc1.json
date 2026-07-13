@@ -1,0 +1,98 @@
+{
+  "profile_id": "fixed5axis_hdept_observation_bridge_validator_rc1",
+  "profile_version": "1",
+  "status": "frozen_for_task3_validator",
+  "contract_version": "fixed5axis_hdept_observation_bridge_rc1",
+  "validator_version": "fixed5axis_hdept_observation_bridge_validator_task3_rc1",
+  "numeric_comparison": {
+    "absolute_tolerance": 1e-12,
+    "relative_tolerance": 1e-10,
+    "nan_equal": false,
+    "infinity_allowed": false
+  },
+  "artifact": {
+    "exact_file_set": [
+      "identity.json",
+      "features.json",
+      "m_observation.json",
+      "audit.json",
+      "provenance.json",
+      "manifest.json"
+    ],
+    "manifest_payload_files": [
+      "identity.json",
+      "features.json",
+      "m_observation.json",
+      "audit.json",
+      "provenance.json"
+    ],
+    "extra_files_forbidden": true,
+    "extra_directories_forbidden": true,
+    "manifest_regeneration_must_not_hide_payload_tampering": true
+  },
+  "independence": {
+    "builder_entrypoint_call_forbidden": true,
+    "task2_feature_extractor_call_forbidden": true,
+    "task2_h11_constructor_call_forbidden": true,
+    "raw_fixed5_prefix_recomputation_required": true,
+    "full_47_feature_recomputation_required": true,
+    "full_11_axis_recomputation_required": true,
+    "critical_raw_invariants_required": [
+      "mass_sum",
+      "covariance_trace",
+      "normalized_entropy",
+      "centroid_drift",
+      "jensen_shannon_velocity",
+      "reserved_feature_unavailability",
+      "neutral_placeholder_non_evidence"
+    ]
+  },
+  "causality": {
+    "ledger_read_must_stop_at_current_t": true,
+    "future_gt_numeric_read_forbidden": true,
+    "future_manifest_hash_verification_forbidden": true,
+    "same_prefix_different_future_must_validate": true,
+    "truth_or_outcome_file_content_read_forbidden": true,
+    "source_tree_metadata_snapshot_before_after_required": true
+  },
+  "gates": [
+    "artifact_exact_file_set",
+    "artifact_manifest_integrity",
+    "contract_and_version_identity",
+    "canonical_prefix_integrity",
+    "input_identity_match",
+    "feature_schema_and_full_recomputation",
+    "h11_schema_and_full_recomputation",
+    "audit_claim_boundary",
+    "provenance_identity",
+    "source_non_writeback"
+  ],
+  "negative_test_registry": [
+    "artifact_extra_file",
+    "artifact_missing_file",
+    "manifest_hash_mismatch",
+    "payload_tamper_with_regenerated_manifest",
+    "reserved_feature_zero_fill",
+    "neutral_placeholder_used_as_observation",
+    "unknown_contract_version",
+    "axis_order_mismatch",
+    "negative_mass",
+    "non_finite_mass",
+    "mass_not_normalized",
+    "history_duplicate_or_reverse",
+    "history_hash_chain_mismatch",
+    "calibration_registry_mismatch",
+    "calibration_version_mismatch",
+    "same_prefix_different_future_acceptance",
+    "single_frame_insufficient_history_acceptance",
+    "source_writeback_absence"
+  ],
+  "claim_boundary": {
+    "engineering_claim": "A_independent_integrity_validator_for_task2_artifacts",
+    "scientific_claim": "B_limited_integrity_only_no_h11_scientific_validity_claim",
+    "feature_semantic_validity_claim": "not_evaluated",
+    "calibration_quality_claim": "not_evaluated",
+    "upper_pressure_safety_claim": "not_evaluated",
+    "closed_loop_effect_claim": "not_evaluated"
+  }
+}
