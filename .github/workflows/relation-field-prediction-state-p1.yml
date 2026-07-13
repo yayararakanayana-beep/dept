@@ -1,0 +1,86 @@
+name: Relation Field Prediction State P1
+
+on:
+  push:
+    paths:
+      - 'configs/relation_field_prediction_state_p1_*.json'
+      - 'scripts/relation_field_prediction_state_p1.py'
+      - 'scripts/relation_field_prediction_state_p1/**'
+      - 'tests/test_relation_field_prediction_state_p1.py'
+      - 'docs/relation_field_prediction/P1_CAUSAL_PREDICTION_STATE.md'
+      - '.github/workflows/relation-field-prediction-state-p1.yml'
+      - 'scripts/generic_relation_field_g2.py'
+      - 'scripts/generic_relation_field_g3.py'
+      - 'scripts/relation_field_*.py'
+      - 'configs/generic_relation_field_*.json'
+      - 'configs/relation_field_*.json'
+  pull_request:
+    paths:
+      - 'configs/relation_field_prediction_state_p1_*.json'
+      - 'scripts/relation_field_prediction_state_p1.py'
+      - 'scripts/relation_field_prediction_state_p1/**'
+      - 'tests/test_relation_field_prediction_state_p1.py'
+      - 'docs/relation_field_prediction/P1_CAUSAL_PREDICTION_STATE.md'
+      - '.github/workflows/relation-field-prediction-state-p1.yml'
+      - 'scripts/generic_relation_field_g2.py'
+      - 'scripts/generic_relation_field_g3.py'
+      - 'scripts/relation_field_*.py'
+      - 'configs/generic_relation_field_*.json'
+      - 'configs/relation_field_*.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-p1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Parse contracts and compile modules
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in sorted(Path('configs').glob('relation_field_prediction_state_p1_*.json')):
+              json.loads(path.read_text(encoding='utf-8'))
+              print(f'valid json: {path}')
+          PY
+          python -m py_compile \
+            scripts/relation_field_prediction_state_p1.py \
+            scripts/relation_field_prediction_state_p1/_core.py \
+            scripts/relation_field_prediction_state_p1/__init__.py \
+            scripts/relation_field_prediction_state_p1/__main__.py \
+            tests/test_relation_field_prediction_state_p1.py
+          PYTHONPATH=scripts python -m relation_field_prediction_state_p1 --help >/dev/null
+          python scripts/relation_field_prediction_state_p1.py --help >/dev/null
+
+      - name: Run P1 builder, validator, and negative tests
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONPATH=scripts python -m pytest -vv --maxfail=1 tests/test_relation_field_prediction_state_p1.py 2>&1 | tee p1-pytest.log
+
+      - name: Upload P1 pytest log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-p1-pytest-log
+          path: p1-pytest.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run inherited G2 and G3 regression tests
+        run: PYTHONPATH=scripts python -m pytest -q tests/test_generic_relation_field_g2.py tests/test_generic_relation_field_g3.py

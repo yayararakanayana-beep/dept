@@ -1,0 +1,130 @@
+{
+  "task_id": "RelationField-Prediction-P1",
+  "title": "Causal relation-field prediction-state series",
+  "contract_version": "relation_field_prediction_state_p1",
+  "status": "implemented_causal_state_foundation_without_predictor",
+  "purpose": "Construct one independently regenerated, identity-keyed causal relation-field state X_t for each prediction origin using only G_0:t and RF-3/RF-5/RF-6/RF-7/RF-8/RF-9, then compute comparable first and second backward differences without reading future targets or selecting actions.",
+  "scope": {
+    "prediction_model_implementation": false,
+    "continuous_precursor_coordinate_implementation": false,
+    "future_target_generation": false,
+    "prediction_accuracy_evaluation": false,
+    "irreversibility_truth_generation": false,
+    "action_evaluation_or_selection": false,
+    "task3_direct_prediction_integration": false,
+    "rf4_is_validation_basis_not_prediction_state": true
+  },
+  "input": {
+    "minimum_origin_t": 3,
+    "origins_must_be_unique_strictly_increasing": true,
+    "canonical_history_prefix_only": true,
+    "required_parent_stages": ["RF-3", "RF-5", "RF-6", "RF-7", "RF-8", "RF-9"],
+    "forbidden_parent_stages": ["RF-4", "RF-10"],
+    "future_G_t_or_K_t_read_forbidden": true,
+    "future_truth_or_outcome_read_forbidden": true,
+    "external_input_action_event_read_forbidden": true,
+    "task4_or_task4_1_payload_read_forbidden": true,
+    "canonical_and_parent_writeback_forbidden": true
+  },
+  "state": {
+    "canonical_state_form": "identity_keyed_variable_collection",
+    "fixed_length_primary_vector_forbidden": true,
+    "current_distribution_required": true,
+    "terminal_parent_numeric_payloads_required": true,
+    "candidate_families_required": true,
+    "semantic_evidence_and_counterevidence_required": true,
+    "unavailable_value_zero_fill_forbidden": true,
+    "representative_candidate_as_truth_forbidden": true,
+    "saved_candidate_multiplicity_as_probability_forbidden": true
+  },
+  "differences": {
+    "first_backward_difference": "(X_t - X_previous) / (t - previous_t)",
+    "second_backward_difference": "difference_of_adjacent_first_rates_divided_by_interval_midpoint_gap",
+    "same_feature_id_required": true,
+    "same_scope_identity_required": true,
+    "same_unit_required": true,
+    "same_normalization_required": true,
+    "same_shape_required": true,
+    "floating_numeric_arrays_only": true,
+    "missing_or_incomparable_is_unavailable_not_zero": true
+  },
+  "risk_registry": {
+    "required_primary_ids": [
+      "overconvergence",
+      "fixation",
+      "divergence",
+      "recovery_margin_reduction"
+    ],
+    "extensible_registry_required": true,
+    "rf9_additional_candidates_must_be_preserved": true,
+    "single_scalar_risk_score_forbidden": true
+  },
+  "validation": {
+    "independent_parent_validators_required": true,
+    "base_state_full_recomputation_required": true,
+    "backward_difference_full_recomputation_required": true,
+    "risk_state_full_recomputation_required": true,
+    "manifest_exact_file_set_required": true,
+    "manifest_regenerated_tampering_must_be_rejected": true,
+    "same_prefix_different_future_byte_identity_required": true,
+    "series_and_standalone_origin_identity_required": true,
+    "deterministic_double_build_required": true,
+    "source_writeback_check_required": true
+  },
+  "storage": {
+    "origin_container_dir": "origins",
+    "origin_name_format": "t_{origin_t:06d}",
+    "history_view_dir": "g2_history",
+    "parent_artifact_dir": "parents",
+    "parent_stage_dirs": {
+      "RF-3": "rf3",
+      "RF-5": "rf5",
+      "RF-6": "rf6",
+      "RF-7": "rf7",
+      "RF-8": "rf8",
+      "RF-9": "rf9"
+    },
+    "state_dir": "state",
+    "base_state_file": "base_state.npz",
+    "base_state_index_file": "base_state_index.json",
+    "semantic_state_file": "semantic_state.json",
+    "candidate_records_file": "candidate_records.jsonl",
+    "risk_state_file": "risk_state.json",
+    "first_difference_file": "first_backward_difference.npz",
+    "second_difference_file": "second_backward_difference.npz",
+    "difference_index_file": "difference_index.json",
+    "origin_identity_file": "identity.json",
+    "origin_validation_file": "validation.json",
+    "origin_manifest_file": "manifest.json",
+    "series_identity_file": "series_identity.json",
+    "series_index_file": "series_index.json",
+    "series_validation_file": "validation.json",
+    "series_manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "acceptance": {
+    "engineering_claim": "A_causal_prediction_state_builder_and_independent_validator",
+    "scientific_claim": "B_limited_causal_relation_field_state_without_prediction_accuracy",
+    "prediction_accuracy_claim": "not_evaluated",
+    "unknown_structure_accuracy_claim": "not_evaluated",
+    "true_irreversibility_claim": false,
+    "action_recommendation_claim": false
+  },
+  "prohibitions": [
+    "read_RF10_or_future_outcome_payload",
+    "read_truth_summary_metrics_action_or_event_as_state_input",
+    "merge_Task3_or_Task4_internal_state_into_X_t",
+    "copy_future_G_t_or_K_t_into_origin_artifact",
+    "zero_fill_missing_or_incomparable_values",
+    "collapse_parallel_risk_structures_into_one_score",
+    "treat_saved_candidate_count_as_probability",
+    "treat_representative_flow_as_true_unique_flow",
+    "claim_prediction_accuracy",
+    "claim_true_irreversibility",
+    "select_or_execute_action",
+    "modify_canonical_G_t_K_t_or_parent_artifacts"
+  ]
+}

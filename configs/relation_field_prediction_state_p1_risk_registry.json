@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "counterevidence_field": "overconvergence_counterevidence",
+      "evidence_field": "overconvergence_support",
+      "risk_structure_id": "overconvergence",
+      "role": "required_primary",
+      "source_candidate_field": "overconvergence_candidate",
+      "true_irreversibility_claim": false
+    },
+    {
+      "counterevidence_field": "fixation_counterevidence",
+      "evidence_field": "fixation_support",
+      "risk_structure_id": "fixation",
+      "role": "required_primary",
+      "source_candidate_field": "fixation_candidate",
+      "true_irreversibility_claim": false
+    },
+    {
+      "counterevidence_field": "divergence_counterevidence",
+      "evidence_field": "divergence_support",
+      "risk_structure_id": "divergence",
+      "role": "required_primary",
+      "source_candidate_field": "divergence_candidate",
+      "true_irreversibility_claim": false
+    },
+    {
+      "counterevidence_field": "recovery_margin_reduction_counterevidence",
+      "evidence_field": "recovery_margin_reduction_support",
+      "risk_structure_id": "recovery_margin_reduction",
+      "role": "required_primary",
+      "source_candidate_field": "recovery_margin_reduction_candidate",
+      "true_irreversibility_claim": false
+    },
+    {
+      "counterevidence_field": null,
+      "evidence_field": "new_drive_coincident_support",
+      "external_factor_claim": false,
+      "risk_structure_id": "new_drive_coincident",
+      "role": "auxiliary_candidate",
+      "source_candidate_field": "new_drive_coincident_candidate"
+    },
+    {
+      "counterevidence_field": null,
+      "evidence_field": "unresolved_residual_support",
+      "external_factor_claim": false,
+      "risk_structure_id": "unresolved_residual_dominance",
+      "role": "auxiliary_model_inadequacy_candidate",
+      "source_candidate_field": "unresolved_residual_dominance_candidate"
+    }
+  ],
+  "extensible": true,
+  "registry_version": "relation_field_prediction_state_p1_risk_registry",
+  "single_scalar_risk_score_forbidden": true
+}

@@ -1,0 +1,70 @@
+{
+  "profile_id": "relation_field_prediction_state_p1_extraction_profile",
+  "profile_version": "1",
+  "source_g3_profile": "configs/generic_relation_field_g3_validation_profile.json",
+  "included_stages": ["RF-3", "RF-5", "RF-6", "RF-7", "RF-8", "RF-9"],
+  "excluded_stages": ["RF-4", "RF-10"],
+  "numeric_selectors": {
+    "rf3_local_flow": {"mode": "whole"},
+    "rf3_unresolved_residual": {"mode": "whole"},
+    "rf5_candidate_flows": {
+      "mode": "latest_candidate_family",
+      "transition_index_key": "candidate_transition_index",
+      "offset_key": "candidate_offsets",
+      "transition_row_keys": ["observed_delta"]
+    },
+    "rf5_common_structure": {"mode": "last_row"},
+    "rf5_representative_flow": {
+      "mode": "latest_candidate_family",
+      "transition_index_key": "transition_times",
+      "offset_key": "__no_offset_array__",
+      "transition_row_keys": []
+    },
+    "rf6_candidate_components": {
+      "mode": "latest_candidate_family",
+      "transition_index_key": "candidate_transition_index",
+      "offset_key": "candidate_offsets",
+      "transition_row_keys": []
+    },
+    "rf6_common_input_components": {"mode": "last_row"},
+    "rf6_path_family_components": {"mode": "last_row"},
+    "rf6_representative_components": {"mode": "last_row"},
+    "rf7_frame_shape_metrics": {"mode": "last_row"},
+    "rf7_transition_shape_metrics": {"mode": "last_row"},
+    "rf7_flow_channel_metrics": {"mode": "last_row"},
+    "rf7_boundary_dynamics": {"mode": "last_row"},
+    "rf7_field_shape_alignment": {"mode": "last_row"},
+    "rf8_axis_flow_family": {"mode": "last_row"},
+    "rf8_history_conditioned_innovation": {"mode": "last_row"},
+    "rf8_lag_feedback_coupling": {
+      "mode": "mixed_last_row",
+      "static_keys": ["aggregate_coupling_mean", "negative_consensus_fraction", "positive_consensus_fraction"]
+    },
+    "rf8_position_flow_coupling": {"mode": "whole"},
+    "rf8_unresolved_residual_ledger": {"mode": "last_row"},
+    "rf9_risk_structure_metrics": {"mode": "last_row"}
+  },
+  "semantic_selectors": {
+    "rf9_candidates": {"mode": "last_list_items", "paths": ["rows"]},
+    "rf9_evidence": {"mode": "last_list_items", "paths": ["rows"]},
+    "rf9_counterevidence": {"mode": "last_list_items", "paths": ["rows"]},
+    "rf7_transition_labels": {
+      "mode": "last_list_items",
+      "paths": ["transitions", "channel_labels.transitions"]
+    },
+    "rf8_same_axis_dynamics": {"mode": "last_list_items", "paths": ["lags"]}
+  },
+  "default_semantic_selector": {"mode": "whole"},
+  "current_distribution": {
+    "array_key": "current_distribution__mass",
+    "dimension_roles": ["cell"],
+    "unit": "relative_mass",
+    "normalization_id": "unit_total_distribution"
+  },
+  "difference_policy": {
+    "eligible_dtype_kinds": ["f"],
+    "excluded_source_key_fragments": ["time", "index", "offset", "candidate_count", "sample_count"],
+    "default_unit": "source_defined",
+    "default_normalization_id": "source_contract"
+  }
+}
