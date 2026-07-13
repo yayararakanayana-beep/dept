@@ -1,0 +1,63 @@
+name: Fixed5Axis H-DEPT Observation Bridge Task2
+
+on:
+  push:
+    paths:
+      - 'scripts/fixed5axis_hdept_observation_bridge_rc1.py'
+      - 'scripts/fixed5axis_hdept_bridge_task2/**'
+      - 'tests/test_fixed5axis_hdept_observation_bridge_rc1.py'
+      - 'configs/fixed5axis_hdept_*.json'
+      - 'schemas/fixed5axis_hdept_observation_bridge_rc1.schema.json'
+      - 'configs/fixed5axis_gk_rc1_contract.json'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/**'
+      - '.github/workflows/fixed5axis-hdept-observation-bridge-task2.yml'
+  pull_request:
+    paths:
+      - 'scripts/fixed5axis_hdept_observation_bridge_rc1.py'
+      - 'scripts/fixed5axis_hdept_bridge_task2/**'
+      - 'tests/test_fixed5axis_hdept_observation_bridge_rc1.py'
+      - 'configs/fixed5axis_hdept_*.json'
+      - 'schemas/fixed5axis_hdept_observation_bridge_rc1.schema.json'
+      - 'configs/fixed5axis_gk_rc1_contract.json'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/**'
+      - '.github/workflows/fixed5axis-hdept-observation-bridge-task2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  task2-builder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Parse contracts and compile builder
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in [
+              Path('configs/fixed5axis_hdept_observation_bridge_rc1_contract.json'),
+              Path('configs/fixed5axis_hdept_feature_registry_rc1.json'),
+              Path('configs/fixed5axis_hdept_h11_evidence_map_rc1.json'),
+              Path('schemas/fixed5axis_hdept_observation_bridge_rc1.schema.json'),
+          ]:
+              json.loads(path.read_text(encoding='utf-8'))
+              print(f'valid json: {path}')
+          PY
+          python -m compileall -q scripts/fixed5axis_hdept_bridge_task2
+          python -m py_compile scripts/fixed5axis_hdept_observation_bridge_rc1.py tests/test_fixed5axis_hdept_observation_bridge_rc1.py
+          python scripts/fixed5axis_hdept_observation_bridge_rc1.py --help >/dev/null
+      - name: Run Task 2 basic builder tests
+        run: PYTHONPATH=scripts python -m pytest -q tests/test_fixed5axis_hdept_observation_bridge_rc1.py
+      - name: Run inherited fixed5 G/K regression tests
+        run: PYTHONPATH=scripts python -m pytest -q tests/test_fixed5axis_gk_rc1.py
