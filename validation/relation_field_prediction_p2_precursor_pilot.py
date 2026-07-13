@@ -73,6 +73,7 @@ def _cases()->list[tuple[str,str,list[np.ndarray],list[list[np.ndarray]]]]:
 
 
 def run(work_dir:Path)->dict[str,object]:
+    work_dir=work_dir.resolve()
     if work_dir.exists():shutil.rmtree(work_dir)
     work_dir.mkdir(parents=True)
     grid=build_grid_artifact(work_dir/"grid");structure=build_fixed5_structure_artifact(grid,work_dir/"structure")
