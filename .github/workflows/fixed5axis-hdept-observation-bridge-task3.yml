@@ -68,7 +68,19 @@ jobs:
             tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
             tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py
           python scripts/fixed5axis_hdept_observation_bridge_validator_rc1.py --help >/dev/null
+          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task3 --help >/dev/null
       - name: Run Task 3 validator and negative tests
-        run: PYTHONPATH=scripts python -m pytest -q tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONPATH=scripts python -m pytest -q --tb=short tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py 2>&1 | tee task3-pytest.log
+      - name: Upload Task 3 pytest log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-hdept-task3-pytest-log
+          path: task3-pytest.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Run Task 2 and fixed5 G/K regressions
         run: PYTHONPATH=scripts python -m pytest -q tests/test_fixed5axis_hdept_observation_bridge_rc1.py tests/test_fixed5axis_gk_rc1.py
