@@ -1,0 +1,437 @@
+{
+  "profile_id": "generic_relation_field_g3_validation_profile",
+  "profile_version": "1",
+  "g2_structure_contract": "configs/generic_relation_field_g2_contract.json",
+  "g2_fixed_structure_profile": "configs/fixed5axis_relation_structure_g2.json",
+  "source_contracts": {
+    "RF-3": "configs/relation_field_single_transition_rc1_contract.json",
+    "RF-4": "configs/relation_field_single_transition_audit_rc1.json",
+    "RF-5": "configs/relation_field_temporal_consistency_rc1.json",
+    "RF-6": "configs/relation_field_hodge_decomposition_rc1.json",
+    "RF-7": "configs/relation_field_shape_dynamics_rc1.json",
+    "RF-8": "configs/relation_field_axis_coupling_innovation_rc1.json",
+    "RF-9": "configs/relation_field_risk_structure_rc1.json",
+    "RF-10": "configs/relation_field_predictive_validation_rc1.json"
+  },
+  "source_roots": [
+    "grid",
+    "trajectory",
+    "rf3",
+    "rf4",
+    "rf5",
+    "rf6",
+    "rf7",
+    "rf8",
+    "rf9",
+    "rf10",
+    "rf10_case_manifest"
+  ],
+  "numeric_payloads": [
+    {
+      "payload_id": "rf3_local_flow",
+      "stage": "RF-3",
+      "root": "rf3",
+      "path": "__single_field__/local_flow.npz",
+      "groups": [
+        {"keys": ["forward_flow", "net_flow", "reverse_flow"], "dimension_roles": ["edge"]},
+        {"keys": ["observed_delta", "reconstructed_delta"], "dimension_roles": ["cell"]}
+      ]
+    },
+    {
+      "payload_id": "rf3_unresolved_residual",
+      "stage": "RF-3",
+      "root": "rf3",
+      "path": "__single_field__/unresolved_residual.npz",
+      "groups": [
+        {"keys": ["negative_residual", "positive_residual", "residual"], "dimension_roles": ["cell"]}
+      ]
+    },
+    {
+      "payload_id": "rf4_alternative_candidates",
+      "stage": "RF-4",
+      "root": "rf4",
+      "path": "alternative_candidates.npz",
+      "all_arrays_dimension_roles": ["edge"]
+    },
+    {
+      "payload_id": "rf5_candidate_flows",
+      "stage": "RF-5",
+      "root": "rf5",
+      "path": "candidate_flows.npz",
+      "groups": [
+        {"keys": ["candidate_descriptor"], "dimension_roles": [null, "legacy_descriptor"], "transform": "rf5_descriptor"},
+        {"keys": ["candidate_net_flow"], "dimension_roles": [null, "edge"]},
+        {"keys": ["candidate_reconstructed_delta", "candidate_residual"], "dimension_roles": [null, "cell"]},
+        {"keys": ["observed_delta"], "dimension_roles": [null, "cell"]},
+        {"keys": ["candidate_offsets", "candidate_primary_excess", "candidate_primary_objective", "candidate_transition_index"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf5_common_structure",
+      "stage": "RF-5",
+      "root": "rf5",
+      "path": "common_structure.npz",
+      "groups": [
+        {"keys": ["axis_flow_max", "axis_flow_mean", "axis_flow_min"], "dimension_roles": [null, "axis"]},
+        {"keys": ["common_net_flow", "mean_net_flow", "union_edge_mask"], "dimension_roles": [null, "edge"]},
+        {"keys": ["transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf5_representative_flow",
+      "stage": "RF-5",
+      "root": "rf5",
+      "path": "representative_flow.npz",
+      "groups": [
+        {"keys": ["axis_signed_flow"], "dimension_roles": [null, "axis"]},
+        {"keys": ["descriptor"], "dimension_roles": [null, "legacy_descriptor"], "transform": "rf5_descriptor"},
+        {"keys": ["net_flow"], "dimension_roles": [null, "edge"]},
+        {"keys": ["transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf6_candidate_components",
+      "stage": "RF-6",
+      "root": "rf6",
+      "path": "candidate_components.npz",
+      "groups": [
+        {"keys": ["circulation_flow", "gradient_flow", "harmonic_flow", "input_flow", "numerical_residual_flow"], "dimension_roles": [null, "edge"]},
+        {"keys": ["node_potential"], "dimension_roles": [null, "cell"]},
+        {"keys": ["candidate_offsets", "candidate_transition_index"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf6_common_input_components",
+      "stage": "RF-6",
+      "root": "rf6",
+      "path": "common_input_components.npz",
+      "groups": [
+        {"keys": ["circulation_flow", "gradient_flow", "harmonic_flow", "input_flow", "numerical_residual_flow"], "dimension_roles": [null, "edge"]},
+        {"keys": ["node_potential"], "dimension_roles": [null, "cell"]},
+        {"keys": ["transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf6_path_family_components",
+      "stage": "RF-6",
+      "root": "rf6",
+      "path": "path_family_components.npz",
+      "groups": [
+        {"keys": ["circulation_common", "circulation_max", "circulation_mean", "circulation_min", "gradient_common", "gradient_max", "gradient_mean", "gradient_min"], "dimension_roles": [null, "edge"]},
+        {"keys": ["transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf6_representative_components",
+      "stage": "RF-6",
+      "root": "rf6",
+      "path": "representative_components.npz",
+      "groups": [
+        {"keys": ["circulation_flow", "gradient_flow", "harmonic_flow", "input_flow", "numerical_residual_flow"], "dimension_roles": [null, "edge"]},
+        {"keys": ["node_potential"], "dimension_roles": [null, "cell"]},
+        {"keys": ["face_circulation"], "dimension_roles": [null, "face"]},
+        {"keys": ["flat_candidate_index", "transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf7_frame_shape_metrics",
+      "stage": "RF-7",
+      "root": "rf7",
+      "path": "frame_shape_metrics.npz",
+      "groups": [
+        {"keys": ["axis_variance", "centroid", "covariance_eigenvalues", "lower_boundary_mass", "upper_boundary_mass"], "dimension_roles": [null, "axis"]},
+        {"keys": ["covariance"], "dimension_roles": [null, "axis", "axis"]},
+        {"keys": ["active_cell_count", "active_threshold", "any_boundary_mass", "component_count", "component_mass_entropy", "effective_support", "entropy", "l2_concentration", "largest_component_mass", "major_component_count", "normalized_entropy", "participation_number", "peak_mass", "times", "total_variance"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf7_transition_shape_metrics",
+      "stage": "RF-7",
+      "root": "rf7",
+      "path": "transition_shape_metrics.npz",
+      "groups": [
+        {"keys": ["axis_variance_delta", "centroid_shift"], "dimension_roles": [null, "axis"]},
+        {"keys": ["covariance_delta"], "dimension_roles": [null, "axis", "axis"]},
+        {"keys": ["active_cell_count_delta", "boundary_cell_overlap", "boundary_mass_delta", "centroid_shift_norm", "component_mass_entropy_delta", "distribution_overlap", "effective_support_delta", "entropy_delta", "l2_concentration_delta", "largest_component_mass_delta", "major_component_count_delta", "participation_delta", "peak_mass_delta", "total_variance_delta", "total_variation_distance", "transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf7_flow_channel_metrics",
+      "stage": "RF-7",
+      "root": "rf7",
+      "path": "flow_channel_metrics.npz",
+      "groups": [
+        {"keys": ["axis_absolute_throughput_maximum", "axis_absolute_throughput_mean", "axis_absolute_throughput_minimum", "lower_boundary_inward_flow_maximum", "lower_boundary_inward_flow_mean", "lower_boundary_inward_flow_minimum", "upper_boundary_inward_flow_maximum", "upper_boundary_inward_flow_mean", "upper_boundary_inward_flow_minimum"], "dimension_roles": [null, "axis"]},
+        {"keys": ["active_edge_count_maximum", "active_edge_count_mean", "active_edge_count_minimum", "circulation_energy_maximum", "circulation_energy_mean", "circulation_energy_minimum", "edge_entropy_maximum", "edge_entropy_mean", "edge_entropy_minimum", "edge_participation_number_maximum", "edge_participation_number_mean", "edge_participation_number_minimum", "effective_edge_support_maximum", "effective_edge_support_mean", "effective_edge_support_minimum", "gradient_energy_maximum", "gradient_energy_mean", "gradient_energy_minimum", "maximum_edge_fraction_maximum", "maximum_edge_fraction_mean", "maximum_edge_fraction_minimum", "potential_transport_difference_maximum", "potential_transport_difference_mean", "potential_transport_difference_minimum", "source_mass_weighted_potential_maximum", "source_mass_weighted_potential_mean", "source_mass_weighted_potential_minimum", "target_mass_weighted_potential_maximum", "target_mass_weighted_potential_mean", "target_mass_weighted_potential_minimum", "total_absolute_flow_maximum", "total_absolute_flow_mean", "total_absolute_flow_minimum", "transition_times", "unique_candidate_count"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf7_boundary_dynamics",
+      "stage": "RF-7",
+      "root": "rf7",
+      "path": "boundary_dynamics.npz",
+      "all_arrays_dimension_roles": [null]
+    },
+    {
+      "payload_id": "rf7_field_shape_alignment",
+      "stage": "RF-7",
+      "root": "rf7",
+      "path": "field_shape_alignment.npz",
+      "all_arrays_dimension_roles": [null]
+    },
+    {
+      "payload_id": "rf8_axis_flow_family",
+      "stage": "RF-8",
+      "root": "rf8",
+      "path": "axis_flow_family.npz",
+      "groups": [
+        {"keys": ["axis_coordinate_displacement_maximum", "axis_coordinate_displacement_mean", "axis_coordinate_displacement_minimum", "axis_signed_flow_ambiguity_width", "axis_signed_flow_maximum", "axis_signed_flow_mean", "axis_signed_flow_minimum"], "dimension_roles": [null, "axis"]},
+        {"keys": ["transition_times", "unique_candidate_count"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf8_history_conditioned_innovation",
+      "stage": "RF-8",
+      "root": "rf8",
+      "path": "history_conditioned_innovation.npz",
+      "groups": [
+        {"keys": ["expected_axis_flow", "history_conditioned_new_drive_candidate", "innovation_axis_flow", "innovation_scale", "normalized_innovation_score", "observed_axis_flow_mean"], "dimension_roles": [null, "axis"]},
+        {"keys": ["baseline_available", "effective_support", "prior_transition_count"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf8_lag_feedback_coupling",
+      "stage": "RF-8",
+      "root": "rf8",
+      "path": "lag_feedback_coupling.npz",
+      "groups": [
+        {"keys": ["aggregate_coupling_mean", "negative_consensus_fraction", "positive_consensus_fraction"], "dimension_roles": ["axis", "axis"]},
+        {"keys": ["local_coupling_maximum", "local_coupling_mean", "local_coupling_minimum", "negative_consensus", "positive_consensus"], "dimension_roles": [null, "axis", "axis"]},
+        {"keys": ["candidate_pair_count", "lag_index"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf8_position_flow_coupling",
+      "stage": "RF-8",
+      "root": "rf8",
+      "path": "position_flow_coupling.npz",
+      "groups": [
+        {"keys": ["fit_rmse", "intercept_mean", "slope_ambiguity_width", "slope_maximum", "slope_mean", "slope_minimum"], "dimension_roles": ["axis", "axis"]},
+        {"keys": ["source_axis_identifiable", "source_axis_variation"], "dimension_roles": ["axis"]},
+        {"keys": ["sample_count"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf8_unresolved_residual_ledger",
+      "stage": "RF-8",
+      "root": "rf8",
+      "path": "unresolved_residual_ledger.npz",
+      "groups": [
+        {"keys": ["residual_axis_moment_maximum", "residual_axis_moment_mean", "residual_axis_moment_minimum"], "dimension_roles": [null, "axis"]},
+        {"keys": ["negative_residual_mass_maximum", "negative_residual_mass_mean", "negative_residual_mass_minimum", "positive_residual_mass_maximum", "positive_residual_mass_mean", "positive_residual_mass_minimum", "residual_l1_maximum", "residual_l1_mean", "residual_l1_minimum", "transition_times"], "dimension_roles": [null]}
+      ]
+    },
+    {
+      "payload_id": "rf9_risk_structure_metrics",
+      "stage": "RF-9",
+      "root": "rf9",
+      "path": "risk_structure_metrics.npz",
+      "all_arrays_dimension_roles": [null]
+    },
+    {
+      "payload_id": "rf10_future_outcomes_target_side",
+      "stage": "RF-10",
+      "root": "rf10",
+      "path": "future_outcomes.npz",
+      "all_arrays_dimension_roles": [null],
+      "evidence_side": "future_target_only"
+    }
+  ],
+  "semantic_payloads": [
+    {"payload_id": "rf3_reconstruction", "stage": "RF-3", "root": "rf3", "path": "__single_field__/reconstruction.json"},
+    {"payload_id": "rf3_uncertainty", "stage": "RF-3", "root": "rf3", "path": "__single_field__/uncertainty.json"},
+    {"payload_id": "rf4_scenarios", "stage": "RF-4", "root": "rf4", "path": "scenario_results.jsonl", "format": "jsonl"},
+    {"payload_id": "rf4_minimum_action", "stage": "RF-4", "root": "rf4", "path": "minimum_action_certificates.json"},
+    {"payload_id": "rf4_alternative_solution", "stage": "RF-4", "root": "rf4", "path": "alternative_solution_audit.json"},
+    {"payload_id": "rf4_solver_sensitivity", "stage": "RF-4", "root": "rf4", "path": "solver_sensitivity.json"},
+    {"payload_id": "rf4_residual_penalty", "stage": "RF-4", "root": "rf4", "path": "residual_penalty_sensitivity.json"},
+    {"payload_id": "rf4_locality", "stage": "RF-4", "root": "rf4", "path": "locality_counterfactual.json"},
+    {"payload_id": "rf4_adoption", "stage": "RF-4", "root": "rf4", "path": "adoption_decision.json"},
+    {"payload_id": "rf5_candidate_index", "stage": "RF-5", "root": "rf5", "path": "candidate_index.json"},
+    {"payload_id": "rf5_temporal_paths", "stage": "RF-5", "root": "rf5", "path": "temporal_paths.json"},
+    {"payload_id": "rf5_temporal_diagnostics", "stage": "RF-5", "root": "rf5", "path": "temporal_diagnostics.json"},
+    {"payload_id": "rf5_uncertainty", "stage": "RF-5", "root": "rf5", "path": "uncertainty.json"},
+    {"payload_id": "rf6_candidate_metrics", "stage": "RF-6", "root": "rf6", "path": "candidate_metrics.json"},
+    {"payload_id": "rf6_topology", "stage": "RF-6", "root": "rf6", "path": "topology.json"},
+    {"payload_id": "rf6_diagnostics", "stage": "RF-6", "root": "rf6", "path": "decomposition_diagnostics.json"},
+    {"payload_id": "rf6_uncertainty", "stage": "RF-6", "root": "rf6", "path": "uncertainty.json"},
+    {"payload_id": "rf7_frame_components", "stage": "RF-7", "root": "rf7", "path": "frame_components.json"},
+    {"payload_id": "rf7_transition_labels", "stage": "RF-7", "root": "rf7", "path": "transition_labels.json"},
+    {"payload_id": "rf7_diagnostics", "stage": "RF-7", "root": "rf7", "path": "shape_dynamics_diagnostics.json"},
+    {"payload_id": "rf7_uncertainty", "stage": "RF-7", "root": "rf7", "path": "uncertainty.json"},
+    {"payload_id": "rf8_same_axis_dynamics", "stage": "RF-8", "root": "rf8", "path": "same_axis_dynamics.json"},
+    {"payload_id": "rf8_innovation_labels", "stage": "RF-8", "root": "rf8", "path": "innovation_labels.json"},
+    {"payload_id": "rf8_diagnostics", "stage": "RF-8", "root": "rf8", "path": "axis_coupling_diagnostics.json"},
+    {"payload_id": "rf8_uncertainty", "stage": "RF-8", "root": "rf8", "path": "uncertainty.json"},
+    {"payload_id": "rf9_candidates", "stage": "RF-9", "root": "rf9", "path": "risk_structure_candidates.json"},
+    {"payload_id": "rf9_evidence", "stage": "RF-9", "root": "rf9", "path": "risk_evidence_ledger.json"},
+    {"payload_id": "rf9_counterevidence", "stage": "RF-9", "root": "rf9", "path": "risk_counterevidence_ledger.json"},
+    {"payload_id": "rf9_diagnostics", "stage": "RF-9", "root": "rf9", "path": "risk_structure_diagnostics.json"},
+    {"payload_id": "rf9_uncertainty", "stage": "RF-9", "root": "rf9", "path": "uncertainty.json"},
+    {"payload_id": "rf10_prediction_snapshot", "stage": "RF-10", "root": "rf10", "path": "prediction_snapshot.json"},
+    {"payload_id": "rf10_sample_ledger", "stage": "RF-10", "root": "rf10", "path": "sample_ledger.json"},
+    {"payload_id": "rf10_metrics", "stage": "RF-10", "root": "rf10", "path": "predictive_metrics.json"},
+    {"payload_id": "rf10_stratified_rates", "stage": "RF-10", "root": "rf10", "path": "stratified_outcome_rates.json"},
+    {"payload_id": "rf10_leakage_audit", "stage": "RF-10", "root": "rf10", "path": "leakage_audit.json"},
+    {"payload_id": "rf10_diagnostics", "stage": "RF-10", "root": "rf10", "path": "predictive_validation_diagnostics.json"},
+    {"payload_id": "rf10_uncertainty", "stage": "RF-10", "root": "rf10", "path": "uncertainty.json"}
+  ],
+  "source_identity_files": {
+    "rf3": ["__single_field__/identity.json", "__single_field__/manifest.json", "trajectories/__trajectory__/provenance.json"],
+    "rf4": ["validation.json", "manifest.json"],
+    "rf5": ["identity.json", "provenance.json", "validation.json", "manifest.json"],
+    "rf6": ["identity.json", "provenance.json", "validation.json", "manifest.json"],
+    "rf7": ["identity.json", "provenance.json", "validation.json", "manifest.json"],
+    "rf8": ["identity.json", "provenance.json", "validation.json", "manifest.json"],
+    "rf9": ["identity.json", "provenance.json", "validation.json", "manifest.json"],
+    "rf10": ["identity.json", "provenance.json", "validation.json", "manifest.json", "case_manifest_frozen.json"]
+  },
+  "scientific_tolerance_refs": {
+    "rf3_reconstruction": "configs/relation_field_single_transition_rc1_contract.json#solver.reconstruction_tolerance",
+    "rf5_reconstruction": "configs/relation_field_single_transition_rc1_contract.json#solver.reconstruction_tolerance",
+    "rf6_reconstruction": "configs/relation_field_hodge_decomposition_rc1.json#acceptance.reconstruction_tolerance",
+    "rf6_circulation_divergence": "configs/relation_field_hodge_decomposition_rc1.json#acceptance.circulation_divergence_tolerance",
+    "rf6_gradient_face_circulation": "configs/relation_field_hodge_decomposition_rc1.json#acceptance.gradient_face_circulation_tolerance"
+  },
+  "synthetic_edge_metrics": {
+    "topological_length": 1.0,
+    "coordinate_length": 1.0,
+    "transport_cost": 1.0
+  },
+  "synthetic_structure_cases": [
+    {
+      "case_id": "three_axis_unequal_bins",
+      "kind": "product",
+      "axis_bin_counts": [2, 3, 4],
+      "include_faces": true,
+      "expected": {"axis_count": 3, "connected_component_count": 1, "first_betti_number": 0}
+    },
+    {
+      "case_id": "seven_axis_binary",
+      "kind": "product",
+      "axis_bin_counts": [2, 2, 2, 2, 2, 2, 2],
+      "include_faces": true,
+      "expected": {"axis_count": 7, "connected_component_count": 1, "first_betti_number": 0}
+    },
+    {
+      "case_id": "irregular_connected",
+      "kind": "graph",
+      "axis_ids": ["synthetic_axis/a", "synthetic_axis/b"],
+      "cells": [
+        {"cell_id": "irregular/c0", "axis_bin_indices": [0, 0], "coordinates": [0.0, 0.0]},
+        {"cell_id": "irregular/c1", "axis_bin_indices": [1, 0], "coordinates": [1.0, 0.0]},
+        {"cell_id": "irregular/c2", "axis_bin_indices": [1, 1], "coordinates": [1.0, 1.0]},
+        {"cell_id": "irregular/c3", "axis_bin_indices": [2, 1], "coordinates": [2.0, 1.0]},
+        {"cell_id": "irregular/c4", "axis_bin_indices": [1, 2], "coordinates": [1.0, 2.0]}
+      ],
+      "edges": [
+        {"edge_id": "irregular/e0", "source": "irregular/c0", "target": "irregular/c1", "axis_ordinal": 0},
+        {"edge_id": "irregular/e1", "source": "irregular/c1", "target": "irregular/c2", "axis_ordinal": 1},
+        {"edge_id": "irregular/e2", "source": "irregular/c2", "target": "irregular/c3", "axis_ordinal": 0},
+        {"edge_id": "irregular/e3", "source": "irregular/c1", "target": "irregular/c4", "axis_ordinal": 1}
+      ],
+      "faces": [],
+      "expected": {"axis_count": 2, "connected_component_count": 1, "first_betti_number": 0}
+    },
+    {
+      "case_id": "multiple_connected_components",
+      "kind": "graph",
+      "axis_ids": [],
+      "cells": [
+        {"cell_id": "multi/a", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "multi/b", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "multi/c", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "multi/d", "axis_bin_indices": [], "coordinates": []}
+      ],
+      "edges": [
+        {"edge_id": "multi/e0", "source": "multi/a", "target": "multi/b", "axis_ordinal": -1},
+        {"edge_id": "multi/e1", "source": "multi/c", "target": "multi/d", "axis_ordinal": -1}
+      ],
+      "faces": [],
+      "expected": {"axis_count": 0, "connected_component_count": 2, "first_betti_number": 0}
+    },
+    {
+      "case_id": "face_free_cycle",
+      "kind": "graph",
+      "axis_ids": [],
+      "cells": [
+        {"cell_id": "cycle/a", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "cycle/b", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "cycle/c", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "cycle/d", "axis_bin_indices": [], "coordinates": []}
+      ],
+      "edges": [
+        {"edge_id": "cycle/e0", "source": "cycle/a", "target": "cycle/b", "axis_ordinal": -1},
+        {"edge_id": "cycle/e1", "source": "cycle/b", "target": "cycle/c", "axis_ordinal": -1},
+        {"edge_id": "cycle/e2", "source": "cycle/d", "target": "cycle/c", "axis_ordinal": -1},
+        {"edge_id": "cycle/e3", "source": "cycle/a", "target": "cycle/d", "axis_ordinal": -1}
+      ],
+      "faces": [],
+      "expected": {"axis_count": 0, "face_count": 0, "connected_component_count": 1, "first_betti_number": 1}
+    },
+    {
+      "case_id": "face_complex_with_hole",
+      "kind": "graph",
+      "axis_ids": [],
+      "cells": [
+        {"cell_id": "hole/a", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "hole/b", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "hole/c", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "hole/d", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "hole/e", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "hole/f", "axis_bin_indices": [], "coordinates": []}
+      ],
+      "edges": [
+        {"edge_id": "hole/h0", "source": "hole/a", "target": "hole/b", "axis_ordinal": -1},
+        {"edge_id": "hole/h1", "source": "hole/b", "target": "hole/c", "axis_ordinal": -1},
+        {"edge_id": "hole/h2", "source": "hole/d", "target": "hole/e", "axis_ordinal": -1},
+        {"edge_id": "hole/h3", "source": "hole/e", "target": "hole/f", "axis_ordinal": -1},
+        {"edge_id": "hole/v0", "source": "hole/a", "target": "hole/d", "axis_ordinal": -1},
+        {"edge_id": "hole/v1", "source": "hole/b", "target": "hole/e", "axis_ordinal": -1},
+        {"edge_id": "hole/v2", "source": "hole/c", "target": "hole/f", "axis_ordinal": -1}
+      ],
+      "faces": [
+        {"face_id": "hole/filled_left", "members": [["hole/h0", 1], ["hole/v1", 1], ["hole/h2", -1], ["hole/v0", -1]]}
+      ],
+      "expected": {"axis_count": 0, "face_count": 1, "connected_component_count": 1, "first_betti_number": 1}
+    },
+    {
+      "case_id": "coordinate_free_path",
+      "kind": "graph",
+      "axis_ids": [],
+      "cells": [
+        {"cell_id": "free/a", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "free/b", "axis_bin_indices": [], "coordinates": []},
+        {"cell_id": "free/c", "axis_bin_indices": [], "coordinates": []}
+      ],
+      "edges": [
+        {"edge_id": "free/e0", "source": "free/a", "target": "free/b", "axis_ordinal": -1},
+        {"edge_id": "free/e1", "source": "free/b", "target": "free/c", "axis_ordinal": -1}
+      ],
+      "faces": [],
+      "expected": {"axis_count": 0, "connected_component_count": 1, "first_betti_number": 0}
+    },
+    {
+      "case_id": "identifier_order_permutation",
+      "kind": "reordered_copy",
+      "source_case_id": "irregular_connected",
+      "expected": {"axis_count": 2, "connected_component_count": 1, "first_betti_number": 0, "canonical_signature_matches_source": true}
+    }
+  ],
+  "negative_guard_profile": {
+    "future_forbidden_key_fragments": ["future_state", "future_input", "future_truth", "future_suffix_feature"],
+    "simulator_forbidden_keys": ["action_adoption", "adopt_action", "optimal_action", "recommended_action", "total_utility", "desirability"],
+    "conflicting_alignment_forbidden_summary_keys": ["mean_prediction", "averaged_prediction", "integrated_scalar"],
+    "probability_claim_minimum_support_ref": "configs/relation_field_predictive_validation_rc1.json#support_gates.minimum_test_cases_for_accuracy_claim"
+  }
+}
