@@ -1,0 +1,103 @@
+{
+  "task_id": "RelationField-Prediction-P2-2",
+  "title": "Causal continuous relation-field coordinate series with independent validation",
+  "contract_version": "relation_field_prediction_coordinates_p2_v1",
+  "status": "implemented_coordinate_builder_with_independent_validator_without_precursor_claim",
+  "purpose": "Map each validated causal P1 state X_t to continuous diagnostic coordinates Z_t that express current position and motion relative to RF-9 condition surfaces, without reading future outcomes or claiming precursor validity.",
+  "scope": {
+    "coordinate_builder_implementation": true,
+    "independent_validator_implementation": true,
+    "precursor_validity_evaluation": false,
+    "future_prediction_model_implementation": false,
+    "future_probability_or_eta_output": false,
+    "action_evaluation_or_selection": false,
+    "single_scalar_danger_score": false
+  },
+  "input": {
+    "required_parent_contract_version": "relation_field_prediction_state_p1",
+    "validated_p1_series_only": true,
+    "allowed_parent_payloads": ["base_state.npz", "base_state_index.json", "risk_state.json", "identity.json", "difference_index.json", "RF-7 contract", "RF-9 contract"],
+    "forbidden": ["RF-10", "future_G_t_or_K_t", "future_truth_or_outcome", "scenario", "seed", "split", "action", "event", "world_internal_state", "Task3_or_Task4_internal_state"]
+  },
+  "coordinate": {
+    "canonical_form": "registry_keyed_candidate_intervals",
+    "candidate_interval": "lower_center_upper",
+    "candidate_width": "upper_minus_lower",
+    "probability_weighting_without_probabilities_forbidden": true,
+    "unavailable_zero_fill_forbidden": true,
+    "silent_proxy_substitution_forbidden": true,
+    "reserved_coordinates_must_remain_unavailable_until_formally_implemented": true
+  },
+  "differences": {
+    "first_backward_difference": "(Z_t - Z_previous) / (t - previous_t)",
+    "second_backward_difference": "difference_of_adjacent_first_rates_divided_by_interval_midpoint_gap",
+    "same_coordinate_id_required": true,
+    "same_scope_required": true,
+    "same_unit_required": true,
+    "same_normalization_required": true,
+    "same_shape_required": true,
+    "missing_or_incomparable_is_unavailable_not_zero": true
+  },
+  "signed_margin": {
+    "definition": "orientation * (value - boundary) / comparison_scale",
+    "negative_meaning": "outside_condition",
+    "zero_meaning": "condition_boundary",
+    "positive_meaning": "inside_condition",
+    "outside_distance": "max(0, -margin)",
+    "inside_depth": "max(0, margin)",
+    "interval_status": {
+      "confirmed_outside": "upper < 0",
+      "boundary_ambiguous": "lower <= 0 <= upper",
+      "confirmed_inside": "lower > 0"
+    }
+  },
+  "logic": {
+    "AND": "minimum",
+    "OR": "maximum",
+    "NOT": "sign_negation",
+    "averaging_for_logical_composition_forbidden": true,
+    "learned_or_manual_weighted_sum_forbidden": true,
+    "evidence_counterevidence_cancellation_forbidden": true,
+    "four_structure_aggregation_forbidden": true
+  },
+  "primary_risk_structures": ["overconvergence", "fixation", "divergence", "recovery_margin_reduction"],
+  "validation": {
+    "p1_manifest_exact_file_set_required": true,
+    "independent_formula_recomputation_required": true,
+    "independent_validator_must_not_import_builder_or_formula_module": true,
+    "all_coordinate_arrays_recomputed_and_compared": true,
+    "first_and_second_differences_recomputed_and_compared": true,
+    "risk_structure_logic_recomputed_and_compared": true,
+    "manifest_regenerated_tampering_must_be_rejected": true,
+    "builder_mutation_must_be_detected_by_independent_validator": true,
+    "parent_source_writeback_forbidden": true
+  },
+  "storage": {
+    "origin_container_dir": "origins",
+    "origin_name_format": "t_{origin_t:06d}",
+    "coordinate_file": "coordinates.npz",
+    "coordinate_index_file": "coordinate_index.json",
+    "risk_structure_file": "risk_structure_margins.json",
+    "first_difference_file": "first_backward_difference.npz",
+    "second_difference_file": "second_backward_difference.npz",
+    "difference_index_file": "difference_index.json",
+    "origin_identity_file": "identity.json",
+    "origin_validation_file": "validation.json",
+    "origin_manifest_file": "manifest.json",
+    "series_identity_file": "series_identity.json",
+    "series_index_file": "series_index.json",
+    "series_validation_file": "validation.json",
+    "series_manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "overwrite_forbidden": true
+  },
+  "acceptance": {
+    "engineering_claim": "A_causal_continuous_coordinate_builder_and_independent_validator",
+    "scientific_claim": "B_continuous_diagnostic_coordinate_candidates_without_precursor_validation",
+    "precursor_validity_claim": "not_evaluated",
+    "prediction_accuracy_claim": "not_evaluated",
+    "true_irreversibility_claim": false,
+    "action_recommendation_claim": false
+  }
+}
