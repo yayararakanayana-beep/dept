@@ -34,9 +34,31 @@ jobs:
           python -m json.tool configs/relation_field_prediction_p2_precursor_audit_contract_v1_1.json >/dev/null
           python -m json.tool configs/relation_field_prediction_p2_formal_audit_dataset_v1.json >/dev/null
           python -m py_compile             scripts/relation_field_prediction_p2_precursor_audit/*.py             validation/relation_field_prediction_p2_formal_audit.py             tests/test_relation_field_prediction_p2_formal_audit.py
-      - name: Run applicability and formal-plan tests
+      - name: Run applicability and formal-plan tests and capture log
+        shell: bash
         run: |
-          PYTHONPATH=scripts:validation python -m pytest -q             tests/test_relation_field_prediction_p2_precursor_audit.py             tests/test_relation_field_prediction_p2_formal_audit.py
+          set +e
+          PYTHONPATH=scripts:validation python -m pytest -q \
+            tests/test_relation_field_prediction_p2_precursor_audit.py \
+            tests/test_relation_field_prediction_p2_formal_audit.py \
+            > p2-4-preflight.log 2>&1
+          status=$?
+          echo "$status" > p2-4-preflight.exit
+          exit 0
+      - name: Upload preflight log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-p2-4-preflight-log
+          path: |
+            p2-4-preflight.log
+            p2-4-preflight.exit
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce preflight result
+        run: |
+          cat p2-4-preflight.log
+          test "$(cat p2-4-preflight.exit)" = "0"
       - name: Run 36-case formal audit and capture log
         shell: bash
         run: |
