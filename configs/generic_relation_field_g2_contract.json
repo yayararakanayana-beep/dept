@@ -1,0 +1,160 @@
+{
+  "task_id": "Generic-Relation-Field-G2",
+  "title": "Generic relation-field static-structure foundation contract",
+  "contract_version": "generic_relation_field_g2",
+  "status": "implemented_foundation_fixed5_production_scope",
+  "purpose": "Isolate the current fixed-five-axis topology behind a validated structure profile while keeping generic relation-field artifacts and history views keyed by stable identities rather than fixed array lengths.",
+  "production_scope": {
+    "canonical_gk_profile": "fixed5axis_gk_rc1",
+    "topology_is_static_within_kt": true,
+    "unknown_topology_prediction_accuracy_claimed": false,
+    "dynamic_topology_correspondence_implemented": false,
+    "prediction_model_implemented": false
+  },
+  "structure_levels": {
+    "A_connectivity": [
+      "cells",
+      "oriented_edges",
+      "boundary_1"
+    ],
+    "B_faces": [
+      "oriented_faces",
+      "boundary_2",
+      "boundary_of_boundary_validation"
+    ],
+    "C_axes_coordinates": [
+      "axis_registry",
+      "coordinates",
+      "axis_attribution",
+      "boundary_sets"
+    ]
+  },
+  "identity": {
+    "semantic_identity_uses_registry_ids": true,
+    "array_position_is_storage_only": true,
+    "registry_order_and_hash_are_required_for_dense_payloads": true
+  },
+  "incidence": {
+    "edge_source_value": -1.0,
+    "edge_target_value": 1.0,
+    "boundary_of_boundary_tolerance": 0.0
+  },
+  "face_orientation": {
+    "elementary_square_edge_signs": [1, 1, -1, -1]
+  },
+  "history_view": {
+    "canonical": false,
+    "read_only": true,
+    "source_prefix_only": true,
+    "mass_storage": "offset_keyed_cell_records",
+    "automatic_clipping_forbidden": true,
+    "automatic_renormalization_forbidden": true,
+    "canonical_writeback_forbidden": true
+  },
+  "field_records": {
+    "required_fields": [
+      "record_id",
+      "feature_id",
+      "feature_group",
+      "scope_type",
+      "scope_ids",
+      "value",
+      "lower_bound",
+      "upper_bound",
+      "unit",
+      "normalization_id",
+      "availability_status",
+      "evidence_status",
+      "source_refs"
+    ],
+    "allowed_stages": [
+      "transition_flow",
+      "temporal_candidate",
+      "decomposition",
+      "shape_route",
+      "coupling_drive",
+      "risk_evidence",
+      "prediction_state"
+    ],
+    "allowed_scope_types": [
+      "global",
+      "axis",
+      "cell",
+      "edge",
+      "face"
+    ],
+    "availability_statuses": [
+      "valid",
+      "limited",
+      "withheld",
+      "invalid"
+    ],
+    "relation_field_evidence_statuses": [
+      "observed",
+      "inferred_candidate",
+      "unidentified",
+      "unavailable"
+    ],
+    "fixed_length_primary_storage_forbidden": true,
+    "representative_only_storage_forbidden": true
+  },
+  "source_contract_paths": [
+    "configs/fixed5axis_gk_rc1_contract.json",
+    "configs/relation_field_rc1_contract.json",
+    "configs/relation_field_grid_rc1_contract.json",
+    "configs/relation_field_single_transition_rc1_contract.json",
+    "configs/relation_field_single_transition_audit_rc1.json",
+    "configs/relation_field_temporal_consistency_rc1.json",
+    "configs/relation_field_hodge_decomposition_rc1.json",
+    "configs/relation_field_shape_dynamics_rc1.json",
+    "configs/relation_field_axis_coupling_innovation_rc1.json",
+    "configs/relation_field_risk_structure_rc1.json",
+    "configs/relation_field_predictive_validation_rc1.json"
+  ],
+  "storage": {
+    "contract_file": "contract.json",
+    "structure_profile_file": "structure_profile.json",
+    "axis_registry_file": "axis_registry.json",
+    "cell_registry_file": "cell_registry.npz",
+    "edge_registry_file": "edge_registry.npz",
+    "face_registry_file": "face_registry.npz",
+    "boundary_registry_file": "boundary_registry.json",
+    "boundary_membership_file": "boundary_membership.npz",
+    "field_record_schema_file": "field_record_schema.json",
+    "validation_file": "validation.json",
+    "manifest_file": "manifest.json",
+    "hash_algorithm": "sha256",
+    "deterministic_bytes_required": true,
+    "atomic_write_required": true,
+    "overwrite_forbidden": true
+  },
+  "prohibitions": [
+    "modify_canonical_gt_or_kt",
+    "modify_existing_rf_artifacts",
+    "infer_topology_correspondence",
+    "accept_structure_change_within_kt",
+    "use_array_position_as_semantic_identity",
+    "fill_unavailable_metrics_with_zero",
+    "discard_candidate_families",
+    "read_future_information",
+    "perform_prediction",
+    "perform_action_selection",
+    "merge_task3_rev1_direct_prediction"
+  ],
+  "acceptance": {
+    "fixed_values_read_from_frozen_source_contracts": true,
+    "legacy_rf2_identity_exact": true,
+    "legacy_rf2_incidence_exact": true,
+    "legacy_rf3_edge_cost_exact": true,
+    "legacy_rf6_faces_exact": true,
+    "boundary_of_boundary_exact": true,
+    "fixed_gk_contract_and_shape_exact": true,
+    "keyed_history_view": true,
+    "keyed_field_records": true,
+    "deterministic_rebuild": true,
+    "manifest_validation": true,
+    "negative_contract_tests": true,
+    "scientific_claim": "G2_implementation_foundation_only",
+    "prediction_accuracy_claim": "not_evaluated"
+  }
+}
