@@ -1,0 +1,452 @@
+{
+  "$defs": {
+    "feature_record": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "available": {
+                "const": false
+              }
+            },
+            "required": [
+              "available"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confidence": {
+                "maximum": 0.0
+              },
+              "reason_unavailable": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "available": {
+                "const": true
+              }
+            },
+            "required": [
+              "available"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason_unavailable": {
+                "type": "null"
+              },
+              "value": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "derivation_status": {
+          "enum": [
+            "structural_constant",
+            "exact_current",
+            "exact_history",
+            "adapted_fixed_grid_proxy",
+            "reserved_prediction_subcontract",
+            "reserved_recovery_subcontract"
+          ]
+        },
+        "evidence_source": {
+          "type": "string"
+        },
+        "feature_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "group": {
+          "enum": [
+            "axis_structure",
+            "effective_dimension",
+            "shape",
+            "density",
+            "motion",
+            "angle_curvature",
+            "prediction_residual",
+            "recovery_geometry"
+          ]
+        },
+        "minimum_history_frames": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "reason_unavailable": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "support_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "feature_id",
+        "group",
+        "value",
+        "available",
+        "confidence",
+        "support_count",
+        "minimum_history_frames",
+        "derivation_status",
+        "evidence_source",
+        "reason_unavailable"
+      ],
+      "type": "object"
+    },
+    "h11_axis_record": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "available": {
+                "const": false
+              }
+            },
+            "required": [
+              "available"
+            ]
+          },
+          "then": {
+            "properties": {
+              "confidence": {
+                "maximum": 0.0
+              },
+              "status": {
+                "const": "UNAVAILABLE"
+              },
+              "transport_value": {
+                "const": 0.5
+              },
+              "transport_value_is_neutral_placeholder": {
+                "const": true
+              },
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "available": {
+                "const": true
+              }
+            },
+            "required": [
+              "available"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transport_value_is_neutral_placeholder": {
+                "const": false
+              },
+              "value": {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "claim_limit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "evidence_coverage": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "evidence_feature_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "status": {
+          "enum": [
+            "UNAVAILABLE",
+            "LIMITED",
+            "READY"
+          ]
+        },
+        "transport_value": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "transport_value_is_neutral_placeholder": {
+          "type": "boolean"
+        },
+        "value": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "watchpoints": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "value",
+        "transport_value",
+        "transport_value_is_neutral_placeholder",
+        "available",
+        "confidence",
+        "evidence_coverage",
+        "status",
+        "evidence_feature_ids",
+        "claim_limit",
+        "watchpoints"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://example.invalid/schemas/fixed5axis_hdept_observation_bridge_rc1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audit": {
+      "additionalProperties": true,
+      "properties": {
+        "contract_status": {
+          "enum": [
+            "pass",
+            "fail"
+          ]
+        },
+        "external_log_used_as_numeric_evidence": {
+          "const": false
+        },
+        "future_suffix_read": {
+          "const": false
+        },
+        "neutral_placeholder_used_as_evidence": {
+          "const": false
+        },
+        "ot_used": {
+          "const": false
+        },
+        "pressure_used_as_input": {
+          "const": false
+        },
+        "source_writeback_performed": {
+          "const": false
+        },
+        "truth_used": {
+          "const": false
+        }
+      },
+      "required": [
+        "future_suffix_read",
+        "truth_used",
+        "external_log_used_as_numeric_evidence",
+        "ot_used",
+        "pressure_used_as_input",
+        "source_writeback_performed",
+        "neutral_placeholder_used_as_evidence",
+        "contract_status"
+      ],
+      "type": "object"
+    },
+    "contract_version": {
+      "const": "fixed5axis_hdept_observation_bridge_rc1"
+    },
+    "current_t": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "features": {
+      "items": {
+        "$ref": "#/$defs/feature_record"
+      },
+      "maxItems": 47,
+      "minItems": 47,
+      "type": "array"
+    },
+    "global_observation_status": {
+      "enum": [
+        "INVALID_INPUT",
+        "INSUFFICIENT_HISTORY",
+        "LIMITED",
+        "READY",
+        "HOLD_RECOMMENDED"
+      ]
+    },
+    "h11": {
+      "additionalProperties": false,
+      "properties": {
+        "AdaptabilityStar": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Coherence": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Efficiency": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Exploration": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "NoveltyQuality": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Predictability": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Recoverability": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Robustness": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "Stability": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "StructuralDiversity": {
+          "$ref": "#/$defs/h11_axis_record"
+        },
+        "TrajectoryDynamics": {
+          "$ref": "#/$defs/h11_axis_record"
+        }
+      },
+      "required": [
+        "Stability",
+        "AdaptabilityStar",
+        "Exploration",
+        "Efficiency",
+        "Robustness",
+        "StructuralDiversity",
+        "TrajectoryDynamics",
+        "Predictability",
+        "Coherence",
+        "Recoverability",
+        "NoveltyQuality"
+      ],
+      "type": "object"
+    },
+    "input_identity": {
+      "additionalProperties": false,
+      "properties": {
+        "calibration_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_map_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "feature_registry_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fixed5_contract_version": {
+          "const": "fixed5axis_gk_rc1"
+        },
+        "gt_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "history_chain_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "history_end_t": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "history_frame_count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "history_start_t": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fixed5_contract_version",
+        "gt_hash",
+        "history_chain_hash",
+        "history_start_t",
+        "history_end_t",
+        "history_frame_count",
+        "feature_registry_hash",
+        "evidence_map_hash",
+        "calibration_version"
+      ],
+      "type": "object"
+    },
+    "trajectory_id": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "contract_version",
+    "trajectory_id",
+    "current_t",
+    "input_identity",
+    "features",
+    "h11",
+    "global_observation_status",
+    "audit"
+  ],
+  "title": "Fixed5Axis H-DEPT Observation Bridge RC1 Bundle",
+  "type": "object"
+}

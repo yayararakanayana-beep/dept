@@ -1,0 +1,434 @@
+{
+  "axis_order": [
+    "Stability",
+    "AdaptabilityStar",
+    "Exploration",
+    "Efficiency",
+    "Robustness",
+    "StructuralDiversity",
+    "TrajectoryDynamics",
+    "Predictability",
+    "Coherence",
+    "Recoverability",
+    "NoveltyQuality"
+  ],
+  "base_components": {
+    "Adaptability": {
+      "negative": [
+        "axis_weight_sparsity",
+        "forecast_instability",
+        "prediction_error",
+        "deformation_persistence"
+      ],
+      "positive": [
+        "mean_drift_norm",
+        "effective_rank_velocity",
+        "density_velocity"
+      ]
+    },
+    "AxisTurnover": {
+      "negative": [
+        "direction_cosine"
+      ],
+      "positive": [
+        "effective_rank_velocity",
+        "axis_weight_entropy",
+        "active_axis_count",
+        "principal_subspace_angle",
+        "axis_weight_sparsity",
+        "entropy_velocity"
+      ]
+    },
+    "Coherence": {
+      "negative": [
+        "outlier_ratio",
+        "tail_mass",
+        "trajectory_curvature",
+        "knn_density_variance"
+      ],
+      "positive": [
+        "compactness",
+        "spectral_entropy",
+        "cluster_balance"
+      ]
+    },
+    "CurvatureSensitivity": {
+      "negative": [
+        "direction_cosine"
+      ],
+      "positive": [
+        "trajectory_curvature",
+        "motion_angle",
+        "principal_subspace_angle",
+        "acceleration_norm",
+        "oscillation_index"
+      ]
+    },
+    "Diversity": {
+      "negative": [
+        "dominant_eigen_share",
+        "density_peak_ratio"
+      ],
+      "positive": [
+        "entropy",
+        "effective_rank",
+        "participation_ratio",
+        "spectral_entropy",
+        "mode_count",
+        "cluster_balance",
+        "covariance_logdet"
+      ]
+    },
+    "Efficiency": {
+      "negative": [
+        "axis_redundancy",
+        "mean_axis_correlation",
+        "raw_dimension",
+        "axis_weight_sparsity",
+        "dominant_eigen_share"
+      ],
+      "positive": [
+        "effective_rank",
+        "participation_ratio",
+        "spectral_entropy"
+      ]
+    },
+    "Exploration": {
+      "negative": [
+        "density_peak_ratio",
+        "axis_redundancy"
+      ],
+      "positive": [
+        "active_axis_count",
+        "axis_weight_entropy",
+        "effective_rank",
+        "participation_ratio",
+        "mode_count",
+        "entropy",
+        "cluster_balance",
+        "jsd_velocity",
+        "wasserstein_velocity"
+      ]
+    },
+    "ModeSeparability": {
+      "negative": [
+        "compactness"
+      ],
+      "positive": [
+        "mode_count",
+        "cluster_balance",
+        "density_peak_ratio",
+        "knn_density_variance",
+        "mean_pairwise_distance",
+        "pairwise_distance_variance"
+      ]
+    },
+    "NoveltyQuality": {
+      "negative": [
+        "outlier_ratio",
+        "forecast_instability",
+        "tail_mass",
+        "density_peak_ratio"
+      ],
+      "positive": [
+        "mode_count",
+        "effective_rank",
+        "axis_weight_entropy",
+        "cluster_balance"
+      ]
+    },
+    "OscillationSensitivity": {
+      "negative": [
+        "direction_cosine"
+      ],
+      "positive": [
+        "oscillation_index",
+        "motion_angle",
+        "trajectory_curvature",
+        "residual_acceleration",
+        "forecast_instability"
+      ]
+    },
+    "Persistence": {
+      "negative": [
+        "oscillation_index",
+        "motion_angle",
+        "trajectory_curvature",
+        "acceleration_norm"
+      ],
+      "positive": [
+        "direction_cosine"
+      ]
+    },
+    "Plasticity": {
+      "negative": [
+        "axis_weight_sparsity",
+        "forecast_instability"
+      ],
+      "positive": [
+        "effective_rank_velocity",
+        "density_velocity",
+        "mean_drift_norm",
+        "jsd_velocity"
+      ]
+    },
+    "Predictability": {
+      "negative": [
+        "prediction_error",
+        "residual_variance",
+        "residual_acceleration",
+        "target_distance",
+        "forecast_instability"
+      ],
+      "positive": []
+    },
+    "Recoverability": {
+      "negative": [
+        "recovery_half_life",
+        "return_distance",
+        "post_shock_shape_deviation",
+        "post_shock_entropy_deviation",
+        "deformation_persistence"
+      ],
+      "positive": []
+    },
+    "Robustness": {
+      "negative": [
+        "recovery_half_life",
+        "post_shock_shape_deviation",
+        "post_shock_entropy_deviation",
+        "return_distance",
+        "deformation_persistence",
+        "residual_acceleration"
+      ],
+      "positive": [
+        "compactness"
+      ]
+    },
+    "Stability": {
+      "negative": [
+        "mean_drift_norm",
+        "covariance_drift_norm",
+        "wasserstein_velocity",
+        "jsd_velocity",
+        "acceleration_norm",
+        "trajectory_curvature",
+        "motion_angle"
+      ],
+      "positive": []
+    }
+  },
+  "feature_registry": "configs/fixed5axis_hdept_feature_registry_rc1.json",
+  "global_status": {
+    "HOLD_RECOMMENDED": "valid observation exists but confidence or evidence coverage is too low for pressure generation",
+    "INSUFFICIENT_HISTORY": "input is valid but no H11 axis requiring history reaches LIMITED",
+    "INVALID_INPUT": "formal input or identity contract failed",
+    "LIMITED": "at least one axis is LIMITED or READY, but the complete H11 observation is not scientifically ready",
+    "READY": "all pressure-critical axes required by a later connection contract are READY and Task 4 scientific gates pass",
+    "ready_requires_task4_validation": true,
+    "task1_and_task2_maximum": "LIMITED"
+  },
+  "h11_axes": {
+    "AdaptabilityStar": {
+      "claim": "Observed mobility and internal reconfiguration proxy; successful adaptation is not established.",
+      "construction": {
+        "components": {
+          "Adaptability": 0.5,
+          "Plasticity": 0.5
+        },
+        "type": "weighted_components"
+      },
+      "limited_coverage_min": 0.5,
+      "maximum_scientific_status": "LIMITED",
+      "minimum_history_frames": 2,
+      "ready_coverage_min": 0.85,
+      "watchpoints": [
+        "motion_without_useful_adaptation",
+        "forecast_evidence_missing"
+      ]
+    },
+    "Coherence": {
+      "claim": "Internal geometric compatibility proxy.",
+      "construction": {
+        "component": "Coherence",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.55,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 3,
+      "ready_coverage_min": 0.8,
+      "watchpoints": [
+        "compact_collapse_misread_as_coherence",
+        "local_density_proxy_sensitivity"
+      ]
+    },
+    "Efficiency": {
+      "claim": "Geometric compact-use proxy only; computational, energetic, or institutional cost is not observed.",
+      "construction": {
+        "component": "Efficiency",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.55,
+      "maximum_scientific_status": "LIMITED",
+      "minimum_history_frames": 1,
+      "ready_coverage_min": 0.8,
+      "watchpoints": [
+        "overcompression_misread_as_efficiency"
+      ]
+    },
+    "Exploration": {
+      "claim": "Distributional spread, axis participation, mode structure, and observed movement proxy.",
+      "construction": {
+        "component": "Exploration",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.6,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 2,
+      "ready_coverage_min": 0.85,
+      "watchpoints": [
+        "noise_driven_expansion",
+        "boundary_mass_as_false_exploration"
+      ]
+    },
+    "NoveltyQuality": {
+      "claim": "Structural novelty proxy only; usefulness or outcome quality is not observable from formal G_t/K_t alone.",
+      "construction": {
+        "component": "NoveltyQuality",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.6,
+      "maximum_scientific_status": "LIMITED",
+      "minimum_history_frames": 2,
+      "ready_coverage_min": 0.9,
+      "watchpoints": [
+        "noisy_exploration_misread_as_novelty",
+        "quality_not_observed"
+      ]
+    },
+    "Predictability": {
+      "claim": "One-step causal forecastability after the predictor sub-contract is frozen.",
+      "construction": {
+        "component": "Predictability",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.6,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 3,
+      "ready_coverage_min": 0.9,
+      "watchpoints": [
+        "predictable_collapse_is_not_safety",
+        "prediction_subcontract_missing"
+      ]
+    },
+    "Recoverability": {
+      "claim": "Return from causally detected deformation after the recovery sub-contract is frozen.",
+      "construction": {
+        "component": "Recoverability",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.6,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 3,
+      "ready_coverage_min": 0.9,
+      "watchpoints": [
+        "partial_recovery",
+        "temporary_recovery_then_collapse",
+        "recovery_subcontract_missing"
+      ]
+    },
+    "Robustness": {
+      "claim": "Perturbation resistance proxy only after recovery evidence exists.",
+      "construction": {
+        "component": "Robustness",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.55,
+      "maximum_scientific_status": "LIMITED",
+      "minimum_history_frames": 3,
+      "ready_coverage_min": 0.85,
+      "watchpoints": [
+        "immobility_misread_as_robustness",
+        "recovery_subcontract_missing"
+      ]
+    },
+    "Stability": {
+      "claim": "Low observed distributional motion and curvature; not safety by itself.",
+      "construction": {
+        "component": "Stability",
+        "type": "base_component"
+      },
+      "limited_coverage_min": 0.6,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 3,
+      "ready_coverage_min": 0.85,
+      "watchpoints": [
+        "false_stability",
+        "slow_fixation",
+        "predictable_collapse"
+      ]
+    },
+    "StructuralDiversity": {
+      "claim": "Distributional diversity plus thresholded mode-separation proxy.",
+      "construction": {
+        "components": {
+          "Diversity": 0.65,
+          "ModeSeparability": 0.35
+        },
+        "type": "weighted_components"
+      },
+      "limited_coverage_min": 0.55,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 1,
+      "ready_coverage_min": 0.8,
+      "watchpoints": [
+        "high_diversity_low_coherence",
+        "threshold_sensitive_modes"
+      ]
+    },
+    "TrajectoryDynamics": {
+      "claim": "Observed persistence, turnover, curvature, and oscillation proxy.",
+      "construction": {
+        "components": {
+          "AxisTurnover": 0.25,
+          "CurvatureSensitivity": 0.15,
+          "OscillationSensitivity": 0.15,
+          "Persistence": 0.45
+        },
+        "type": "weighted_components"
+      },
+      "limited_coverage_min": 0.55,
+      "maximum_scientific_status": "READY",
+      "minimum_history_frames": 5,
+      "ready_coverage_min": 0.8,
+      "watchpoints": [
+        "noise_driven_oscillation",
+        "short_history_aliasing"
+      ]
+    }
+  },
+  "h11_basis": "H11_STRUCTURED",
+  "map_id": "fixed5axis_hdept_h11_evidence_map_rc1",
+  "map_version": "1",
+  "pressure_boundary": {
+    "compute_from_m_connection_deferred_to_task5": true,
+    "neutral_transport_placeholder_is_not_evidence": true,
+    "task1_pressure_generation_forbidden": true,
+    "task2_normal_pressure_from_unavailable_axis_forbidden": true
+  },
+  "scoring": {
+    "axis_confidence": "axis evidence coverage multiplied by the absolute-weighted mean confidence of contributing features",
+    "axis_value": "sigmoid(gamma * raw_score), gamma=1.0 in RC1",
+    "base_component_formula": "mean(available calibrated positive features) - mean(available calibrated negative features); a missing sign group contributes zero only when that group is structurally empty, otherwise the component is unavailable if group coverage is below the component minimum",
+    "calibration": "fixed feature-wise z-score or robust-z-score artifact fitted on calibration split only",
+    "component_feature_coverage": "eligible available feature count divided by eligible referenced feature count; structural constants and reserved features are counted as missing evidence, not as zero values",
+    "composite_formula": "weighted sum of available component raw scores with original H11_STRUCTURED component weights; unavailable required components reduce evidence coverage and may make the axis unavailable",
+    "maximum_scientific_status_is_hard_cap": true,
+    "status_order": [
+      "UNAVAILABLE",
+      "LIMITED",
+      "READY"
+    ]
+  },
+  "status": "frozen_for_builder_implementation"
+}
