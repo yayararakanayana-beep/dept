@@ -99,7 +99,12 @@ def _report_summary(report: Mapping[str, Any]) -> dict[str, Any]:
         "hypothesis_pass_count": report["hypothesis_pass_count"],
         "hypothesis_count": report["hypothesis_count"],
         "all_critical_hypotheses_passed": report["all_critical_hypotheses_passed"],
-        "hypotheses": report["hypotheses"],
+        "failed_hypotheses": [
+            item for item in report["hypotheses"] if not item["passed"]
+        ],
+        "passed_hypothesis_ids": [
+            item["id"] for item in report["hypotheses"] if item["passed"]
+        ],
     }
 
 
