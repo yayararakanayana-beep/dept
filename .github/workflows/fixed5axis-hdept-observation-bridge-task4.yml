@@ -7,8 +7,9 @@ on:
       - 'scripts/fixed5axis_hdept_observation_bridge_task4_rc1.py'
       - 'scripts/fixed5axis_hdept_bridge_task4/**'
       - 'tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py'
+      - 'tests/test_fixed5axis_hdept_task4_compact_freeze_rc1.py'
       - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_SCIENTIFIC_VALIDATION_AND_CALIBRATION.md'
-      - 'artifacts/fixed5axis_hdept_task4_rc1/**'
+      - 'artifacts/fixed5axis_hdept_task4_compact_freeze_rc1/**'
       - '.github/workflows/fixed5axis-hdept-observation-bridge-task4.yml'
   workflow_dispatch:
 
@@ -35,33 +36,51 @@ jobs:
           python -m py_compile \
             scripts/fixed5axis_hdept_observation_bridge_task4_rc1.py \
             scripts/fixed5axis_hdept_bridge_task4/*.py \
-            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py
+            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py \
+            tests/test_fixed5axis_hdept_task4_compact_freeze_rc1.py
       - name: Generate calibration and scientific-validation bundle
         run: |
           PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4 \
             --output-dir results/fixed5axis_hdept_task4_rc1
+      - name: Generate compact checked-in freeze
+        run: |
+          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4.freeze_summary \
+            --source-bundle results/fixed5axis_hdept_task4_rc1 \
+            --output-dir results/fixed5axis_hdept_task4_compact_freeze_rc1
       - name: Run Task 4 tests
         env:
           TASK4_GENERATED_BUNDLE: results/fixed5axis_hdept_task4_rc1
+          TASK4_GENERATED_COMPACT_FREEZE: results/fixed5axis_hdept_task4_compact_freeze_rc1
         run: |
           PYTHONPATH=scripts python -m pytest -q \
-            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py
+            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py \
+            tests/test_fixed5axis_hdept_task4_compact_freeze_rc1.py
       - name: Run Task 2 and Task 3 regressions
         run: |
           PYTHONPATH=scripts python -m pytest -q \
             tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
             tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py
-      - name: Display freeze decision
-        if: always()
+      - name: Enforce frozen negative scientific decision
         run: |
-          if [ -f results/fixed5axis_hdept_task4_rc1/task4_freeze_decision.json ]; then
-            cat results/fixed5axis_hdept_task4_rc1/task4_freeze_decision.json
-          fi
-      - name: Upload Task 4 bundle
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('results/fixed5axis_hdept_task4_compact_freeze_rc1')
+          decision=json.loads((root/'task4_freeze_decision.json').read_text())
+          diagnostic=json.loads((root/'task4_diagnostic_findings.json').read_text())
+          assert decision['scientific_gate_passed'] is False
+          assert decision['decision']=='freeze_reproducibility_only_not_scientifically_approved'
+          assert diagnostic['failed_hypothesis_ids']==['H2_structured_exploration','H5_boundary_divergence']
+          assert diagnostic['replicated_in_final_confirmation']==diagnostic['failed_hypothesis_ids']
+          print(json.dumps(decision,ensure_ascii=False,indent=2,sort_keys=True))
+          PY
+      - name: Upload Task 4 full and compact bundles
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fixed5axis-hdept-task4-rc1
-          path: results/fixed5axis_hdept_task4_rc1
+          path: |
+            results/fixed5axis_hdept_task4_rc1
+            results/fixed5axis_hdept_task4_compact_freeze_rc1
           if-no-files-found: error
           retention-days: 14
