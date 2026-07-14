@@ -332,7 +332,7 @@ class ExplorationBridgeModule:
             "projection_creates_actionframe": False,
             "projection_contract": (
                 "Phase2G20AB_action_readable_tiered_exploration_projection__"
-                "thin_candidate_handoff_only__action_module_final_execution_decision__RC1"
+                "thin_projection_only__thin_candidate_handoff_only__action_module_final_execution_decision__RC1"
             ),
         })
         return projection
