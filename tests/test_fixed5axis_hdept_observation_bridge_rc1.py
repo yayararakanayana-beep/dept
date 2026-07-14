@@ -136,6 +136,7 @@ def _tree_hash(path: Path) -> dict[str, str]:
 
 def _make_calibration(path: Path) -> Path:
     registry_path = ROOT / "configs" / "fixed5axis_hdept_feature_registry_rc1.json"
+    meaning_patch_path = ROOT / "configs" / "fixed5axis_hdept_task4_1r_contract_patch_rc1.json"
     registry = load_feature_registry(registry_path)
     registry_hash = hashlib.sha256(registry_path.read_bytes()).hexdigest()
     center = []
@@ -163,6 +164,8 @@ def _make_calibration(path: Path) -> Path:
             "fit_time_boundary": {"maximum_t": 4},
             "normalization_method": "zscore",
             "creation_code_hash": "b" * 64,
+            "non_scoring_feature_ids": [],
+            "meaning_patch_hash": hashlib.sha256(meaning_patch_path.read_bytes()).hexdigest(),
         },
     )
     return path
