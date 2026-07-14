@@ -1,0 +1,254 @@
+{
+  "protocol_id": "fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1",
+  "protocol_version": "1",
+  "status": "preregistered_design_only_not_executed",
+  "purpose": "Freeze the scientific questions, split boundaries, controlled transformations, metrics, statistical rules, and decision logic for whole-system validation of the fixed5 G_t/K_t to H11 bridge.",
+  "parent_contracts": [
+    "fixed5axis_hdept_task4_0_role_boundary_rc1",
+    "fixed5axis_hdept_task4_1_meaning_audit_rc1",
+    "fixed5axis_hdept_task4_1r_contract_patch_rc1"
+  ],
+  "authorization": {
+    "task4_2_design_complete_when_contract_and_tests_pass": true,
+    "task4_3_execution_authorized_after_task4_2_freeze": true,
+    "task5_authorized": false,
+    "old_task4_eight_hypothesis_result_may_be_used": false
+  },
+  "unit_of_analysis": {
+    "primary": "whole-system fixed5 distribution G_t and causal contiguous K_t history",
+    "h11_interpretation": "cross-axis descriptive profile of whole-system character",
+    "scenario_names_are_truth_labels": false,
+    "single_axis_good_bad_or_safe_danger_judgement": false,
+    "local_event_complete_detection_required": false
+  },
+  "non_goals": [
+    "classify local fixation, local exploration, divergence, or recovery labels",
+    "require every H11 axis to move monotonically under every controlled transformation",
+    "infer safety or desirability from a single H11 coordinate",
+    "prove real-world validity",
+    "prove upper-pressure safety or closed-loop benefit",
+    "restore mode_count or cluster_balance before their separate global-mode contract is validated"
+  ],
+  "split_design": {
+    "design_calibration": {
+      "seed_namespace": "task4_2_calibration",
+      "seed_start": 4100,
+      "seed_reservation_count": 64,
+      "allowed_uses": [
+        "fit robust feature calibration",
+        "identify per-fit non_scoring_constant features",
+        "estimate nuisance variability",
+        "derive continuity reference bands",
+        "derive saturation expectations",
+        "perform power and sample-size calculation"
+      ],
+      "forbidden_uses": [
+        "change scientific questions",
+        "change expected ordering rules",
+        "select only favorable transformation families",
+        "inspect validation or final-confirmation results"
+      ]
+    },
+    "validation": {
+      "seed_namespace": "task4_2_validation",
+      "seed_start": 5100,
+      "seed_reservation_count": 64,
+      "generated_only_after_sample_size_lock": true,
+      "may_change_protocol": false
+    },
+    "final_confirmation": {
+      "seed_namespace": "task4_2_final_confirmation",
+      "seed_start": 6100,
+      "seed_reservation_count": 64,
+      "generated_only_after_validation_artifact_freeze": true,
+      "may_change_protocol": false
+    }
+  },
+  "sample_size_lock": {
+    "method": "calibration_only_power_planning",
+    "familywise_alpha": 0.01,
+    "target_power": 0.90,
+    "minimum_seeds_per_transformation_family": 12,
+    "maximum_seeds_per_transformation_family": 64,
+    "effect_for_planning": "smallest calibration-observed effect that is stable under grouped bootstrap; no validation or final-confirmation effect may be used",
+    "lock_artifact_required_before_validation_generation": true
+  },
+  "controlled_distribution_families": [
+    {
+      "id": "broad_isotropic",
+      "role": "reference whole-system family",
+      "truth_label": false
+    },
+    {
+      "id": "anisotropic_whole_system",
+      "role": "vary whole-system directional concentration while preserving total mass",
+      "truth_label": false
+    },
+    {
+      "id": "correlated_whole_system",
+      "role": "vary whole-system cross-axis dependency",
+      "truth_label": false
+    },
+    {
+      "id": "translated_whole_system",
+      "role": "vary whole-system centroid and causal movement",
+      "truth_label": false
+    },
+    {
+      "id": "rotating_whole_system",
+      "role": "vary principal orientation and trajectory direction",
+      "truth_label": false
+    },
+    {
+      "id": "contracting_or_expanding_whole_system",
+      "role": "vary whole-system spread without assigning good or bad meaning",
+      "truth_label": false
+    },
+    {
+      "id": "temporally_curved_whole_system",
+      "role": "vary whole-system trajectory curvature and acceleration",
+      "truth_label": false
+    }
+  ],
+  "local_to_global_matched_perturbations": {
+    "description": "Embed the same normalized perturbation shape into a baseline distribution while varying only its whole-system mass share.",
+    "mass_fractions": [0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.40],
+    "matched_properties": [
+      "perturbation shape",
+      "location relative to baseline",
+      "trajectory schedule",
+      "seed-specific background"
+    ],
+    "primary_expectation": "distance of the complete available H11 profile from its matched baseline increases in rank with whole-system mass share",
+    "forbidden_expectation": "every individual H11 axis must move in a fixed direction"
+  },
+  "continuity_paths": {
+    "construction": "convex interpolation and matched small transport steps between valid whole-system distributions",
+    "input_distance": "total_variation_plus_axis_marginal_transport",
+    "output_distance": "confidence-weighted Euclidean distance over jointly available H11 axes",
+    "smooth_feature_rule": "validation and final-confirmation output/input distance ratios are evaluated against a one-sided calibration-derived reference band",
+    "threshold_feature_rule": "registered threshold proxies may be discontinuous only at logged threshold crossings and must not create unlogged H11 jumps"
+  },
+  "independent_reference_vector": {
+    "source": "recomputed directly from G_t/K_t without reading Task 2 H11 outputs",
+    "groups": {
+      "location": ["whole-system centroid"],
+      "spread_and_shape": ["covariance trace", "covariance eigenvalue spectrum", "anisotropy"],
+      "dependency": ["pairwise axis correlations", "effective rank"],
+      "density": ["entropy", "boundary mass", "density concentration"],
+      "trajectory": ["centroid velocity", "covariance velocity", "orientation change", "acceleration", "curvature"]
+    },
+    "purpose": "measure information preservation and compression loss without turning controlled-case names into class labels"
+  },
+  "evaluation_domains": {
+    "E1_engineering_and_causal_integrity": {
+      "critical": true,
+      "requirements": [
+        "Task 2 builder succeeds for every admissible case",
+        "Task 3 independent validator passes every generated artifact",
+        "future suffix, truth labels, O_t, pressure, and external outcome logs are not numeric evidence",
+        "source G_t/K_t is not modified",
+        "calibration, validation, and final-confirmation identities do not overlap"
+      ]
+    },
+    "E2_whole_system_information_preservation": {
+      "critical": true,
+      "method": "fit decoders from H11 to the independent reference vector on design_calibration only; evaluate unchanged decoders on validation and final_confirmation",
+      "baselines": ["intercept_only", "fixed Random8 ensemble"],
+      "primary_statistic": "grouped normalized prediction-loss difference H11 minus baseline",
+      "pass_rule": "for every reference group with sufficient observed variation, H11 must beat intercept_only on both validation and final_confirmation; aggregate H11 loss must beat the median fixed Random8 loss with a two-sided grouped-bootstrap 99% confidence interval excluding zero in the favorable direction",
+      "pca8_use": "diagnostic information-retention comparison only; H11 is not required to outperform PCA8"
+    },
+    "E3_local_to_global_scale_response": {
+      "critical": true,
+      "primary_statistic": "grouped Spearman association between perturbation mass fraction and complete H11-profile distance from the matched baseline",
+      "pass_rule": "the grouped-bootstrap 99% lower confidence bound is greater than zero on validation and independently on final_confirmation",
+      "secondary_checks": [
+        "small local perturbations are not relabelled as complete system-wide regime changes",
+        "raw feature and H11 response curves are retained without forcing per-axis direction"
+      ]
+    },
+    "E4_continuity_and_threshold_audit": {
+      "critical": true,
+      "reference_band": "derive the 99.5th percentile output/input distance ratio and its uncertainty from design_calibration only",
+      "pass_rule": "validation and final-confirmation exceedance counts for smooth evidence remain within the one-sided 99% binomial prediction bound; every threshold-related exceedance is paired with a registered threshold-crossing record",
+      "automatic_failures": [
+        "non-finite H11 output",
+        "unlogged jump",
+        "neutral placeholder used as evidence"
+      ]
+    },
+    "E5_calibration_health": {
+      "critical": true,
+      "requirements": [
+        "fit uses design_calibration only",
+        "meaning_patch_hash matches Task 4-1R",
+        "per-fit constant features are recorded in non_scoring_feature_ids with null numeric calibration fields",
+        "validation and final-confirmation are never used for refit",
+        "online refit is disabled"
+      ],
+      "saturation_rule": "for each scored feature, validation and final-confirmation clip counts must remain within the one-sided 99% binomial prediction bound derived from the design_calibration clip rate",
+      "collapse_rule": "an available H11 axis fails if all of its contributing scored evidence is constant, unavailable, or identically clipped in either evaluation split"
+    },
+    "E6_axis_role_separation_and_compression": {
+      "critical": true,
+      "primary_matrix": "case-by-axis H11 response matrix after confidence weighting and split-wise centering",
+      "automatic_failures": [
+        "all available H11 axes collapse to one identical series",
+        "numerical rank equals one across all controlled whole-system families",
+        "two distinct axes are byte-identical across all validation and final-confirmation cases due to implementation"
+      ],
+      "diagnostics_not_automatic_failures": [
+        "high but non-perfect pairwise correlation",
+        "partial role overlap expected from shared geometric evidence",
+        "lower information retention than PCA8"
+      ],
+      "required_diagnostics": [
+        "pairwise rank correlation",
+        "effective rank",
+        "leave-one-axis-out decoding loss",
+        "feature-ablation survival",
+        "comparison with H20, H12_C, PCA8, and Random8 when fixed5-compatible implementations are available"
+      ]
+    },
+    "E7_missing_evidence_and_claim_limits": {
+      "critical": true,
+      "requirements": [
+        "Predictability and Recoverability remain UNAVAILABLE without their causal subcontracts",
+        "Robustness remains UNAVAILABLE or LIMITED without recovery evidence",
+        "mode_count and cluster_balance remain non-scoring",
+        "removing scored evidence lowers coverage or availability rather than synthesizing a neutral value",
+        "all axis claim limits and watchpoints match the Task 4-1R effective evidence map"
+      ]
+    },
+    "E8_auxiliary_basis_scope": {
+      "critical": false,
+      "rule": "absence of a fixed5-compatible H12_C, H20, PCA8, or Random8 implementation must be recorded as not_evaluated and limits the claim to fixed5 H11-only validation; absence alone does not invalidate Task 1-3 engineering correctness",
+      "task5_effect": "full Phase 1 equivalence may not be claimed without the registered auxiliary comparisons"
+    }
+  },
+  "multiple_testing_and_uncertainty": {
+    "resampling_unit": "seed-level matched group",
+    "confidence_level": 0.99,
+    "bootstrap_method": "grouped percentile bootstrap with a frozen resample seed list",
+    "familywise_control": "Holm correction within each evaluation domain where multiple reference groups are tested",
+    "case_level_pseudoreplication_forbidden": true
+  },
+  "decision_logic_after_execution": {
+    "blocked_contract_or_causal_failure": "E1 or E7 fails",
+    "blocked_scientific_bridge_failure": "any of E2, E3, E4, E5, or E6 has a critical failure in validation or final_confirmation",
+    "eligible_for_task5_diagnostic_only": "all critical domains pass in both validation and final_confirmation; E8 limitations are retained",
+    "maximum_claim": "B_limited_synthetic_fixed5_whole_system_observation_only",
+    "real_world_or_closed_loop_claim": false
+  },
+  "frozen_prohibitions": [
+    "do not restore the old eight-hypothesis gate",
+    "do not lower confidence levels after observing results",
+    "do not change transformation families after validation begins",
+    "do not exclude unfavorable seeds or cases",
+    "do not use scenario names as target classes",
+    "do not turn axis direction into good/bad judgement",
+    "do not authorize Task 5 from Task 4-2 design alone"
+  ],
+  "next_task": "Task4-3 implement the preregistered generator, calibration/sample-size lock, evaluator, independent validator, and frozen result bundle"
+}
