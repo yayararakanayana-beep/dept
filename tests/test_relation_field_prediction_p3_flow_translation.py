@@ -148,6 +148,11 @@ def test_translate_micro_flows_without_rf8_keeps_missing_information_explicit() 
     assert by_edge[1]["source_cell_id"] == 2
     assert by_edge[1]["candidate_sign_ambiguous"] is True
     assert by_edge[1]["confidence"] is None
+    assert by_edge[1]["opposite_cancellation_amount"] is None
+    assert any(
+        "gross opposite-direction cancellation" in reason
+        for reason in by_edge[1]["unavailable_fields"]
+    )
     assert by_edge[1]["axis_context"]["coupling_from_axis"] is None
     assert "RF-8 coupling and innovation context unavailable" in by_edge[1]["unavailable_fields"]
     assert residual["candidate_residual_l1_maximum"] == 0.02
