@@ -1,0 +1,255 @@
+{
+  "acceptance": {
+    "continuous_metric_arithmetic_recovery_required": true,
+    "group_bootstrap_recovery_required": true,
+    "independent_validator_required": true,
+    "manifest_regenerated_tamper_rejection_required": true,
+    "parent_nonmodification_required": true,
+    "prediction_snapshot_before_future_read_required": true,
+    "rf10_outcome_definition_reuse_required": true,
+    "same_prefix_different_future_same_prediction_required": true,
+    "scientific_claim": "C_preregistered_synthetic_precursor_audit_contract_pending_formal_result",
+    "time_shuffle_negative_control_required": true
+  },
+  "applicability_stratification": {
+    "coordinate_ids": [
+      "p2.applicability.candidate_width",
+      "p2.applicability.unresolved_residual_ratio",
+      "p2.applicability.history_coverage",
+      "p2.applicability.identity_stability",
+      "p2.applicability.coordinate_availability_ratio"
+    ],
+    "stratification_is_diagnostic_not_target_redefinition": true
+  },
+  "contract_version": "relation_field_prediction_p2_precursor_audit_v1_1",
+  "data_independence": {
+    "all_cases_test_partition": true,
+    "axis_transform_alone_counts_as_independent": false,
+    "future_only_counterfactual_pairs_excluded_from_primary_audit": true,
+    "future_pattern_fixed_before_p1_or_p2_build": true,
+    "minimum_distinct_recent_dynamics": 30,
+    "one_case_per_trajectory_group": true,
+    "score_driven_case_selection_forbidden": true,
+    "shared_prediction_prefix_between_cases": false,
+    "unique_untransformed_prefix_profile_per_case": true
+  },
+  "decision": {
+    "no_predictive_superiority_claim_without_test_support": true,
+    "pilot_or_synthetic_success_only_validates_synthetic_scope": true,
+    "real_world_generalization_requires_external_data": true,
+    "statuses": [
+      "blocked_support_insufficient",
+      "blocked_no_supported_precursor_signal",
+      "eligible_for_partial_phase3_model_comparison",
+      "eligible_for_full_phase3_model_comparison"
+    ],
+    "support_failure_precedes_performance_interpretation": true
+  },
+  "evaluation": {
+    "bootstrap_unit": "trajectory_group_id",
+    "case_weighting": "unweighted",
+    "cross_target_aggregation_forbidden": true,
+    "horizons": [
+      1,
+      2,
+      4
+    ],
+    "model_fitting_forbidden": true,
+    "overlapping_windows_are_not_independent": true,
+    "primary_partition_for_phase3_decision": "test",
+    "single_predecessor_danger_score_forbidden": true,
+    "threshold_tuning_forbidden": true
+  },
+  "input": {
+    "allowed_partitions": [
+      "development",
+      "validation",
+      "test"
+    ],
+    "case_manifest_version": "relation_field_prediction_p2_precursor_case_manifest_v1",
+    "full_trajectory_future_suffix_is_target_side_only": true,
+    "future_truth_scenario_seed_action_event_or_world_internal_input_forbidden": true,
+    "parent_writeback_forbidden": true,
+    "prediction_side_reads_only_prefix_p1_p2_and_grid_metadata": true,
+    "prediction_snapshot_frozen_before_full_trajectory_read": true,
+    "required_case_fields": [
+      "case_id",
+      "partition",
+      "trajectory_group_id",
+      "prefix_trajectory_dir",
+      "full_trajectory_dir",
+      "grid_artifact_dir",
+      "p1_series_dir",
+      "p2_series_dir",
+      "cutoff_t"
+    ],
+    "same_case_id_must_be_unique": true,
+    "same_trajectory_group_must_not_cross_partitions": true
+  },
+  "metrics": {
+    "bootstrap": {
+      "confidence": 0.95,
+      "deterministic_seed_source": "contract_hash_partition_horizon_target_score",
+      "replicates": 1000,
+      "undefined_when_class_support_absent": true
+    },
+    "reported_by_partition_horizon_target_score": true,
+    "threshold_free": [
+      "roc_auc",
+      "average_precision",
+      "positive_prevalence",
+      "positive_score_mean",
+      "negative_score_mean",
+      "positive_score_median",
+      "negative_score_median"
+    ],
+    "undefined_metric_is_null": true,
+    "zero_boundary_classification": [
+      "true_positive",
+      "false_positive",
+      "true_negative",
+      "false_negative",
+      "precision",
+      "recall",
+      "specificity",
+      "accuracy",
+      "balanced_accuracy",
+      "f1",
+      "matthews_correlation",
+      "brier_score"
+    ]
+  },
+  "parents": {
+    "p2_contract_version": "relation_field_prediction_coordinates_p2_v1",
+    "rf10_contract_path": "configs/relation_field_predictive_validation_rc1.json",
+    "rf10_contract_version": "relation_field_predictive_validation_rc1",
+    "rf10_definitions_must_not_be_changed": true
+  },
+  "purpose": "Audit whether causal P2 continuous coordinates measured at cutoff_t contain threshold-free information about RF-10 future outcomes at applicable horizons 1, 2, and 4, before any P3 predictor is fitted.",
+  "score_panels": {
+    "always_negative": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "constant_zero"
+    },
+    "p1_boolean_candidate": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "p1_current_candidate"
+    },
+    "p2_component_only_margin": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "registered_component_coordinate_center"
+    },
+    "p2_structure_margin": {
+      "higher_means_more_target_like": true,
+      "primary": true,
+      "source": "structure_coordinate_center"
+    },
+    "p2_structure_margin_first_difference": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "first_backward_difference_center"
+    },
+    "p2_structure_margin_second_difference": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "second_backward_difference_center"
+    },
+    "p2_structure_margin_time_shuffled": {
+      "higher_means_more_target_like": true,
+      "negative_control_only": true,
+      "primary": false,
+      "source": "deterministic_within_partition_score_permutation"
+    }
+  },
+  "semantic_limits": {
+    "action_recommendation_claim": false,
+    "causal_prediction_claim": false,
+    "deployment_readiness_claim": false,
+    "future_outcome_label_is_operational_observation_not_external_truth": true,
+    "p3_model_quality_claim": false,
+    "real_world_generalization_claim": false,
+    "true_irreversibility_claim": false
+  },
+  "status": "draft_formal_synthetic_audit_contract_with_applicability_aware_support",
+  "storage": {
+    "ablation_file": "ablation_comparison.json",
+    "atomic_write_required": true,
+    "contract_file": "contract.json",
+    "decision_file": "decision.json",
+    "deterministic_bytes_required": true,
+    "frozen_case_manifest_file": "case_manifest_frozen.json",
+    "future_outcomes_file": "future_outcomes.json",
+    "hash_algorithm": "sha256",
+    "manifest_file": "manifest.json",
+    "metrics_file": "precursor_metrics.json",
+    "overwrite_forbidden": true,
+    "prediction_snapshot_file": "prediction_snapshot.json",
+    "sample_ledger_file": "sample_ledger.json",
+    "stratification_file": "applicability_stratification.json",
+    "support_file": "support_audit.json",
+    "validation_file": "validation.json"
+  },
+  "support_gates": {
+    "contractually_inapplicable_cells_excluded": true,
+    "full_phase3_entry_requires_all_four_targets": true,
+    "inherit_rf10": true,
+    "minimum_negative_test_outcomes_per_target_horizon": 5,
+    "minimum_positive_test_outcomes_per_target_horizon": 5,
+    "minimum_supported_horizons_for_target_precursor_signal": 2,
+    "minimum_test_cases_for_accuracy_claim": 30,
+    "partial_phase3_entry_allowed_for_supported_targets": true,
+    "target_signal_rule": "roc_auc_bootstrap_lower_above_0_5_and_average_precision_bootstrap_lower_above_prevalence"
+  },
+  "targets": {
+    "divergence": {
+      "component_composition": "identity",
+      "component_coordinate_ids": [
+        "p2.condition.shape.divergence"
+      ],
+      "minimum_horizon": 1,
+      "p1_candidate_field": "divergence",
+      "rf10_applicability_field": null,
+      "rf10_outcome_field": "future_dispersion_outcome",
+      "structure_coordinate_id": "p2.risk.divergence.structure_margin"
+    },
+    "fixation": {
+      "component_composition": "minimum",
+      "component_coordinate_ids": [
+        "p2.condition.shape.convergence",
+        "p2.condition.recovery.weakening"
+      ],
+      "minimum_horizon": 1,
+      "p1_candidate_field": "fixation",
+      "rf10_applicability_field": null,
+      "rf10_outcome_field": "future_persistent_concentration_outcome",
+      "structure_coordinate_id": "p2.risk.fixation.structure_margin"
+    },
+    "overconvergence": {
+      "component_composition": "identity",
+      "component_coordinate_ids": [
+        "p2.condition.shape.convergence"
+      ],
+      "minimum_horizon": 1,
+      "p1_candidate_field": "overconvergence",
+      "rf10_applicability_field": null,
+      "rf10_outcome_field": "future_concentration_outcome",
+      "structure_coordinate_id": "p2.risk.overconvergence.structure_margin"
+    },
+    "recovery_margin_reduction": {
+      "component_composition": "identity",
+      "component_coordinate_ids": [
+        "p2.condition.recovery.weakening"
+      ],
+      "minimum_horizon": 2,
+      "p1_candidate_field": "recovery_margin_reduction",
+      "rf10_applicability_field": "future_recovery_failure_applicable",
+      "rf10_outcome_field": "future_recovery_failure_outcome",
+      "structure_coordinate_id": "p2.risk.recovery_margin_reduction.structure_margin"
+    }
+  },
+  "task_id": "RelationField-Prediction-P2-4",
+  "title": "Leakage-safe precursor audit of continuous relation-field coordinates"
+}

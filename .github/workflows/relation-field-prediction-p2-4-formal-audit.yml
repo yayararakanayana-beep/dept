@@ -1,0 +1,154 @@
+name: Relation Field Prediction P2-4 Formal Audit
+
+on:
+  pull_request:
+    paths:
+      - 'configs/relation_field_prediction_p2_precursor_audit_contract_v1_1.json'
+      - 'configs/relation_field_prediction_p2_formal_audit_dataset_v1.json'
+      - 'scripts/relation_field_prediction_p2_precursor_audit/**'
+      - 'tests/test_relation_field_prediction_p2_precursor_audit.py'
+      - 'tests/test_relation_field_prediction_p2_formal_audit.py'
+      - 'tests/test_relation_field_prediction_p2_formal_audit_v2.py'
+      - 'validation/relation_field_prediction_p2_formal_audit_v2.py'
+      - 'docs/relation_field_prediction/P2_4_FORMAL_PRECURSOR_AUDIT_V2.md'
+      - '.github/workflows/relation-field-prediction-p2-4-formal-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  formal-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Parse plans and compile modules
+        run: |
+          python -m json.tool configs/relation_field_prediction_p2_precursor_audit_contract_v1_1.json >/dev/null
+          python -m json.tool configs/relation_field_prediction_p2_formal_audit_dataset_v1.json >/dev/null
+          python -m py_compile \
+            scripts/relation_field_prediction_p2_precursor_audit/audit_v1_1.py \
+            scripts/relation_field_prediction_p2_precursor_audit/__init__.py \
+            validation/relation_field_prediction_p2_formal_audit_v2.py \
+            tests/test_relation_field_prediction_p2_formal_audit_v2.py
+
+      - name: Run contract, applicability, independence, and regression tests
+        run: |
+          PYTHONPATH=scripts:validation python -m pytest -q \
+            tests/test_relation_field_prediction_p2_precursor_audit.py \
+            tests/test_relation_field_prediction_p2_formal_audit.py \
+            tests/test_relation_field_prediction_p2_formal_audit_v2.py
+
+      - name: Run v2 data-plan preflight
+        run: |
+          PYTHONPATH=scripts:validation python \
+            validation/relation_field_prediction_p2_formal_audit_v2.py \
+            --preflight-only
+
+      - name: Run 36-case formal audit and capture log
+        shell: bash
+        run: |
+          set +e
+          PYTHONPATH=scripts:validation python \
+            validation/relation_field_prediction_p2_formal_audit_v2.py \
+            --work-dir results/p2_4_formal_audit_v2 \
+            > p2-4-formal-audit-v2.log 2>&1
+          status=$?
+          echo "$status" > p2-4-formal-audit-v2.exit
+          exit 0
+
+      - name: Upload execution log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-p2-4-formal-audit-v2-log
+          path: |
+            p2-4-formal-audit-v2.log
+            p2-4-formal-audit-v2.exit
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce execution result
+        run: |
+          tail -n 300 p2-4-formal-audit-v2.log
+          test "$(cat p2-4-formal-audit-v2.exit)" = "0"
+
+      - name: Validate generated audit again
+        run: |
+          PYTHONPATH=scripts:validation python -m \
+            relation_field_prediction_p2_precursor_audit validate \
+            results/p2_4_formal_audit_v2/audit \
+            results/p2_4_formal_audit_v2/case_manifest.json
+
+      - name: Enforce formal support, independence, and print decision
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('results/p2_4_formal_audit_v2')
+          support = json.loads(
+              (root / 'audit' / 'support_audit.json').read_text()
+          )
+          decision = json.loads(
+              (root / 'audit' / 'decision.json').read_text()
+          )
+          summary = json.loads(
+              (root / 'formal_audit_summary.json').read_text()
+          )
+
+          assert support['test_case_count'] == 36, support
+          assert support['required_cell_count'] == 11, support
+          assert support['supported_required_cell_count'] == 11, support
+          assert support['contractually_inapplicable_cell_count'] == 1, support
+          assert support['all_target_horizon_cells_supported'] is True, support
+
+          assert summary['dataset_plan_version'] == (
+              'relation_field_prediction_p2_formal_audit_dataset_v2'
+          ), summary
+          assert summary['distinct_untransformed_prefix_profile_count'] == 36, summary
+          assert summary['distinct_recent_dynamics_count'] >= 30, summary
+          assert summary['axis_transform_alone_counted_as_independent'] is False
+          assert summary['future_only_counterfactual_pairs_in_primary_audit'] is False
+          assert summary['primary_score_availability_gate'][
+              'primary_score_availability_gate'
+          ] == 'passed'
+
+          assert decision['status'] in {
+              'blocked_no_supported_precursor_signal',
+              'eligible_for_partial_phase3_model_comparison',
+              'eligible_for_full_phase3_model_comparison',
+          }, decision
+          assert summary['real_world_generalization_claim'] is False
+          print(json.dumps(
+              summary,
+              ensure_ascii=False,
+              indent=2,
+              sort_keys=True,
+          ))
+          PY
+
+      - name: Upload compact formal audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relation-field-p2-4-formal-audit-v2
+          path: |
+            results/p2_4_formal_audit_v2/audit
+            results/p2_4_formal_audit_v2/case_manifest.json
+            results/p2_4_formal_audit_v2/dataset_plan_frozen.json
+            results/p2_4_formal_audit_v2/expected_support_preflight.json
+            results/p2_4_formal_audit_v2/formal_audit_summary.json
+          if-no-files-found: error
+          retention-days: 14
