@@ -12,9 +12,7 @@ Task 4では、Task 1で固定した契約、Task 2のbuilder、Task 3の独立v
 
 ## 2. 事前登録
 
-実行前に次を
-`configs/fixed5axis_hdept_task4_scientific_validation_rc1.json`
-へ固定する。
+実行前に次を `configs/fixed5axis_hdept_task4_scientific_validation_rc1.json` へ固定した。
 
 - シナリオ群
 - seed範囲
@@ -29,11 +27,11 @@ Task 4では、Task 1で固定した契約、Task 2のbuilder、Task 3の独立v
 
 ## 3. データ分割
 
-| 分割 | seed | 用途 |
-|---|---:|---|
-| 校正 | 1100–1103 | 特徴ごとの中央値・尺度だけをfit |
-| 検証 | 2200–2202 | 事前登録仮説の第一検証 |
-| 最終確認 | 3300–3302 | 同じ閾値による未使用seed確認 |
+| 分割 | seed | 軌道数 | 用途 |
+|---|---:|---:|---|
+| 校正 | 1100–1103 | 44 | 特徴ごとの中央値・尺度だけをfit |
+| 検証 | 2200–2202 | 33 | 事前登録仮説の第一検証 |
+| 最終確認 | 3300–3302 | 33 | 未使用seedによる再確認 |
 
 軌道識別子は分割間で重複しない。
 
@@ -65,90 +63,83 @@ minimum scale = 1e-9
 clip = [-4, 4]
 ```
 
-予約特徴・非採点特徴には校正値を与えない。
+予約特徴・非採点特徴には校正値を与えない。検証・最終確認・未来接尾部をfitへ使わず、実行中の再fitも禁止する。
 
-validation・final confirmation・未来接尾部をfitへ使わない。実行中の再fitも禁止する。
+## 6. 事前登録仮説
 
-## 6. 科学仮説
+1. 固定化を安全な安定と誤認しない
+2. 構造化探索を固定化から分離する
+3. 構造化探索をノイズ拡張から分離する
+4. 振動を滑らかな移動から分離する
+5. 境界発散を広い安定分布から分離する
+6. 緩慢な固定化を検出する
+7. 生の戻り距離を順序づけつつ、正式なRecoverabilityは利用不能のまま保つ
+8. 利用可能H11軸が一律0.5へ崩壊しない
 
-### H1 偽安定の分離
+## 7. 実行結果
 
-狭い固定化は低運動のためStabilityが高くなり得る。しかし、広い安定分布よりExplorationとStructuralDiversityが低くなければならない。
+Task 2 builderとTask 3独立validatorは、検証33軌道・最終確認33軌道の全66軌道で通過した。校正の再現性、分割非重複、校正用データ限定、予約軸の利用不能も通過した。
 
-Stability単独を安全性へ読み替えない。
+一方、科学仮説は検証・最終確認とも **8件中6件通過** であり、次の2件が同じ方向で再現して失敗した。
 
-### H2 構造化探索
+### H2 構造化探索の分離失敗
 
-構造化探索は固定化よりExplorationとStructuralDiversityが高いこと。
+構造化探索は狭い固定化より、生のentropy、effective_rank、participation_ratioでは高かった。しかし、最終H11では次となった。
 
-### H3 ノイズ拡張の抑制
+```text
+Exploration(structured) - Exploration(locked) ≈ -0.006
+StructuralDiversity(structured) - StructuralDiversity(locked) ≈ +0.033
+```
 
-構造化探索はノイズ的拡張よりCoherenceが高く、ノイズ側は境界質量が大きいこと。
+事前登録基準の+0.08を満たさない。特にmode_countとcluster_balanceが全検証ケースで定数となり、構造化された複数分布を識別できていない。
 
-### H4 振動検出
+### H5 境界発散のCoherence誤読
 
-振動シナリオは滑らかな適応移動より、oscillation_indexとmotion_angleが高く、TrajectoryDynamicsも識別可能な差を持つこと。
+境界発散はtail_massが大きく、Stabilityも広い安定分布より低くなったため、発散運動自体は検出した。しかしCoherenceは逆方向となった。
 
-### H5 境界発散
+```text
+Coherence(stable broad) - Coherence(boundary divergence) ≈ -0.44
+```
 
-境界発散は広い安定分布よりtail_massが高く、CoherenceとStabilityが低いこと。
+境界へ集中した分布のcompactness等が、境界質量と不安定性の証拠を上回り、境界発散を高Coherenceとして読んでいる。
 
-### H6 緩慢な固定化
+## 8. 校正の判定
 
-緩慢な固定化は広い安定分布よりExplorationとStructuralDiversityが低いこと。
+校正成果物は機械的には再現可能で、Task 2・Task 3契約から読み込める。しかし科学的な本番校正としては固定しない。
 
-### H7 回復契約の限界
+理由は次のとおり。
 
-完全・部分・非回復の生の戻り距離は順序づけられるが、正式なRecoverability軸は下位契約未固定のため利用不能のままであること。
+- active_axis_count、mode_count、cluster_balance等が校正・検証で退化
+- 複数特徴が校正後の±4へ高頻度で飽和
+- H2とH5の失敗が最終確認でも再現
 
-### H8 単一batch 0.5崩壊の防止
+したがって最終判定は次とする。
 
-各ケースで十分なH11軸が利用可能であり、利用可能軸が一律0.5へ潰れず、シナリオ間分散を持つこと。
+```text
+freeze_reproducibility_only_not_scientifically_approved
+```
 
-## 7. 独立検証
+## 9. 凍結成果物
 
-検証・最終確認の全ケースで、Task 2 builderの成果物をTask 3 validatorへ通す。
+全ケースを含む完全な検証bundleはGitHub Actionsで毎回再生成し、Actions artifactとして保持する。
 
-科学仮説の評価以前に、次が全件通過していなければTask 4は不合格とする。
-
-- G_t/K_t同一性
-- 47特徴の独立再計算
-- H11全11軸の独立再計算
-- 未来漏洩禁止
-- 欠測・信頼度契約
-- 正本非変更
-
-## 8. 凍結成果物
-
-最終的に次を
-`artifacts/fixed5axis_hdept_task4_rc1/`
-へ固定する。
+Git管理上は、次の小型凍結成果物を `artifacts/fixed5axis_hdept_task4_compact_freeze_rc1/` に保存する。
 
 ```text
 fixed5axis_hdept_task4_calibration_rc1.json
-task4_calibration_audit.json
-task4_validation_report.json
-task4_final_confirmation_report.json
+task4_diagnostic_findings.json
 task4_freeze_decision.json
-task4_manifest.json
+task4_freeze_manifest.json
 ```
 
-GitHub Actionsで同じ成果物を再生成し、checked-in成果物とバイト単位で一致させる。
+小型凍結成果物は、完全bundleから決定論的に再生成し、checked-inファイルとバイト単位で照合する。
 
-## 9. 主張限界
+## 10. 主張限界と次工程
 
-Task 4が通過しても、主張は次に限定する。
+Task 4の工学的検証器は成立したが、科学ゲートは不合格である。次は未検証または未承認である。
 
-```text
-B_limited_synthetic_fixed5_only
-```
-
-確認対象は固定5軸上の合成シナリオだけである。
-
-次は未検証である。
-
-- 実データでの妥当性
-- 外部結果を含む適応成功
+- 実データ妥当性
+- 本番校正
 - Predictability下位契約
 - Recoverability下位契約
 - 上位圧の安全性
@@ -156,4 +147,4 @@ B_limited_synthetic_fixed5_only
 - 作用実行
 - 閉ループ効果
 
-Task 4の合格は、Task 5の診断接続へ進める条件であり、実運用可能性の証明ではない。
+Task 5への診断接続は進めない。先に別の修理タスクとして、固定グリッドのモード識別、Explorationの構成と校正飽和、Coherenceの境界集中誤読を改修し、新しい事前登録検証を行う必要がある。
