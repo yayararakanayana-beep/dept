@@ -52,7 +52,9 @@ def _strict_calibration(
         force_numeric = (
             calibration_non_scoring and synthesize_numeric_for_non_scoring
         ) or (
-            (not contract_scoring) and synthesize_numeric_for_contract_non_scoring
+            (not contract_scoring)
+            and synthesize_numeric_for_contract_non_scoring
+            and feature_id == "mode_count"
         )
         if force_numeric or (contract_scoring and not calibration_non_scoring):
             centers.append(0.0)
