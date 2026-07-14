@@ -25,6 +25,7 @@
     "classify local fixation, local exploration, divergence, or recovery labels",
     "require every H11 axis to move monotonically under every controlled transformation",
     "infer safety or desirability from a single H11 coordinate",
+    "reconstruct absolute fixed5 centroid coordinates that are not part of the frozen Task 1 feature vocabulary",
     "prove real-world validity",
     "prove upper-pressure safety or closed-loop benefit",
     "restore mode_count or cluster_balance before their separate global-mode contract is validated"
@@ -91,7 +92,7 @@
     },
     {
       "id": "translated_whole_system",
-      "role": "vary whole-system centroid and causal movement",
+      "role": "vary whole-system causal movement without requiring reconstruction of absolute centroid coordinates",
       "truth_label": false
     },
     {
@@ -130,15 +131,59 @@
     "threshold_feature_rule": "registered threshold proxies may be discontinuous only at logged threshold crossings and must not create unlogged H11 jumps"
   },
   "independent_reference_vector": {
-    "source": "recomputed directly from G_t/K_t without reading Task 2 H11 outputs",
+    "source": "independently recomputed from G_t/K_t using the frozen scored Task 1 feature vocabulary, without reading Task 2 H11 outputs",
+    "excluded_information": [
+      "absolute centroid coordinates",
+      "reserved prediction features",
+      "reserved recovery features",
+      "non-scoring mode_count",
+      "non-scoring cluster_balance"
+    ],
     "groups": {
-      "location": ["whole-system centroid"],
-      "spread_and_shape": ["covariance trace", "covariance eigenvalue spectrum", "anisotropy"],
-      "dependency": ["pairwise axis correlations", "effective rank"],
-      "density": ["entropy", "boundary mass", "density concentration"],
-      "trajectory": ["centroid velocity", "covariance velocity", "orientation change", "acceleration", "curvature"]
+      "axis_participation_and_dependency": [
+        "active_axis_count",
+        "axis_weight_entropy",
+        "axis_weight_sparsity",
+        "axis_redundancy",
+        "mean_axis_correlation"
+      ],
+      "effective_dimensionality": [
+        "effective_rank",
+        "participation_ratio",
+        "spectral_entropy",
+        "dominant_eigen_share",
+        "spectral_gap"
+      ],
+      "spread_shape_and_density": [
+        "covariance_trace",
+        "covariance_logdet",
+        "anisotropy",
+        "mean_pairwise_distance",
+        "pairwise_distance_variance",
+        "entropy",
+        "compactness",
+        "knn_density_variance",
+        "density_peak_ratio",
+        "tail_mass",
+        "outlier_ratio"
+      ],
+      "whole_system_motion_and_trajectory": [
+        "mean_drift_norm",
+        "covariance_drift_norm",
+        "wasserstein_velocity",
+        "jsd_velocity",
+        "entropy_velocity",
+        "density_velocity",
+        "effective_rank_velocity",
+        "motion_angle",
+        "direction_cosine",
+        "principal_subspace_angle",
+        "acceleration_norm",
+        "trajectory_curvature",
+        "oscillation_index"
+      ]
     },
-    "purpose": "measure information preservation and compression loss without turning controlled-case names into class labels"
+    "purpose": "measure compression retention of the information Task 1 actually claims to observe, without expanding H11 into full G_t reconstruction or turning controlled-case names into class labels"
   },
   "evaluation_domains": {
     "E1_engineering_and_causal_integrity": {
@@ -153,10 +198,10 @@
     },
     "E2_whole_system_information_preservation": {
       "critical": true,
-      "method": "fit decoders from H11 to the independent reference vector on design_calibration only; evaluate unchanged decoders on validation and final_confirmation",
-      "baselines": ["intercept_only", "fixed Random8 ensemble"],
+      "method": "fit decoders from H11 to each sufficiently varying independent reference group on design_calibration only; evaluate unchanged decoders on validation and final_confirmation",
+      "mandatory_baselines": ["intercept_only", "fixed Random8 ensemble"],
       "primary_statistic": "grouped normalized prediction-loss difference H11 minus baseline",
-      "pass_rule": "for every reference group with sufficient observed variation, H11 must beat intercept_only on both validation and final_confirmation; aggregate H11 loss must beat the median fixed Random8 loss with a two-sided grouped-bootstrap 99% confidence interval excluding zero in the favorable direction",
+      "pass_rule": "for every registered reference group with sufficient calibration variation and at least one available H11 evidence path, H11 must beat intercept_only on both validation and final_confirmation; aggregate H11 loss must beat the median fixed Random8 loss with a two-sided grouped-bootstrap 99% confidence interval excluding zero in the favorable direction",
       "pca8_use": "diagnostic information-retention comparison only; H11 is not required to outperform PCA8"
     },
     "E3_local_to_global_scale_response": {
@@ -208,7 +253,8 @@
         "effective rank",
         "leave-one-axis-out decoding loss",
         "feature-ablation survival",
-        "comparison with H20, H12_C, PCA8, and Random8 when fixed5-compatible implementations are available"
+        "comparison with H20, H12_C, and PCA8 when fixed5-compatible implementations are available",
+        "mandatory comparison with the fixed Random8 ensemble"
       ]
     },
     "E7_missing_evidence_and_claim_limits": {
@@ -223,7 +269,9 @@
     },
     "E8_auxiliary_basis_scope": {
       "critical": false,
-      "rule": "absence of a fixed5-compatible H12_C, H20, PCA8, or Random8 implementation must be recorded as not_evaluated and limits the claim to fixed5 H11-only validation; absence alone does not invalidate Task 1-3 engineering correctness",
+      "mandatory_for_task4_3": ["fixed Random8 ensemble"],
+      "optional_diagnostic_bases": ["H12_C", "H20", "PCA8"],
+      "rule": "absence of fixed5-compatible H12_C, H20, or PCA8 must be recorded as not_evaluated and limits the claim to fixed5 H11 plus Random8 validation; absence alone does not invalidate Task 1-3 engineering correctness",
       "task5_effect": "full Phase 1 equivalence may not be claimed without the registered auxiliary comparisons"
     }
   },
@@ -248,6 +296,7 @@
     "do not exclude unfavorable seeds or cases",
     "do not use scenario names as target classes",
     "do not turn axis direction into good/bad judgement",
+    "do not require reconstruction of information outside the Task 1 feature vocabulary",
     "do not authorize Task 5 from Task 4-2 design alone"
   ],
   "next_task": "Task4-3 implement the preregistered generator, calibration/sample-size lock, evaluator, independent validator, and frozen result bundle"
