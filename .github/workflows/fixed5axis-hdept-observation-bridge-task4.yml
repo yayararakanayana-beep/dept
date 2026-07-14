@@ -3,13 +3,16 @@ name: Fixed5Axis H-DEPT Observation Bridge Task4
 on:
   pull_request:
     paths:
-      - 'configs/fixed5axis_hdept_task4_scientific_validation_rc1.json'
-      - 'scripts/fixed5axis_hdept_observation_bridge_task4_rc1.py'
-      - 'scripts/fixed5axis_hdept_bridge_task4/**'
-      - 'tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py'
-      - 'tests/test_fixed5axis_hdept_task4_compact_freeze_rc1.py'
-      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_SCIENTIFIC_VALIDATION_AND_CALIBRATION.md'
-      - 'artifacts/fixed5axis_hdept_task4_compact_freeze_rc1/**'
+      - 'configs/fixed5axis_hdept_task4_0_role_boundary_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_1_meaning_audit_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_1r_contract_patch_rc1.json'
+      - 'scripts/fixed5axis_hdept_bridge_task2/**'
+      - 'scripts/fixed5axis_hdept_bridge_task3/**'
+      - 'tests/test_fixed5axis_hdept_observation_bridge_rc1.py'
+      - 'tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py'
+      - 'tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_0_ROLE_AND_EVALUATION_SCOPE.md'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_1_FEATURE_AND_H11_MEANING_AUDIT.md'
       - '.github/workflows/fixed5axis-hdept-observation-bridge-task4.yml'
   workflow_dispatch:
 
@@ -17,9 +20,9 @@ permissions:
   contents: read
 
 jobs:
-  task4-scientific-validation:
+  task4-1r-contract-compliance:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,57 +33,47 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest
-      - name: Parse and compile Task 4
+      - name: Parse Task 4-0, 4-1, and 4-1R contracts
         run: |
-          python -m json.tool configs/fixed5axis_hdept_task4_scientific_validation_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_0_role_boundary_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_1_meaning_audit_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_1r_contract_patch_rc1.json >/dev/null
+      - name: Compile revised Task 2 and Task 3 code
+        run: |
           python -m py_compile \
-            scripts/fixed5axis_hdept_observation_bridge_task4_rc1.py \
-            scripts/fixed5axis_hdept_bridge_task4/*.py \
-            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py \
-            tests/test_fixed5axis_hdept_task4_compact_freeze_rc1.py
-      - name: Generate calibration and scientific-validation bundle
-        run: |
-          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4 \
-            --output-dir results/fixed5axis_hdept_task4_rc1
-      - name: Generate compact checked-in freeze
-        run: |
-          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4.freeze_summary \
-            --source-bundle results/fixed5axis_hdept_task4_rc1 \
-            --output-dir results/fixed5axis_hdept_task4_compact_freeze_rc1
-      - name: Run Task 4 tests
-        env:
-          TASK4_GENERATED_BUNDLE: results/fixed5axis_hdept_task4_rc1
-          TASK4_GENERATED_COMPACT_FREEZE: results/fixed5axis_hdept_task4_compact_freeze_rc1
+            scripts/fixed5axis_hdept_bridge_task2/*.py \
+            scripts/fixed5axis_hdept_bridge_task3/*.py \
+            tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
+            tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py \
+            tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py
+      - name: Run Task 4-1R contract and negative tests
         run: |
           PYTHONPATH=scripts python -m pytest -q \
-            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py \
-            tests/test_fixed5axis_hdept_task4_compact_freeze_rc1.py
+            tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py
       - name: Run Task 2 and Task 3 regressions
         run: |
           PYTHONPATH=scripts python -m pytest -q \
             tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
             tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py
-      - name: Enforce frozen negative scientific decision
+      - name: Enforce revised role boundary
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          root=Path('results/fixed5axis_hdept_task4_compact_freeze_rc1')
-          decision=json.loads((root/'task4_freeze_decision.json').read_text())
-          diagnostic=json.loads((root/'task4_diagnostic_findings.json').read_text())
-          assert decision['scientific_gate_passed'] is False
-          assert decision['decision']=='freeze_reproducibility_only_not_scientifically_approved'
-          assert diagnostic['failed_hypothesis_ids']==['H2_structured_exploration','H5_boundary_divergence']
-          assert diagnostic['replicated_in_final_confirmation']==diagnostic['failed_hypothesis_ids']
-          print(json.dumps(decision,ensure_ascii=False,indent=2,sort_keys=True))
+          PYTHONPATH=scripts python - <<'PY'
+          from fixed5axis_hdept_bridge_task2.contracts import load_evidence_map, load_feature_registry
+
+          registry = load_feature_registry()
+          features = {entry['id']: entry for entry in registry['features']}
+          assert features['mode_count']['score'] is False
+          assert features['cluster_balance']['score'] is False
+
+          evidence = load_evidence_map()
+          assert evidence['h11_axes']['Exploration']['maximum_scientific_status'] == 'LIMITED'
+          assert evidence['h11_axes']['StructuralDiversity']['maximum_scientific_status'] == 'LIMITED'
+          assert evidence['h11_axes']['Coherence']['maximum_scientific_status'] == 'LIMITED'
+          assert 'tail_mass' not in evidence['base_components']['Coherence']['negative']
+          assert 'trajectory_curvature' not in evidence['base_components']['Coherence']['negative']
+          assert evidence['h11_axes']['StructuralDiversity']['construction'] == {
+              'component': 'Diversity',
+              'type': 'base_component',
+          }
+          print('Task 4-1R role boundary enforced')
           PY
-      - name: Upload Task 4 full and compact bundles
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fixed5axis-hdept-task4-rc1
-          path: |
-            results/fixed5axis_hdept_task4_rc1
-            results/fixed5axis_hdept_task4_compact_freeze_rc1
-          if-no-files-found: error
-          retention-days: 14
