@@ -1,0 +1,115 @@
+{
+  "task_id": "Fixed5Axis-HDEPT-Bridge-Task4-0-RC1",
+  "contract_id": "fixed5axis_hdept_task4_0_role_boundary_rc1",
+  "contract_version": "1",
+  "status": "frozen_role_and_evaluation_scope_only",
+  "purpose": "Freeze the theoretical role, unit of analysis, allowed evaluation questions, and prohibited interpretations for Task 4 before any new scientific validation is designed.",
+  "parent_state": {
+    "task1_contract": "retain_without_change_pending_task4_1_meaning_audit",
+    "task2_builder": "retain_without_change",
+    "task3_independent_validator": "retain_without_change",
+    "task5_upper_connection": "not_authorized_by_task4_0"
+  },
+  "upper_layer_role": {
+    "formal_input": [
+      "current canonical whole-system fixed5 G_t",
+      "causal contiguous whole-system K_t suffix ending at current_t"
+    ],
+    "formal_output": "M_t / H11_STRUCTURED as auditable coordinates describing the character of the whole-system distribution and its causal history",
+    "primary_question": "What character does the whole lower evaluation system exhibit when viewed through the H-DEPT upper observation basis?",
+    "not_a_direct_observer_of": [
+      "local fixation events",
+      "local exploration events",
+      "local attractors or escape routes",
+      "local flow, viscosity, external force, or relation-field topology",
+      "individual component safety or danger",
+      "scenario names supplied by an evaluator"
+    ],
+    "layer_boundary": {
+      "lower_observation_and_relation_field": "observe and interpret local structures, local dynamics, local anomalies, and detailed topology",
+      "canonical_G_t_K_t": "carry the whole-system distributional state and causal history after lower-layer construction",
+      "H_DEPT": "read the whole-system character represented in G_t and K_t and provide an upper observation state for later weak governance-pressure derivation"
+    }
+  },
+  "unit_of_analysis": {
+    "primary": "whole-system distribution and whole-system causal trajectory",
+    "local_change_treatment": "A local change may influence H-DEPT only through its contribution to whole-system G_t and K_t. Complete discovery or classification of the local phenomenon is not required.",
+    "scale_principle": "The expected upper-layer response depends on how much the local change alters whole-system mass, geometry, dependency, and trajectory, not merely on whether an evaluator named the change fixation, exploration, divergence, or recovery.",
+    "system_wide_case": "A phenomenon occupying or reorganizing a substantial part of the whole distribution may legitimately change multiple H11 coordinates because it has become a property of the system as a whole."
+  },
+  "axis_semantics": {
+    "descriptive_not_classificatory": true,
+    "proxy_not_ground_truth": true,
+    "single_axis_good_bad_interpretation_forbidden": true,
+    "single_axis_safe_danger_interpretation_forbidden": true,
+    "high_value_is_not_intrinsically_good": true,
+    "low_value_is_not_intrinsically_bad": true,
+    "cross_axis_profile_interpretation_required_for_later_governance": true,
+    "examples": {
+      "Stability": "Low observed whole-distribution motion and curvature; not safety by itself.",
+      "Exploration": "Whole-distribution spread, axis participation, mode structure, and observed movement proxy; not a detector of local exploration events.",
+      "Coherence": "Internal geometric compatibility proxy; a compact boundary concentration may be coherent and still undesirable under other coordinates.",
+      "StructuralDiversity": "Whole-distribution diversity and thresholded mode-separation proxy; not proof that every local substructure was detected."
+    }
+  },
+  "task4_allowed_evaluation_questions": [
+    "Does the bridge preserve auditable whole-system geometric and trajectory information from G_t and K_t?",
+    "Do controlled changes that affect a larger share of the whole system generally produce a stronger or broader upper-observation response than equivalent small local changes, where that expectation is logically justified?",
+    "Is the response to small local perturbation bounded rather than treated as complete system-wide regime change?",
+    "Are H11 coordinates continuous and reproducible under small whole-system input changes, except at explicitly registered threshold boundaries?",
+    "Do confidence, evidence coverage, availability, and claim limits accurately expose missing or proxy evidence?",
+    "Does calibration preserve useful variation without excessive saturation, collapse, or dependence on validation and holdout data?",
+    "Do cross-axis profiles retain distinctions in whole-system character without being forced to reproduce evaluator-supplied scenario labels?",
+    "Where reference bases are available, what information does H11 preserve or lose relative to diagnostic or non-semantic bases?"
+  ],
+  "task4_prohibited_evaluation_questions": [
+    "Can H11 perfectly detect every local fixation or local exploration event?",
+    "Can H11 classify evaluator-supplied scenario names as ground-truth state labels?",
+    "Does high Coherence mean the system is safe?",
+    "Does low Exploration prove fixation?",
+    "Does one H11 axis moving in an expected direction establish scientific validity?",
+    "Must every local anomaly create a large upper-layer response?",
+    "Can arbitrary numeric separation thresholds be treated as theoretical requirements without an external derivation or calibration rationale?"
+  ],
+  "evaluation_design_rules": {
+    "scenario_names_are_case_descriptions_not_truth_labels": true,
+    "local_to_global_mass_fraction_must_be_recorded_when_local_perturbations_are_used": true,
+    "expected_direction_must_be_derived_per_feature_or_axis_before_execution": true,
+    "no_directional_expectation_may_be_invented_from_good_bad_language": true,
+    "single_axis_pass_fail_gate_for_overall_scientific_validity_forbidden": true,
+    "cross_axis_profile_and_raw_feature_evidence_must_be_retained": true,
+    "arbitrary_margin_thresholds_forbidden_without_stated_derivation": true,
+    "calibration_validation_and_final_confirmation_must_remain_separate": true,
+    "task3_engineering_validation_remains_a_prerequisite_but_is_not_scientific_validation": true,
+    "negative_or_ambiguous_results_must_not_be_relabelled_to_force_task5_entry": true
+  },
+  "supersession": {
+    "superseded_protocol": "configs/fixed5axis_hdept_task4_scientific_validation_rc1.json",
+    "superseded_scientific_judgment": "The eight-hypothesis pass/fail result and the resulting scientific rejection are invalid as judgments of H-DEPT because the evaluation role was mis-specified.",
+    "reusable_parts": [
+      "split isolation",
+      "deterministic scenario and trajectory generation infrastructure",
+      "calibration-only fitting boundary",
+      "Task 2 builder connection",
+      "Task 3 independent validation connection",
+      "deterministic artifact generation",
+      "CI and byte-reproducibility checks"
+    ],
+    "not_reusable_as_scientific_gates": [
+      "scenario-name classification expectations",
+      "H2 structured-exploration versus fixation margin",
+      "H5 boundary-divergence Coherence direction requirement",
+      "all-eight-hypotheses-must-pass rule",
+      "freeze_reproducibility_only_not_scientifically_approved as an H-DEPT scientific conclusion"
+    ]
+  },
+  "task4_0_acceptance": {
+    "H_DEPT_role_is_fixed_as_whole_system_character_observation": true,
+    "local_detection_responsibility_is_kept_in_lower_layers": true,
+    "H11_axes_are_fixed_as_descriptive_proxies_not_labels_or_objectives": true,
+    "old_task4_scientific_judgment_is_invalidated": true,
+    "task1_to_task3_are_not_modified": true,
+    "task5_is_not_authorized": true,
+    "next_task": "Task4-1 meaning audit of the 47-feature vocabulary and H11 evidence map against this role boundary"
+  }
+}
