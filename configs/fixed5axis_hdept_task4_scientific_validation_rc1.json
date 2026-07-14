@@ -1,0 +1,178 @@
+{
+  "protocol_id": "fixed5axis_hdept_task4_scientific_validation_rc1",
+  "protocol_version": "1",
+  "status": "pre_registered_before_task4_execution",
+  "contract_version": "fixed5axis_hdept_observation_bridge_rc1",
+  "builder_version": "fixed5axis_hdept_observation_bridge_task2_rc1",
+  "validator_version": "fixed5axis_hdept_observation_bridge_validator_task3_rc1",
+  "calibration_version": "fixed5axis_hdept_task4_synthetic_calibration_rc1",
+  "horizon": 14,
+  "evaluation_t": 13,
+  "splits": {
+    "calibration": {
+      "seed_start": 1100,
+      "seed_count": 4,
+      "scenario_families": [
+        "stable_broad",
+        "locked_fixation",
+        "smooth_adaptation",
+        "structured_exploration",
+        "noisy_expansion",
+        "oscillation",
+        "boundary_divergence",
+        "slow_fixation",
+        "shock_full_recovery",
+        "shock_partial_recovery",
+        "shock_no_recovery"
+      ]
+    },
+    "validation": {
+      "seed_start": 2200,
+      "seed_count": 3,
+      "scenario_families": [
+        "stable_broad",
+        "locked_fixation",
+        "smooth_adaptation",
+        "structured_exploration",
+        "noisy_expansion",
+        "oscillation",
+        "boundary_divergence",
+        "slow_fixation",
+        "shock_full_recovery",
+        "shock_partial_recovery",
+        "shock_no_recovery"
+      ]
+    },
+    "final_confirmation": {
+      "seed_start": 3300,
+      "seed_count": 3,
+      "scenario_families": [
+        "stable_broad",
+        "locked_fixation",
+        "smooth_adaptation",
+        "structured_exploration",
+        "noisy_expansion",
+        "oscillation",
+        "boundary_divergence",
+        "slow_fixation",
+        "shock_full_recovery",
+        "shock_partial_recovery",
+        "shock_no_recovery"
+      ]
+    }
+  },
+  "calibration": {
+    "method": "robust_zscore",
+    "center": "median of available calibration-split values only",
+    "primary_scale": "1.4826 * median absolute deviation",
+    "fallback_scale": "sample standard deviation when robust scale <= 1e-12",
+    "final_scale_floor": 1e-09,
+    "clip_lower": -4.0,
+    "clip_upper": 4.0,
+    "minimum_available_samples_per_scored_feature": 12,
+    "validation_or_confirmation_fit_forbidden": true,
+    "online_refit_forbidden": true
+  },
+  "hypotheses": [
+    {
+      "id": "H1_false_stability_guard",
+      "critical": true,
+      "comparison": "locked_fixation versus stable_broad",
+      "requirements": {
+        "Stability_locked_minus_broad_min": -0.05,
+        "Exploration_broad_minus_locked_min": 0.08,
+        "StructuralDiversity_broad_minus_locked_min": 0.08
+      },
+      "interpretation": "Low motion may look stable, but fixation must be separated by exploration and structural diversity. Stability alone is not a safety claim."
+    },
+    {
+      "id": "H2_structured_exploration",
+      "critical": true,
+      "comparison": "structured_exploration versus locked_fixation",
+      "requirements": {
+        "Exploration_structured_minus_locked_min": 0.08,
+        "StructuralDiversity_structured_minus_locked_min": 0.08
+      }
+    },
+    {
+      "id": "H3_noise_guard",
+      "critical": true,
+      "comparison": "structured_exploration versus noisy_expansion",
+      "requirements": {
+        "Coherence_structured_minus_noise_min": 0.03,
+        "tail_mass_noise_minus_structured_min": 0.10
+      },
+      "interpretation": "Expansion alone must not be treated as useful exploration."
+    },
+    {
+      "id": "H4_oscillation_detection",
+      "critical": true,
+      "comparison": "oscillation versus smooth_adaptation",
+      "requirements": {
+        "oscillation_index_difference_min": 0.30,
+        "motion_angle_difference_min": 0.20,
+        "TrajectoryDynamics_absolute_difference_min": 0.03
+      }
+    },
+    {
+      "id": "H5_boundary_divergence",
+      "critical": true,
+      "comparison": "boundary_divergence versus stable_broad",
+      "requirements": {
+        "tail_mass_divergence_minus_broad_min": 0.15,
+        "Coherence_broad_minus_divergence_min": 0.05,
+        "Stability_broad_minus_divergence_min": 0.05
+      }
+    },
+    {
+      "id": "H6_slow_fixation",
+      "critical": true,
+      "comparison": "slow_fixation versus stable_broad",
+      "requirements": {
+        "Exploration_broad_minus_fixation_min": 0.08,
+        "StructuralDiversity_broad_minus_fixation_min": 0.08
+      },
+      "interpretation": "Slow collapse may retain apparent stability; diversity and exploration must reveal the closure."
+    },
+    {
+      "id": "H7_recovery_contract_limit",
+      "critical": true,
+      "comparison": "full versus partial versus no recovery",
+      "requirements": {
+        "Recoverability_must_remain_unavailable": true,
+        "full_return_distance_below_partial": true,
+        "partial_return_distance_below_no_recovery": true
+      },
+      "interpretation": "Raw causal geometry may distinguish return, but the formal Recoverability axis must remain unavailable until its sub-contract is frozen."
+    },
+    {
+      "id": "H8_no_single_batch_half_collapse",
+      "critical": true,
+      "comparison": "all evaluated scenarios",
+      "requirements": {
+        "minimum_available_h11_axes_per_case": 7,
+        "minimum_cross_scenario_available_axis_standard_deviation": 0.01,
+        "all_available_values_equal_0_5_forbidden": true
+      }
+    }
+  ],
+  "freeze_gate": {
+    "all_critical_hypotheses_must_pass_validation": true,
+    "all_critical_hypotheses_must_pass_final_confirmation": true,
+    "all_task3_validations_must_pass": true,
+    "split_identity_overlap_forbidden": true,
+    "calibration_reproducibility_required": true,
+    "decision_on_pass": "freeze_as_B_limited_synthetic_scientific_baseline",
+    "decision_on_fail": "freeze_reproducibility_only_not_scientifically_approved"
+  },
+  "claim_boundary": {
+    "synthetic_fixed5_only": true,
+    "real_world_validity": "not_evaluated",
+    "Predictability": "unavailable_until_prediction_subcontract",
+    "Recoverability": "unavailable_until_recovery_subcontract",
+    "Robustness": "unavailable_or_limited_without_recovery_evidence",
+    "NoveltyQuality": "structural_novelty_proxy_only",
+    "upper_pressure_safety": "not_evaluated",
+    "closed_loop_effect": "not_evaluated"
+  }
+}

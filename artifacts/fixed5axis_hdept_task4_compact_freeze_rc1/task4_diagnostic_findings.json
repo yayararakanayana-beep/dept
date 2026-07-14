@@ -1,0 +1,174 @@
+{
+  "diagnostic_id": "fixed5axis_hdept_task4_diagnostic_findings_rc1",
+  "status": "scientifically_not_approved",
+  "scientific_gate_passed": false,
+  "failed_hypothesis_ids": [
+    "H2_structured_exploration",
+    "H5_boundary_divergence"
+  ],
+  "replicated_in_final_confirmation": [
+    "H2_structured_exploration",
+    "H5_boundary_divergence"
+  ],
+  "validation_summary": {
+    "split": "validation",
+    "case_count": 33,
+    "all_task3_validations_passed": true,
+    "hypothesis_pass_count": 6,
+    "hypothesis_count": 8,
+    "all_critical_hypotheses_passed": false,
+    "failed_hypotheses": [
+      {
+        "id": "H2_structured_exploration",
+        "critical": true,
+        "passed": false,
+        "metrics": {
+          "Exploration_structured_minus_locked": -0.006033087877128744,
+          "StructuralDiversity_structured_minus_locked": 0.03364512393344565
+        },
+        "requirements": {
+          "Exploration_structured_minus_locked_min": 0.08,
+          "StructuralDiversity_structured_minus_locked_min": 0.08
+        }
+      },
+      {
+        "id": "H5_boundary_divergence",
+        "critical": true,
+        "passed": false,
+        "metrics": {
+          "tail_mass_divergence_minus_broad": 0.4146598211133241,
+          "Coherence_broad_minus_divergence": -0.44677908464731275,
+          "Stability_broad_minus_divergence": 0.1630248606944396
+        },
+        "requirements": {
+          "tail_mass_divergence_minus_broad_min": 0.15,
+          "Coherence_broad_minus_divergence_min": 0.05,
+          "Stability_broad_minus_divergence_min": 0.05
+        }
+      }
+    ],
+    "passed_hypothesis_ids": [
+      "H1_false_stability_guard",
+      "H3_noise_guard",
+      "H4_oscillation_detection",
+      "H6_slow_fixation",
+      "H7_recovery_contract_limit",
+      "H8_no_single_batch_half_collapse"
+    ]
+  },
+  "final_confirmation_summary": {
+    "split": "final_confirmation",
+    "case_count": 33,
+    "all_task3_validations_passed": true,
+    "hypothesis_pass_count": 6,
+    "hypothesis_count": 8,
+    "all_critical_hypotheses_passed": false,
+    "failed_hypotheses": [
+      {
+        "id": "H2_structured_exploration",
+        "critical": true,
+        "passed": false,
+        "metrics": {
+          "Exploration_structured_minus_locked": -0.005973323755199655,
+          "StructuralDiversity_structured_minus_locked": 0.033387701497564884
+        },
+        "requirements": {
+          "Exploration_structured_minus_locked_min": 0.08,
+          "StructuralDiversity_structured_minus_locked_min": 0.08
+        }
+      },
+      {
+        "id": "H5_boundary_divergence",
+        "critical": true,
+        "passed": false,
+        "metrics": {
+          "tail_mass_divergence_minus_broad": 0.4194493322234658,
+          "Coherence_broad_minus_divergence": -0.44272799642359373,
+          "Stability_broad_minus_divergence": 0.15576542971180804
+        },
+        "requirements": {
+          "tail_mass_divergence_minus_broad_min": 0.15,
+          "Coherence_broad_minus_divergence_min": 0.05,
+          "Stability_broad_minus_divergence_min": 0.05
+        }
+      }
+    ],
+    "passed_hypothesis_ids": [
+      "H1_false_stability_guard",
+      "H3_noise_guard",
+      "H4_oscillation_detection",
+      "H6_slow_fixation",
+      "H7_recovery_contract_limit",
+      "H8_no_single_batch_half_collapse"
+    ]
+  },
+  "calibration_audit_summary": {
+    "status": "pass",
+    "fit_trajectory_count": 44,
+    "minimum_available_samples_per_scored_feature": 12,
+    "insufficient_scored_features": [],
+    "fit_only_boundary_passed": true,
+    "validation_or_confirmation_used_for_fit": false
+  },
+  "failure_classification": {
+    "H2_structured_exploration": "H11 Exploration and StructuralDiversity did not separate structured exploration from locked fixation under the preregistered margin.",
+    "H5_boundary_divergence": "Boundary divergence produced higher, not lower, Coherence than stable broad despite high boundary mass and lower Stability."
+  },
+  "calibration_diagnostics": {
+    "fit_trajectory_count": 44,
+    "fit_only_boundary_passed": true,
+    "reproducible": true,
+    "scale_floor_fallback_features": [
+      "active_axis_count",
+      "axis_redundancy",
+      "mode_count",
+      "cluster_balance"
+    ],
+    "constant_features_on_validation_split": [
+      "raw_dimension",
+      "active_axis_count",
+      "mode_count",
+      "cluster_balance"
+    ],
+    "features_with_clip_saturation_rate_at_least_0_25_across_validation_and_confirmation": {
+      "principal_subspace_angle": 0.4090909090909091,
+      "acceleration_norm": 0.36363636363636365,
+      "axis_redundancy": 0.36363636363636365,
+      "effective_rank": 0.36363636363636365,
+      "participation_ratio": 0.36363636363636365,
+      "spectral_entropy": 0.36363636363636365,
+      "axis_weight_entropy": 0.2727272727272727,
+      "axis_weight_sparsity": 0.2727272727272727,
+      "dominant_eigen_share": 0.2727272727272727,
+      "trajectory_curvature": 0.2727272727272727
+    },
+    "interpretation": "The calibration is mechanically reproducible but is not approved as a production scientific calibration because several structural features are degenerate and multiple calibrated features frequently clip at the registered bounds."
+  },
+  "failure_evidence": {
+    "H2_validation_metrics": {
+      "Exploration_structured_minus_locked": -0.006033087877128744,
+      "StructuralDiversity_structured_minus_locked": 0.03364512393344565
+    },
+    "H2_final_confirmation_metrics": {
+      "Exploration_structured_minus_locked": -0.005973323755199655,
+      "StructuralDiversity_structured_minus_locked": 0.033387701497564884
+    },
+    "H5_validation_metrics": {
+      "tail_mass_divergence_minus_broad": 0.4146598211133241,
+      "Coherence_broad_minus_divergence": -0.44677908464731275,
+      "Stability_broad_minus_divergence": 0.1630248606944396
+    },
+    "H5_final_confirmation_metrics": {
+      "tail_mass_divergence_minus_broad": 0.4194493322234658,
+      "Coherence_broad_minus_divergence": -0.44272799642359373,
+      "Stability_broad_minus_divergence": 0.15576542971180804
+    }
+  },
+  "repair_candidates_not_applied": [
+    "Revisit fixed-grid support connectivity and major-component thresholds because mode_count and cluster_balance were constant across all validation cases.",
+    "Audit Exploration component weighting and calibration saturation; structured exploration had higher raw entropy/effective dimension than fixation but the calibrated composite did not preserve that ordering.",
+    "Audit Coherence construction so compact boundary concentration cannot dominate tail-mass and instability evidence.",
+    "Do not change Task 1-3 contracts or preregistered Task 4 thresholds inside this PR merely to make the gate pass."
+  ],
+  "next_step_boundary": "A repair task must explicitly revise the scientific mapping or scenario coverage, then rerun a newly preregistered validation. Task 5 diagnostic connection is blocked by this Task 4 result."
+}

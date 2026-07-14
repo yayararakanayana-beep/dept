@@ -1,0 +1,28 @@
+{
+  "protocol_id": "fixed5axis_hdept_task4_scientific_validation_rc1",
+  "calibration_version": "fixed5axis_hdept_task4_synthetic_calibration_rc1",
+  "decision": "freeze_reproducibility_only_not_scientifically_approved",
+  "scientific_gate_passed": false,
+  "calibration_reproducible": true,
+  "split_identity_overlap_forbidden_passed": true,
+  "calibration_fit_only_passed": true,
+  "calibration_sample_coverage_passed": true,
+  "all_task3_validations_passed": true,
+  "validation_all_critical_hypotheses_passed": false,
+  "final_confirmation_all_critical_hypotheses_passed": false,
+  "validation_hypothesis_pass_count": 6,
+  "validation_hypothesis_count": 8,
+  "final_confirmation_hypothesis_pass_count": 6,
+  "final_confirmation_hypothesis_count": 8,
+  "scientific_status": "B_limited_synthetic_fixed5_only",
+  "claim_boundary": {
+    "synthetic_fixed5_only": true,
+    "real_world_validity": "not_evaluated",
+    "Predictability": "unavailable_until_prediction_subcontract",
+    "Recoverability": "unavailable_until_recovery_subcontract",
+    "Robustness": "unavailable_or_limited_without_recovery_evidence",
+    "NoveltyQuality": "structural_novelty_proxy_only",
+    "upper_pressure_safety": "not_evaluated",
+    "closed_loop_effect": "not_evaluated"
+  }
+}

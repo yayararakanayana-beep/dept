@@ -1,0 +1,100 @@
+name: Fixed5Axis H-DEPT Observation Bridge Task4
+
+on:
+  pull_request:
+    paths:
+      - 'configs/fixed5axis_hdept_task4_0_role_boundary_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_1_meaning_audit_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_1r_contract_patch_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1.json'
+      - 'scripts/fixed5axis_hdept_bridge_task2/**'
+      - 'scripts/fixed5axis_hdept_bridge_task3/**'
+      - 'tests/test_fixed5axis_hdept_observation_bridge_rc1.py'
+      - 'tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py'
+      - 'tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py'
+      - 'tests/test_fixed5axis_hdept_task4_2_preregistration_contract.py'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_0_ROLE_AND_EVALUATION_SCOPE.md'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_1_FEATURE_AND_H11_MEANING_AUDIT.md'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_2_WHOLE_SYSTEM_VALIDATION_PREREGISTRATION.md'
+      - '.github/workflows/fixed5axis-hdept-observation-bridge-task4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  task4-preregistered-contract-compliance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Parse Task 4 contracts
+        run: |
+          python -m json.tool configs/fixed5axis_hdept_task4_0_role_boundary_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_1_meaning_audit_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_1r_contract_patch_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1.json >/dev/null
+      - name: Compile revised code and contract tests
+        run: |
+          python -m py_compile \
+            scripts/fixed5axis_hdept_bridge_task2/*.py \
+            scripts/fixed5axis_hdept_bridge_task3/*.py \
+            tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
+            tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py \
+            tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py \
+            tests/test_fixed5axis_hdept_task4_2_preregistration_contract.py
+      - name: Run Task 4-1R and Task 4-2 contract tests
+        run: |
+          set -o pipefail
+          PYTHONPATH=scripts python -m pytest -q \
+            tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py \
+            tests/test_fixed5axis_hdept_task4_2_preregistration_contract.py \
+            2>&1 | tee task4-contract-pytest.log
+      - name: Upload contract-test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-hdept-task4-contract-test-log
+          path: task4-contract-pytest.log
+          if-no-files-found: error
+          retention-days: 7
+      - name: Run Task 2 and Task 3 regressions
+        run: |
+          PYTHONPATH=scripts python -m pytest -q \
+            tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
+            tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py
+      - name: Enforce role and preregistration boundary
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import json
+          from pathlib import Path
+          from fixed5axis_hdept_bridge_task2.contracts import load_evidence_map, load_feature_registry
+
+          registry = load_feature_registry()
+          features = {entry['id']: entry for entry in registry['features']}
+          assert features['mode_count']['score'] is False
+          assert features['cluster_balance']['score'] is False
+
+          evidence = load_evidence_map()
+          assert evidence['h11_axes']['Exploration']['maximum_scientific_status'] == 'LIMITED'
+          assert evidence['h11_axes']['StructuralDiversity']['maximum_scientific_status'] == 'LIMITED'
+          assert evidence['h11_axes']['Coherence']['maximum_scientific_status'] == 'LIMITED'
+          assert 'tail_mass' not in evidence['base_components']['Coherence']['negative']
+          assert 'trajectory_curvature' not in evidence['base_components']['Coherence']['negative']
+
+          protocol = json.loads(Path('configs/fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1.json').read_text())
+          assert protocol['authorization']['task5_authorized'] is False
+          assert protocol['authorization']['old_task4_eight_hypothesis_result_may_be_used'] is False
+          assert protocol['multiple_testing_and_uncertainty']['confidence_level'] == 0.99
+          assert protocol['evaluation_domains']['E8_auxiliary_basis_scope']['mandatory_for_task4_3'] == ['fixed Random8 ensemble']
+          assert 'absolute centroid coordinates' in protocol['independent_reference_vector']['excluded_information']
+          print('Task 4-0 through Task 4-2 boundaries enforced')
+          PY

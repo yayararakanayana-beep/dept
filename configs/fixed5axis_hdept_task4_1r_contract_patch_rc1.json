@@ -1,0 +1,125 @@
+{
+  "patch_id": "fixed5axis_hdept_task4_1r_contract_patch_rc1",
+  "patch_version": "1",
+  "status": "frozen_for_targeted_task1_task2_task3_revision",
+  "purpose": "Apply the Task 4-1 meaning-audit corrections without replacing the fixed5 G_t/K_t boundary or the H11 axis vocabulary.",
+  "effective_registry_version": "1.1-task4-1r",
+  "effective_evidence_map_version": "1.1-task4-1r",
+  "registry_feature_overrides": {
+    "mode_count": {
+      "score": false,
+      "cap": 0.0,
+      "lim": "Feature slot retained for compatibility, but the current connected-support proxy is non-scoring until a scale-aware whole-system mode contract is validated."
+    },
+    "cluster_balance": {
+      "score": false,
+      "cap": 0.0,
+      "lim": "Feature slot retained for compatibility, but it is non-scoring until a validated whole-system mode decomposition exists."
+    }
+  },
+  "base_component_replacements": {
+    "Exploration": {
+      "positive": [
+        "active_axis_count",
+        "axis_weight_entropy",
+        "effective_rank",
+        "participation_ratio",
+        "entropy"
+      ],
+      "negative": [
+        "density_peak_ratio",
+        "axis_redundancy"
+      ]
+    },
+    "Efficiency": {
+      "positive": [
+        "effective_rank",
+        "participation_ratio",
+        "spectral_entropy"
+      ],
+      "negative": [
+        "axis_redundancy",
+        "mean_axis_correlation",
+        "axis_weight_sparsity",
+        "dominant_eigen_share"
+      ]
+    },
+    "Coherence": {
+      "positive": [
+        "compactness",
+        "spectral_entropy"
+      ],
+      "negative": [
+        "outlier_ratio",
+        "knn_density_variance"
+      ]
+    },
+    "NoveltyQuality": {
+      "positive": [
+        "effective_rank",
+        "axis_weight_entropy"
+      ],
+      "negative": [
+        "outlier_ratio",
+        "forecast_instability",
+        "tail_mass",
+        "density_peak_ratio"
+      ]
+    }
+  },
+  "h11_axis_overrides": {
+    "Exploration": {
+      "maximum_scientific_status": "LIMITED",
+      "watchpoints": [
+        "noise_driven_expansion",
+        "boundary_mass_as_false_exploration",
+        "generic_distribution_motion_is_not_direct_exploration_evidence",
+        "mode_evidence_withheld_pending_global_mode_contract"
+      ]
+    },
+    "StructuralDiversity": {
+      "construction": {
+        "component": "Diversity",
+        "type": "base_component"
+      },
+      "maximum_scientific_status": "LIMITED",
+      "claim": "Whole-distribution diversity proxy; mode-separation contribution is withheld until a validated fixed5 global-mode contract exists.",
+      "watchpoints": [
+        "high_diversity_low_coherence",
+        "mode_separation_evidence_withheld",
+        "spectral_diversity_does_not_prove_local_structure_detection"
+      ]
+    },
+    "Coherence": {
+      "maximum_scientific_status": "LIMITED",
+      "claim": "Internal whole-distribution geometric compatibility proxy; boundary occupancy and trajectory curvature are audited elsewhere and are not direct Coherence evidence.",
+      "watchpoints": [
+        "compact_collapse_misread_as_coherence",
+        "local_density_proxy_sensitivity",
+        "boundary_concentration_can_remain_internally_coherent",
+        "revalidation_required_after_task4_1r_evidence_revision"
+      ]
+    },
+    "NoveltyQuality": {
+      "maximum_scientific_status": "LIMITED",
+      "claim": "Structural novelty proxy only; usefulness or outcome quality is not observable from formal G_t/K_t alone, and mode-dependent evidence is withheld.",
+      "watchpoints": [
+        "noisy_exploration_misread_as_novelty",
+        "quality_not_observed",
+        "mode_evidence_withheld_pending_global_mode_contract"
+      ]
+    }
+  },
+  "calibration_revision": {
+    "non_scoring_feature_ids_required": true,
+    "meaning_patch_hash_required": true,
+    "constant_scale_behavior": "record feature id as non_scoring_constant and store null center, scale, and clip bounds; numeric scale-floor evidence synthesis is forbidden",
+    "legacy_test_fixture_exception": "calibration_version task2_test_fixture_only may omit the new fields only for isolated unit-test compatibility"
+  },
+  "claim_boundary": {
+    "whole_system_observation_only": true,
+    "local_event_classification": "not_claimed",
+    "scientific_readiness": "not_claimed_until_new_task4_validation",
+    "task5_connection": "not_authorized"
+  }
+}

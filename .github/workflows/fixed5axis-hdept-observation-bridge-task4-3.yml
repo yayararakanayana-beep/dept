@@ -1,0 +1,137 @@
+name: Fixed5Axis H-DEPT Observation Bridge Task4-3
+
+on:
+  pull_request:
+    paths:
+      - 'configs/fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_3_execution_lock_rc1.json'
+      - 'configs/fixed5axis_hdept_task4_1r_contract_patch_rc1.json'
+      - 'scripts/fixed5axis_hdept_bridge_task2/**'
+      - 'scripts/fixed5axis_hdept_bridge_task3/**'
+      - 'scripts/fixed5axis_hdept_bridge_task4/whole_system.py'
+      - 'scripts/fixed5axis_hdept_bridge_task4/whole_system_validator.py'
+      - 'scripts/fixed5axis_hdept_observation_bridge_task4_3_rc1.py'
+      - 'tests/test_fixed5axis_hdept_task4_3_whole_system.py'
+      - '.github/workflows/fixed5axis-hdept-observation-bridge-task4-3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  task4-3-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Parse contracts and compile
+        run: |
+          python -m json.tool configs/fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1.json >/dev/null
+          python -m json.tool configs/fixed5axis_hdept_task4_3_execution_lock_rc1.json >/dev/null
+          python -m py_compile \
+            scripts/fixed5axis_hdept_bridge_task4/whole_system.py \
+            scripts/fixed5axis_hdept_bridge_task4/whole_system_validator.py \
+            scripts/fixed5axis_hdept_observation_bridge_task4_3_rc1.py \
+            tests/test_fixed5axis_hdept_task4_3_whole_system.py
+      - name: Run focused unit tests
+        run: |
+          PYTHONPATH=scripts python -m pytest -q \
+            tests/test_fixed5axis_hdept_task4_1r_contract_compliance.py \
+            tests/test_fixed5axis_hdept_task4_2_preregistration_contract.py \
+            tests/test_fixed5axis_hdept_task4_3_whole_system.py
+      - name: Run test-only end-to-end bundle
+        run: |
+          rm -rf task4_3_smoke
+          PYTHONPATH=scripts python scripts/fixed5axis_hdept_observation_bridge_task4_3_rc1.py \
+            --output-dir task4_3_smoke \
+            --test-mode
+      - name: Re-run independent validator after manifest creation
+        run: |
+          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4.whole_system_validator \
+            --bundle-dir task4_3_smoke
+      - name: Enforce test-only boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          decision = json.loads(Path('task4_3_smoke/task4_3_freeze_decision.json').read_text())
+          independent = json.loads(Path('task4_3_smoke/task4_3_independent_validation_report.json').read_text())
+          assert decision['test_mode'] is True
+          assert decision['task5_authorized'] is False
+          assert decision['decision'] == 'test_only_bundle_generated'
+          assert independent['status'] == 'pass'
+          print('Task 4-3 test-only boundary passed')
+          PY
+      - name: Upload smoke logs and compact result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-hdept-task4-3-smoke
+          path: |
+            task4_3_smoke/compact_freeze
+            task4_3_smoke/task4_3_freeze_decision.json
+            task4_3_smoke/task4_3_independent_validation_report.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  task4-3-formal:
+    needs: task4-3-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Generate preregistered formal bundle
+        run: |
+          rm -rf task4_3_formal
+          PYTHONPATH=scripts python scripts/fixed5axis_hdept_observation_bridge_task4_3_rc1.py \
+            --output-dir task4_3_formal
+      - name: Re-run independent validator after manifest creation
+        run: |
+          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4.whole_system_validator \
+            --bundle-dir task4_3_formal
+      - name: Print formal decision
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          decision = json.loads(Path('task4_3_formal/task4_3_freeze_decision.json').read_text())
+          validation = json.loads(Path('task4_3_formal/task4_3_validation_report.json').read_text())
+          confirmation = json.loads(Path('task4_3_formal/task4_3_final_confirmation_report.json').read_text())
+          print(json.dumps({
+              'decision': decision,
+              'validation_domain_pass': {key: value['passed'] for key, value in validation['domains'].items()},
+              'final_confirmation_domain_pass': {key: value['passed'] for key, value in confirmation['domains'].items()},
+          }, ensure_ascii=False, indent=2, sort_keys=True))
+          PY
+      - name: Upload full formal bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-hdept-task4-3-formal-bundle
+          path: task4_3_formal
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+      - name: Upload compact formal freeze
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-hdept-task4-3-compact-freeze
+          path: task4_3_formal/compact_freeze
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9

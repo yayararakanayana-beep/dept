@@ -1,0 +1,21 @@
+{
+  "bundle_id": "fixed5axis_hdept_task4_compact_freeze_rc1",
+  "hash_algorithm": "sha256",
+  "files": [
+    {
+      "path": "fixed5axis_hdept_task4_calibration_rc1.json",
+      "sha256": "86dda90012742424658eae0443a2eac898d2d249d3f4380c871f0e80c60a7f06",
+      "size_bytes": 6407
+    },
+    {
+      "path": "task4_diagnostic_findings.json",
+      "sha256": "2f952d50caea2d2452dbc512159e6907a0a9abba84feb46cf57a55fa45ac8abe",
+      "size_bytes": 6974
+    },
+    {
+      "path": "task4_freeze_decision.json",
+      "sha256": "085728fa4563a718206221cd1943a158d4b2ad0a5e770eec2142d3c3f2a46ef4",
+      "size_bytes": 1262
+    }
+  ]
+}

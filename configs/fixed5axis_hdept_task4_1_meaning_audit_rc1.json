@@ -1,0 +1,263 @@
+{
+  "task_id": "Fixed5Axis-HDEPT-Bridge-Task4-1-RC1",
+  "audit_id": "fixed5axis_hdept_task4_1_meaning_audit_rc1",
+  "audit_version": "1",
+  "status": "completed_targeted_revision_required",
+  "purpose": "Audit the fixed5 47-feature vocabulary and H11 evidence map against the Task 4-0 whole-system upper-observation role before redesigning scientific validation.",
+  "authoritative_references": [
+    "H-DEPT_v0.3-R_Technical_Research_Report_RC1_en_final.md",
+    "H-DEPT Phase 1 freeze report v0.2.0",
+    "configs/fixed5axis_hdept_task4_0_role_boundary_rc1.json",
+    "configs/fixed5axis_hdept_feature_registry_rc1.json",
+    "configs/fixed5axis_hdept_h11_evidence_map_rc1.json",
+    "configs/fixed5axis_hdept_observation_bridge_rc1_contract.json"
+  ],
+  "audit_principles": [
+    "The unit of analysis is the whole-system G_t distribution and causal K_t history.",
+    "Features may summarize global geometry or global trajectory, but may not claim complete discovery of local structures.",
+    "H11 axes are descriptive semantic-geometric coordinates, not scenario labels, objectives, or safety judgements.",
+    "Fixed-grid approximations must remain visibly bounded proxies.",
+    "A feature that is constant on a calibration population must not be converted into artificial evidence by a scale-floor workaround.",
+    "Prediction and recovery semantics remain unavailable until their causal sub-contracts are frozen."
+  ],
+  "feature_summary": {
+    "feature_count": 47,
+    "metadata_non_scoring_count": 1,
+    "exact_whole_system_feature_count": 25,
+    "bounded_proxy_retain_count": 9,
+    "proxy_revision_or_withhold_count": 2,
+    "reserved_subcontract_count": 10
+  },
+  "feature_audit": {
+    "metadata_non_scoring": [
+      {
+        "feature_id": "raw_dimension",
+        "decision": "retain",
+        "reason": "Frozen five-axis compatibility metadata only; correctly excluded from scoring."
+      }
+    ],
+    "retain_exact_whole_system": [
+      "active_axis_count",
+      "axis_weight_entropy",
+      "axis_weight_sparsity",
+      "axis_redundancy",
+      "mean_axis_correlation",
+      "effective_rank",
+      "participation_ratio",
+      "spectral_entropy",
+      "dominant_eigen_share",
+      "spectral_gap",
+      "effective_rank_velocity",
+      "covariance_trace",
+      "covariance_logdet",
+      "anisotropy",
+      "mean_pairwise_distance",
+      "pairwise_distance_variance",
+      "entropy",
+      "mean_drift_norm",
+      "covariance_drift_norm",
+      "jsd_velocity",
+      "entropy_velocity",
+      "motion_angle",
+      "direction_cosine",
+      "principal_subspace_angle",
+      "acceleration_norm"
+    ],
+    "retain_bounded_proxy_with_existing_or_strengthened_claim_limits": [
+      {
+        "feature_id": "compactness",
+        "watchpoint": "Compact concentration may represent collapse as well as efficient or coherent structure."
+      },
+      {
+        "feature_id": "knn_density_variance",
+        "watchpoint": "One-hop fixed-grid density proxy, not literal k-nearest-neighbour density."
+      },
+      {
+        "feature_id": "density_peak_ratio",
+        "watchpoint": "Concentration proxy; not a local-attractor detector."
+      },
+      {
+        "feature_id": "tail_mass",
+        "watchpoint": "Fixed-grid boundary mass only; not a general statistical tail or direct danger signal."
+      },
+      {
+        "feature_id": "outlier_ratio",
+        "watchpoint": "Support-cell ratio rather than probability-mass-weighted anomaly rate."
+      },
+      {
+        "feature_id": "wasserstein_velocity",
+        "watchpoint": "Five marginal transport distances, not full joint five-dimensional transport."
+      },
+      {
+        "feature_id": "density_velocity",
+        "watchpoint": "One-hop density-field change proxy."
+      },
+      {
+        "feature_id": "trajectory_curvature",
+        "watchpoint": "Centroid-path proxy and undefined near zero-length motion without the registered floor."
+      },
+      {
+        "feature_id": "oscillation_index",
+        "watchpoint": "Centroid sign-reversal proxy with noise and window sensitivity."
+      }
+    ],
+    "revise_or_withhold_from_scoring": [
+      {
+        "feature_id": "mode_count",
+        "current_issue": "Connected active-support components under a very low relative activity threshold collapse smooth full-support distributions into one component and do not reliably represent whole-system multimodality.",
+        "decision": "retain_feature_slot_but_mark_unavailable_or_non_scoring_until_rederived",
+        "required_followup": "Define and validate a density-level, persistence, watershed, or other scale-aware global mode proxy before scoring."
+      },
+      {
+        "feature_id": "cluster_balance",
+        "current_issue": "Depends on the current major-component extraction and therefore becomes a constant one-component value when mode_count collapses.",
+        "decision": "retain_feature_slot_but_mark_unavailable_or_non_scoring_until_mode_contract_is_rederived",
+        "required_followup": "Recompute only after a valid global mode decomposition exists."
+      }
+    ],
+    "reserved_unavailable_until_subcontract": [
+      "prediction_error",
+      "residual_variance",
+      "residual_acceleration",
+      "target_distance",
+      "forecast_instability",
+      "recovery_half_life",
+      "post_shock_shape_deviation",
+      "post_shock_entropy_deviation",
+      "return_distance",
+      "deformation_persistence"
+    ]
+  },
+  "calibration_contract_audit": {
+    "finding": "The Task 1 contract requires zero-scale features to be marked non_scoring_constant and forbids synthesizing evidence. The old Task 4 calibration instead used a 1e-9 scale floor for constant active_axis_count, axis_redundancy, mode_count, and cluster_balance and left them scoreable.",
+    "severity": "contract_compliance_defect",
+    "scientific_effect": "A tiny later deviation can become an extreme calibrated score, and a structurally constant proxy can incorrectly contribute to H11.",
+    "required_change": "Calibration artifacts must explicitly mark per-fit non-scoring constants. Task 2 H11 construction and Task 3 independent validation must skip those features rather than applying a numeric scale floor as evidence.",
+    "task1_theory_change_required": false,
+    "task1_machine_contract_clarification_required": true,
+    "task2_patch_required": true,
+    "task3_patch_required": true
+  },
+  "h11_axis_audit": {
+    "Stability": {
+      "decision": "retain",
+      "reason": "Whole-distribution motion and curvature coordinate; existing claim correctly states that it is not safety by itself."
+    },
+    "AdaptabilityStar": {
+      "decision": "retain_limited",
+      "reason": "Whole-distribution mobility and reconfiguration proxy; existing limitation correctly avoids claiming successful adaptation."
+    },
+    "Exploration": {
+      "decision": "retain_axis_revise_evidence_map",
+      "issues": [
+        "mode_count and cluster_balance are not currently reliable fixed-grid evidence",
+        "generic jsd_velocity and marginal wasserstein_velocity can increase during drift, contraction, or collapse and therefore should not automatically count as positive exploration"
+      ],
+      "required_change": "Make global spread, axis participation, and validated mode structure primary; move or reduce generic movement evidence unless a separate directional rationale is demonstrated."
+    },
+    "Efficiency": {
+      "decision": "retain_limited",
+      "reason": "Geometric compact-use proxy only; existing claim and maximum LIMITED status are appropriate.",
+      "minor_cleanup": "raw_dimension is non-scoring metadata and need not remain a signed component reference."
+    },
+    "Robustness": {
+      "decision": "retain_unavailable_or_limited_until_recovery_evidence",
+      "reason": "The axis belongs to H11, but the fixed5 implementation correctly lacks sufficient causal recovery evidence."
+    },
+    "StructuralDiversity": {
+      "decision": "retain_axis_revise_mode_component",
+      "issues": [
+        "Diversity is compatible with whole-system observation",
+        "ModeSeparability currently depends on invalid or constant mode_count and cluster_balance proxies"
+      ],
+      "required_change": "Keep the H11 axis and Diversity component; withhold ModeSeparability contribution until a validated global mode contract exists."
+    },
+    "TrajectoryDynamics": {
+      "decision": "retain",
+      "reason": "Whole-system causal trajectory composite is consistent with the Phase 1 compression result; sensitivity and redundancy remain Task 4 validation questions."
+    },
+    "Predictability": {
+      "decision": "retain_unavailable_until_prediction_subcontract",
+      "reason": "Correctly reserved; no motion substitute or future target may be used."
+    },
+    "Coherence": {
+      "decision": "retain_axis_revise_evidence_map_and_status_cap",
+      "issues": [
+        "tail_mass measures boundary occupancy, not internal compatibility",
+        "trajectory_curvature measures temporal path shape, not current internal compatibility",
+        "compactness can turn global collapse into apparent coherence",
+        "cluster_balance is currently not reliable"
+      ],
+      "required_change": "Remove boundary and trajectory evidence from the direct Coherence score or move it to H12_C/H20 audit channels; retain explicit compact-collapse watchpoints and cap fixed5 Coherence at LIMITED until revalidated."
+    },
+    "Recoverability": {
+      "decision": "retain_unavailable_until_recovery_subcontract",
+      "reason": "Correctly reserved; return cannot be inferred from external shock labels or future outcomes."
+    },
+    "NoveltyQuality": {
+      "decision": "retain_as_structural_novelty_limited_revise_mode_dependence",
+      "issues": [
+        "Usefulness or outcome quality is not observable from formal G_t/K_t alone",
+        "current positive mode evidence is not reliable"
+      ],
+      "required_change": "Keep the H11 axis name for compatibility, preserve the structural-novelty-only claim, and withhold mode-dependent evidence until repaired."
+    }
+  },
+  "evidence_map_cross_cutting_findings": [
+    {
+      "finding": "Equal averaging of all available positive and negative features changes axis meaning when some feature families are unavailable.",
+      "decision": "not_immediate_contract_failure_but_requires_ablation_and_missingness_validation",
+      "followup": "New Task 4 must test axis identity under feature ablation and missing evidence."
+    },
+    {
+      "finding": "Exploration, StructuralDiversity, Efficiency, and NoveltyQuality share several spectral and mode features.",
+      "decision": "expected_partial_overlap_but_requires_role_separation_validation",
+      "followup": "Compare cross-axis correlation, effective rank, ablation survival, and reference-basis information loss."
+    },
+    {
+      "finding": "H11 alone cannot expose all boundary and compression failures.",
+      "decision": "retain_auxiliary_basis_requirement",
+      "followup": "Task 4 design must include H12_C/H20/PCA8/Random8 where fixed5-compatible implementations exist, or explicitly record their absence."
+    }
+  ],
+  "impact_on_previous_tasks": {
+    "Task1": {
+      "full_redesign_required": false,
+      "targeted_version_update_required": true,
+      "change_scope": [
+        "mode_count and cluster_balance availability/derivation contract",
+        "Coherence fixed5 evidence map",
+        "Exploration generic movement evidence review",
+        "StructuralDiversity and NoveltyQuality mode-dependent evidence",
+        "machine-readable per-calibration non-scoring-constant rule",
+        "temporary LIMITED caps until new scientific validation"
+      ]
+    },
+    "Task2": {
+      "full_rewrite_required": false,
+      "targeted_patch_required": true,
+      "change_scope": [
+        "honour per-calibration non-scoring constants",
+        "consume the revised registry and evidence map without changing canonical G_t/K_t boundaries"
+      ]
+    },
+    "Task3": {
+      "full_rewrite_required": false,
+      "targeted_patch_required": true,
+      "change_scope": [
+        "independently verify constant-feature exclusion",
+        "independently recompute revised axis mappings and status caps",
+        "add negative tests for forbidden scale-floor evidence synthesis"
+      ]
+    }
+  },
+  "final_decision": {
+    "Task4_1_complete": true,
+    "Task1_to_Task3_can_remain_unchanged": false,
+    "full_restart_from_Task1_required": false,
+    "old_Task4_scientific_result_remains_invalid": true,
+    "new_Task4_scientific_design_authorized_now": false,
+    "Task5_authorized": false,
+    "next_task": "Task4-1R targeted Task1 contract/evidence-map version update plus Task2/Task3 compliance patches"
+  }
+}
