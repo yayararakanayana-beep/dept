@@ -1,0 +1,27 @@
+{
+  "contract_version": "relation_field_prediction_p3_prototype_v0_1",
+  "prediction": {
+    "acceleration_weight": 0.5,
+    "acceleration_cap_ratio": 2.0,
+    "local_coupling_weight": 0.25,
+    "local_coupling_cap_ratio": 0.5,
+    "minimum_flow_scale": 1e-12
+  },
+  "constraints": {
+    "flow_threshold": 1e-12,
+    "mass_tolerance": 1e-10,
+    "nonnegative_tolerance": 1e-12
+  },
+  "models": [
+    "continuation",
+    "acceleration",
+    "local_coupling"
+  ],
+  "scope": {
+    "prediction_horizon_steps": 1,
+    "rf8_coupling_matrix_used_as_causal_coefficient": false,
+    "new_edge_activation_predicted": false,
+    "future_information_allowed": false,
+    "pseudo_reality_internal_state_allowed": false
+  }
+}

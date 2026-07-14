@@ -1,0 +1,35 @@
+name: Relation Field Prediction P3-2 Translation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/relation_field_prediction_p3_connection_check.py"
+      - "scripts/relation_field_prediction_p3_flow_translation.py"
+      - "tests/test_relation_field_prediction_p3_connection_check.py"
+      - "tests/test_relation_field_prediction_p3_flow_translation.py"
+      - "docs/relation_field_prediction/P3_1_CONNECTION_CONFIRMATION.md"
+      - "docs/relation_field_prediction/P3_2_MICRO_FLOW_TRANSLATION.md"
+      - ".github/workflows/relation-field-prediction-p3-2-translation.yml"
+  workflow_dispatch:
+
+jobs:
+  translation-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest
+      - name: Compile P3-1 and P3-2
+        run: >-
+          python -m py_compile
+          scripts/relation_field_prediction_p3_connection_check.py
+          scripts/relation_field_prediction_p3_flow_translation.py
+      - name: Run P3 connection and translation tests
+        run: >-
+          python -m pytest --noconftest -q
+          tests/test_relation_field_prediction_p3_connection_check.py
+          tests/test_relation_field_prediction_p3_flow_translation.py
