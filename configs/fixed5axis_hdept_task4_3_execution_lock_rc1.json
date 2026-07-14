@@ -1,0 +1,66 @@
+{
+  "lock_id": "fixed5axis_hdept_task4_3_execution_lock_rc1",
+  "lock_version": "1",
+  "status": "locked_before_task4_3_generation",
+  "parent_protocol": "fixed5axis_hdept_task4_2_whole_system_validation_preregistration_rc1",
+  "generation": {
+    "horizon": 9,
+    "evaluation_t": 8,
+    "global_strength_cycle": [0.40, 0.55, 0.70, 0.85],
+    "continuity_paths": [
+      "anisotropic_whole_system",
+      "translated_whole_system"
+    ],
+    "continuity_alphas": [0.00, 0.02, 0.05, 0.10]
+  },
+  "sample_size": {
+    "candidate_seed_counts": [12, 24, 36, 48, 64],
+    "minimum_lower_ci": 0.0,
+    "minimum_median_spearman": 0.75,
+    "minimum_global_profile_effect": 0.005,
+    "selection_uses_design_calibration_only": true
+  },
+  "calibration": {
+    "method": "median_and_mad_with_sample_std_fallback",
+    "clip_lower": -4.0,
+    "clip_upper": 4.0,
+    "constant_tolerance": 1e-12,
+    "minimum_available_samples": 12,
+    "scale_floor_evidence_synthesis_forbidden": true
+  },
+  "decoding": {
+    "model": "ridge_linear_decoder",
+    "ridge_lambda": 0.001,
+    "fit_split": "design_calibration",
+    "evaluation_refit_forbidden": true
+  },
+  "random8": {
+    "ensemble_count": 32,
+    "dimension": 8,
+    "seed_start": 8100,
+    "matrices_fixed_before_validation": true
+  },
+  "statistics": {
+    "bootstrap_seed_start": 910000,
+    "bootstrap_count": 2000,
+    "binomial_prediction_quantile": 0.99,
+    "holm_familywise_alpha": 0.01
+  },
+  "continuity": {
+    "reference_quantile": 0.995,
+    "unlogged_threshold_jump_is_failure": true
+  },
+  "test_mode": {
+    "scientific_claim_forbidden": true,
+    "seed_count": 2,
+    "bootstrap_count": 50,
+    "minimum_available_samples": 2
+  },
+  "prohibitions": [
+    "do not use validation or final-confirmation data for sample-size selection",
+    "do not alter Random8 matrices after validation generation",
+    "do not change continuity paths or alphas after generation begins",
+    "do not use old Task 4 scenario labels as targets",
+    "do not authorize Task 5 from test-mode output"
+  ]
+}
