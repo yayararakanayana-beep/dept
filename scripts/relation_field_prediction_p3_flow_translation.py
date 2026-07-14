@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import os
 import shutil
@@ -23,7 +22,6 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from relation_field_prediction_p3_connection_check import (  # noqa: E402
-    P3ConnectionError,
     inspect_gk_connection,
     inspect_rf3_connection,
 )
@@ -61,11 +59,6 @@ def _write_jsonl(path: Path, rows: Iterable[Mapping[str, Any]]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(dict(row), ensure_ascii=False, sort_keys=True) + "\n")
-
-
-def _read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        return list(csv.DictReader(handle))
 
 
 def _load_npz(path: Path) -> dict[str, np.ndarray]:
@@ -126,8 +119,7 @@ def _load_grid(grid_artifact_dir: Path) -> dict[str, np.ndarray]:
 
 
 def _load_current_gt(trajectory_dir: Path, snapshot: Mapping[str, Any]) -> np.ndarray:
-    mass_path = trajectory_dir / "gt_mass.npy"
-    mass = np.load(mass_path, mmap_mode="r", allow_pickle=False)
+    mass = np.load(trajectory_dir / "gt_mass.npy", mmap_mode="r", allow_pickle=False)
     index = int(snapshot["current_gt_row_index"])
     current = np.asarray(mass[index], dtype=np.float64)
     if current.shape != GT_SHAPE or not np.all(np.isfinite(current)) or float(current.min()) < 0.0:
@@ -218,10 +210,15 @@ def _load_rf8_optional(rf8_artifact_dir: Path | None, snapshot: Mapping[str, Any
     validation = _load_json(rf8_artifact_dir / "validation.json")
     if validation.get("rf8_axis_coupling_innovation_gate") != "passed":
         raise P3FlowTranslationError("RF-8 validation gate did not pass")
-    if identity.get("trajectory_id") != snapshot["trajectory_id"]:
-        raise P3FlowTranslationError("RF-8 trajectory identity mismatch")
-    if identity.get("to_t") != snapshot["cutoff_t"] or identity.get("max_source_t_read") != snapshot["cutoff_t"]:
-        raise P3FlowTranslationError("RF-8 causal cutoff mismatch")
+    expected = {
+        "trajectory_id": snapshot["trajectory_id"],
+        "to_t": snapshot["cutoff_t"],
+        "max_source_t_read": snapshot["cutoff_t"],
+        "source_history_chain_hash": snapshot["history_chain_hash"],
+    }
+    for key, value in expected.items():
+        if identity.get(key) != value:
+            raise P3FlowTranslationError(f"RF-8 identity mismatch: {key}")
     return {
         "identity": identity,
         "axis_family": _load_npz(rf8_artifact_dir / "axis_flow_family.npz"),
@@ -368,6 +365,7 @@ def translate_micro_flows(
         actual_target = canonical_target if direction >= 0 else canonical_source
         available_mass = float(current_gt[actual_source]) if direction != 0 else None
         rf3_value = float(rf3_net_flow[edge])
+        state = _flow_state(previous_value, current_value)
         evidence = ["RF-5 representative temporal path", "RF-5 candidate interval"]
         counterevidence: list[str] = []
         if abs(float(common_current[edge])) > FLOW_THRESHOLD:
@@ -383,7 +381,9 @@ def translate_micro_flows(
             counterevidence.append("RF-5 field-change candidate at cutoff")
         if edge_common_fraction < 1.0:
             counterevidence.append("saved optimal paths do not share every active edge")
-        unavailable: list[str] = []
+        unavailable: list[str] = [
+            "gross opposite-direction cancellation is unavailable because RF-5 stores net edge flow"
+        ]
         if direction == 0:
             unavailable.append("directed source/target unavailable because candidate mean and representative flow are zero")
         if rf8 is None:
@@ -404,7 +404,7 @@ def translate_micro_flows(
             "previous_flow": previous_value,
             "flow_change": current_value - previous_value,
             "acceleration_candidate": current_value - previous_value,
-            "persistence_state": _flow_state(previous_value, current_value),
+            "persistence_state": state,
             "candidate_flow_minimum": float(minimum[edge]),
             "candidate_flow_maximum": float(maximum[edge]),
             "candidate_flow_mean": mean_value,
@@ -413,10 +413,11 @@ def translate_micro_flows(
             "common_flow_minimum_magnitude": float(common_current[edge]),
             "rf3_representative_flow": rf3_value,
             "rf3_rf5_direction_agreement": _sign(rf3_value) == _sign(current_value),
-            "same_direction_reinforcement": _flow_state(previous_value, current_value) == "strengthened",
-            "same_direction_attenuation": _flow_state(previous_value, current_value) == "weakened",
-            "direction_reversal": _flow_state(previous_value, current_value) == "reversed",
+            "same_direction_reinforcement": state == "strengthened",
+            "same_direction_attenuation": state == "weakened",
+            "direction_reversal": state == "reversed",
             "opposing_direction_candidate": sign_ambiguous,
+            "opposite_cancellation_amount": None,
             "adjacent_active_edge_ids": adjacency[edge],
             "available_source_mass": available_mass,
             "axis_context": _axis_context(axis_index, rf5, rf8),
@@ -456,6 +457,7 @@ def build_translation_artifact(
     target = Path(output_dir)
     if target.exists():
         raise P3FlowTranslationError(f"output already exists: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
     gk_root = Path(gk_trajectory_dir)
     snapshot = inspect_gk_connection(gk_root, cutoff_t)
     rf3_connection = inspect_rf3_connection(Path(rf3_artifact_dir), gk_snapshot=snapshot)
@@ -464,8 +466,7 @@ def build_translation_artifact(
     current_gt = _load_current_gt(gk_root, snapshot)
     rf8 = _load_rf8_optional(None if rf8_artifact_dir is None else Path(rf8_artifact_dir), snapshot)
     rf3_field = Path(rf3_connection["field_dir"])
-    rf3_arrays = _load_npz(rf3_field / "local_flow.npz")
-    rf3_net_flow = np.asarray(rf3_arrays["net_flow"], dtype=np.float64)
+    rf3_net_flow = np.asarray(_load_npz(rf3_field / "local_flow.npz")["net_flow"], dtype=np.float64)
     rows, residual_context = translate_micro_flows(
         current_gt=current_gt,
         grid=grid,
@@ -510,6 +511,11 @@ def build_translation_artifact(
         "all_rows_use_gk_derived_source": all(row["source_kind"] == "G/K-derived observed relation field" for row in rows),
         "no_prediction_performed": all(not row["prediction_performed"] for row in rows),
         "no_silent_confidence_fabrication": all(row["confidence"] is None for row in rows),
+        "missing_gross_cancellation_marked_unavailable": all(
+            row["opposite_cancellation_amount"] is None
+            and any("gross opposite-direction cancellation" in reason for reason in row["unavailable_fields"])
+            for row in rows
+        ),
         "causal_cutoff_respected": identity["maximum_source_t_read"] == cutoff_t,
         "source_writeback_performed": False,
     }
