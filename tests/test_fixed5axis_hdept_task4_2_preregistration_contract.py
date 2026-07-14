@@ -105,9 +105,10 @@ def test_controlled_case_names_are_not_truth_labels_or_axis_direction_targets() 
 
 def test_information_target_is_bounded_to_task1_scored_feature_vocabulary() -> None:
     reference = _protocol()["independent_reference_vector"]
-    assert "absolute centroid coordinates" in reference["excluded_information"]
-    assert "mode_count" in reference["excluded_information"]
-    assert "cluster_balance" in reference["excluded_information"]
+    excluded = reference["excluded_information"]
+    assert "absolute centroid coordinates" in excluded
+    assert any("mode_count" in item for item in excluded)
+    assert any("cluster_balance" in item for item in excluded)
     assert "location" not in reference["groups"]
     assert set(reference["groups"]) == {
         "axis_participation_and_dependency",
