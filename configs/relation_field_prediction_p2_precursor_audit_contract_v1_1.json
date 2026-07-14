@@ -8,7 +8,7 @@
     "prediction_snapshot_before_future_read_required": true,
     "rf10_outcome_definition_reuse_required": true,
     "same_prefix_different_future_same_prediction_required": true,
-    "scientific_claim": "B_preregistered_synthetic_precursor_audit_with_applicability_aware_support",
+    "scientific_claim": "C_preregistered_synthetic_precursor_audit_contract_pending_formal_result",
     "time_shuffle_negative_control_required": true
   },
   "applicability_stratification": {
@@ -22,6 +22,17 @@
     "stratification_is_diagnostic_not_target_redefinition": true
   },
   "contract_version": "relation_field_prediction_p2_precursor_audit_v1_1",
+  "data_independence": {
+    "all_cases_test_partition": true,
+    "axis_transform_alone_counts_as_independent": false,
+    "future_only_counterfactual_pairs_excluded_from_primary_audit": true,
+    "future_pattern_fixed_before_p1_or_p2_build": true,
+    "minimum_distinct_recent_dynamics": 30,
+    "one_case_per_trajectory_group": true,
+    "score_driven_case_selection_forbidden": true,
+    "shared_prediction_prefix_between_cases": false,
+    "unique_untransformed_prefix_profile_per_case": true
+  },
   "decision": {
     "no_predictive_superiority_claim_without_test_support": true,
     "pilot_or_synthetic_success_only_validates_synthetic_scope": true,
@@ -38,7 +49,11 @@
     "bootstrap_unit": "trajectory_group_id",
     "case_weighting": "unweighted",
     "cross_target_aggregation_forbidden": true,
-    "horizons": [1, 2, 4],
+    "horizons": [
+      1,
+      2,
+      4
+    ],
     "model_fitting_forbidden": true,
     "overlapping_windows_are_not_independent": true,
     "primary_partition_for_phase3_decision": "test",
@@ -46,7 +61,11 @@
     "threshold_tuning_forbidden": true
   },
   "input": {
-    "allowed_partitions": ["development", "validation", "test"],
+    "allowed_partitions": [
+      "development",
+      "validation",
+      "test"
+    ],
     "case_manifest_version": "relation_field_prediction_p2_precursor_case_manifest_v1",
     "full_trajectory_future_suffix_is_target_side_only": true,
     "future_truth_scenario_seed_action_event_or_world_internal_input_forbidden": true,
@@ -108,13 +127,42 @@
   },
   "purpose": "Audit whether causal P2 continuous coordinates measured at cutoff_t contain threshold-free information about RF-10 future outcomes at applicable horizons 1, 2, and 4, before any P3 predictor is fitted.",
   "score_panels": {
-    "always_negative": {"higher_means_more_target_like": true, "primary": false, "source": "constant_zero"},
-    "p1_boolean_candidate": {"higher_means_more_target_like": true, "primary": false, "source": "p1_current_candidate"},
-    "p2_component_only_margin": {"higher_means_more_target_like": true, "primary": false, "source": "registered_component_coordinate_center"},
-    "p2_structure_margin": {"higher_means_more_target_like": true, "primary": true, "source": "structure_coordinate_center"},
-    "p2_structure_margin_first_difference": {"higher_means_more_target_like": true, "primary": false, "source": "first_backward_difference_center"},
-    "p2_structure_margin_second_difference": {"higher_means_more_target_like": true, "primary": false, "source": "second_backward_difference_center"},
-    "p2_structure_margin_time_shuffled": {"higher_means_more_target_like": true, "negative_control_only": true, "primary": false, "source": "deterministic_within_partition_score_permutation"}
+    "always_negative": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "constant_zero"
+    },
+    "p1_boolean_candidate": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "p1_current_candidate"
+    },
+    "p2_component_only_margin": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "registered_component_coordinate_center"
+    },
+    "p2_structure_margin": {
+      "higher_means_more_target_like": true,
+      "primary": true,
+      "source": "structure_coordinate_center"
+    },
+    "p2_structure_margin_first_difference": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "first_backward_difference_center"
+    },
+    "p2_structure_margin_second_difference": {
+      "higher_means_more_target_like": true,
+      "primary": false,
+      "source": "second_backward_difference_center"
+    },
+    "p2_structure_margin_time_shuffled": {
+      "higher_means_more_target_like": true,
+      "negative_control_only": true,
+      "primary": false,
+      "source": "deterministic_within_partition_score_permutation"
+    }
   },
   "semantic_limits": {
     "action_recommendation_claim": false,
@@ -125,7 +173,7 @@
     "real_world_generalization_claim": false,
     "true_irreversibility_claim": false
   },
-  "status": "implemented_formal_synthetic_audit_with_applicability_aware_support",
+  "status": "draft_formal_synthetic_audit_contract_with_applicability_aware_support",
   "storage": {
     "ablation_file": "ablation_comparison.json",
     "atomic_write_required": true,
@@ -158,7 +206,9 @@
   "targets": {
     "divergence": {
       "component_composition": "identity",
-      "component_coordinate_ids": ["p2.condition.shape.divergence"],
+      "component_coordinate_ids": [
+        "p2.condition.shape.divergence"
+      ],
       "minimum_horizon": 1,
       "p1_candidate_field": "divergence",
       "rf10_applicability_field": null,
@@ -167,7 +217,10 @@
     },
     "fixation": {
       "component_composition": "minimum",
-      "component_coordinate_ids": ["p2.condition.shape.convergence", "p2.condition.recovery.weakening"],
+      "component_coordinate_ids": [
+        "p2.condition.shape.convergence",
+        "p2.condition.recovery.weakening"
+      ],
       "minimum_horizon": 1,
       "p1_candidate_field": "fixation",
       "rf10_applicability_field": null,
@@ -176,7 +229,9 @@
     },
     "overconvergence": {
       "component_composition": "identity",
-      "component_coordinate_ids": ["p2.condition.shape.convergence"],
+      "component_coordinate_ids": [
+        "p2.condition.shape.convergence"
+      ],
       "minimum_horizon": 1,
       "p1_candidate_field": "overconvergence",
       "rf10_applicability_field": null,
@@ -185,7 +240,9 @@
     },
     "recovery_margin_reduction": {
       "component_composition": "identity",
-      "component_coordinate_ids": ["p2.condition.recovery.weakening"],
+      "component_coordinate_ids": [
+        "p2.condition.recovery.weakening"
+      ],
       "minimum_horizon": 2,
       "p1_candidate_field": "recovery_margin_reduction",
       "rf10_applicability_field": "future_recovery_failure_applicable",

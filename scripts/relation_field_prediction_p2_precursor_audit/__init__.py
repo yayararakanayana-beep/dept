@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .audit import build_precursor_audit
+from .audit_v1_1 import build_precursor_audit
 from .common import (
     RelationFieldPredictionP2PrecursorAuditError,
     load_contract as _load_contract,
