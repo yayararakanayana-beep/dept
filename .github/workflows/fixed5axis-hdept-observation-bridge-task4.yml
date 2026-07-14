@@ -1,0 +1,67 @@
+name: Fixed5Axis H-DEPT Observation Bridge Task4
+
+on:
+  pull_request:
+    paths:
+      - 'configs/fixed5axis_hdept_task4_scientific_validation_rc1.json'
+      - 'scripts/fixed5axis_hdept_observation_bridge_task4_rc1.py'
+      - 'scripts/fixed5axis_hdept_bridge_task4/**'
+      - 'tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py'
+      - 'docs/fixed5axis_hdept_observation_bridge_rc1/TASK4_SCIENTIFIC_VALIDATION_AND_CALIBRATION.md'
+      - 'artifacts/fixed5axis_hdept_task4_rc1/**'
+      - '.github/workflows/fixed5axis-hdept-observation-bridge-task4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  task4-scientific-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Parse and compile Task 4
+        run: |
+          python -m json.tool configs/fixed5axis_hdept_task4_scientific_validation_rc1.json >/dev/null
+          python -m py_compile \
+            scripts/fixed5axis_hdept_observation_bridge_task4_rc1.py \
+            scripts/fixed5axis_hdept_bridge_task4/*.py \
+            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py
+      - name: Generate calibration and scientific-validation bundle
+        run: |
+          PYTHONPATH=scripts python -m fixed5axis_hdept_bridge_task4 \
+            --output-dir results/fixed5axis_hdept_task4_rc1
+      - name: Run Task 4 tests
+        env:
+          TASK4_GENERATED_BUNDLE: results/fixed5axis_hdept_task4_rc1
+        run: |
+          PYTHONPATH=scripts python -m pytest -q \
+            tests/test_fixed5axis_hdept_task4_scientific_validation_rc1.py
+      - name: Run Task 2 and Task 3 regressions
+        run: |
+          PYTHONPATH=scripts python -m pytest -q \
+            tests/test_fixed5axis_hdept_observation_bridge_rc1.py \
+            tests/test_fixed5axis_hdept_observation_bridge_validator_rc1.py
+      - name: Display freeze decision
+        if: always()
+        run: |
+          if [ -f results/fixed5axis_hdept_task4_rc1/task4_freeze_decision.json ]; then
+            cat results/fixed5axis_hdept_task4_rc1/task4_freeze_decision.json
+          fi
+      - name: Upload Task 4 bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed5axis-hdept-task4-rc1
+          path: results/fixed5axis_hdept_task4_rc1
+          if-no-files-found: error
+          retention-days: 14
